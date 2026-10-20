@@ -77,6 +77,12 @@ dependencies {
   testImplementation(libs.kotlinx.coroutines.test)
   testImplementation("org.json:json:20240303")
 
+  // MediaPipe Tasks GenAI for on-device Gemma inference (legacy fallback)
+  implementation("com.google.mediapipe:tasks-genai:0.10.27")
+
+  // Google AI Edge LiteRT-LM for next-gen on-device LLM inference
+  implementation(libs.litertlm.android)
+
   // Instrumented tests: jUnit rules and runners
   androidTestImplementation(libs.androidx.test.core)
   androidTestImplementation(libs.androidx.test.ext.junit)
