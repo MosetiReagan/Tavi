@@ -7,7 +7,10 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.provider.CalendarContract
 import androidx.core.content.ContextCompat
+import com.example.tavi.model.ToolCategory
+import com.example.tavi.model.ToolExecutionState
 import com.example.tavi.model.ToolResult
+import com.example.tavi.model.ToolRiskLevel
 import com.example.tavi.security.SecurityGuard
 import com.example.tavi.tools.AssistantTool
 import org.json.JSONArray
@@ -16,6 +19,8 @@ import java.util.TimeZone
 
 class CalendarListEventsTool : AssistantTool {
     override val name: String = "calendar_list_events"
+    override val category: ToolCategory = ToolCategory.CALENDAR
+    override val riskLevel: ToolRiskLevel = ToolRiskLevel.LOW
     override val description: String = "Lists or searches upcoming calendar events within an optional date range or query."
     override val parametersSchema: String = """
         {
@@ -41,6 +46,8 @@ class CalendarListEventsTool : AssistantTool {
                 toolName = name,
                 resultJson = "{}",
                 isSuccess = false,
+                state = ToolExecutionState.PERMISSION_REQUIRED,
+                requiredPermission = Manifest.permission.READ_CALENDAR,
                 errorMessage = "Calendar permission (READ_CALENDAR) is not granted. Please enable it in Settings or grant the permission prompt."
             )
         }
@@ -118,7 +125,8 @@ class CalendarListEventsTool : AssistantTool {
                 toolCallId = toolCallId,
                 toolName = name,
                 resultJson = summaryObj.toString(),
-                isSuccess = true
+                isSuccess = true,
+                state = ToolExecutionState.SUCCESS
             )
         } catch (e: Exception) {
             return ToolResult(
@@ -126,7 +134,121 @@ class CalendarListEventsTool : AssistantTool {
                 toolName = name,
                 resultJson = "{}",
                 isSuccess = false,
+                state = ToolExecutionState.ERROR,
                 errorMessage = "Failed to query calendar: ${e.message}"
+            )
+        }
+    }
+}
+
+class CalendarGetEventTool : AssistantTool {
+    override val name: String = "calendar_get_event"
+    override val category: ToolCategory = ToolCategory.CALENDAR
+    override val riskLevel: ToolRiskLevel = ToolRiskLevel.LOW
+    override val description: String = "Inspects details of a single calendar event by eventId."
+    override val parametersSchema: String = """
+        {
+          "type": "object",
+          "properties": {
+            "eventId": {"type": "integer", "description": "The unique event ID"}
+          },
+          "required": ["eventId"]
+        }
+    """.trimIndent()
+    override val requiredPermissions: List<String> = listOf(Manifest.permission.READ_CALENDAR)
+    override val requiresConfirmation: Boolean = false
+
+    override suspend fun execute(
+        toolCallId: String,
+        arguments: Map<String, Any?>,
+        context: Context
+    ): ToolResult {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED) {
+            return ToolResult(
+                toolCallId = toolCallId,
+                toolName = name,
+                resultJson = "{}",
+                isSuccess = false,
+                state = ToolExecutionState.PERMISSION_REQUIRED,
+                requiredPermission = Manifest.permission.READ_CALENDAR,
+                errorMessage = "Calendar permission (READ_CALENDAR) is not granted."
+            )
+        }
+
+        val eventId = arguments["eventId"]?.toString()?.toLongOrNull()
+            ?: return ToolResult(
+                toolCallId = toolCallId,
+                toolName = name,
+                resultJson = "{}",
+                isSuccess = false,
+                state = ToolExecutionState.ERROR,
+                errorMessage = "Missing or invalid 'eventId' argument."
+            )
+
+        val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId)
+        val projection = arrayOf(
+            CalendarContract.Events._ID,
+            CalendarContract.Events.TITLE,
+            CalendarContract.Events.DTSTART,
+            CalendarContract.Events.DTEND,
+            CalendarContract.Events.EVENT_LOCATION,
+            CalendarContract.Events.DESCRIPTION,
+            CalendarContract.Events.ALL_DAY
+        )
+
+        return try {
+            val cursor = context.contentResolver.query(uri, projection, null, null, null)
+            cursor?.use { c ->
+                if (c.moveToFirst()) {
+                    val title = c.getString(c.getColumnIndexOrThrow(CalendarContract.Events.TITLE)) ?: "(No title)"
+                    val start = c.getLong(c.getColumnIndexOrThrow(CalendarContract.Events.DTSTART))
+                    val end = c.getLong(c.getColumnIndexOrThrow(CalendarContract.Events.DTEND))
+                    val loc = c.getString(c.getColumnIndexOrThrow(CalendarContract.Events.EVENT_LOCATION)) ?: ""
+                    val desc = c.getString(c.getColumnIndexOrThrow(CalendarContract.Events.DESCRIPTION)) ?: ""
+                    val allDay = c.getInt(c.getColumnIndexOrThrow(CalendarContract.Events.ALL_DAY)) == 1
+
+                    val obj = JSONObject().apply {
+                        put("eventId", eventId)
+                        put("title", title)
+                        put("startTime", CalendarNaturalDateResolver.formatDateTime(start))
+                        put("endTime", CalendarNaturalDateResolver.formatDateTime(end))
+                        put("location", loc)
+                        put("description", desc)
+                        put("allDay", allDay)
+                    }
+                    ToolResult(
+                        toolCallId = toolCallId,
+                        toolName = name,
+                        resultJson = obj.toString(),
+                        isSuccess = true,
+                        state = ToolExecutionState.SUCCESS
+                    )
+                } else {
+                    ToolResult(
+                        toolCallId = toolCallId,
+                        toolName = name,
+                        resultJson = "{}",
+                        isSuccess = false,
+                        state = ToolExecutionState.NOT_FOUND,
+                        errorMessage = "Event with ID $eventId was not found."
+                    )
+                }
+            } ?: ToolResult(
+                toolCallId = toolCallId,
+                toolName = name,
+                resultJson = "{}",
+                isSuccess = false,
+                state = ToolExecutionState.NOT_FOUND,
+                errorMessage = "Event with ID $eventId was not found."
+            )
+        } catch (e: Exception) {
+            ToolResult(
+                toolCallId = toolCallId,
+                toolName = name,
+                resultJson = "{}",
+                isSuccess = false,
+                state = ToolExecutionState.ERROR,
+                errorMessage = "Failed to inspect event: ${e.message}"
             )
         }
     }
@@ -134,7 +256,9 @@ class CalendarListEventsTool : AssistantTool {
 
 class CalendarCreateEventTool : AssistantTool {
     override val name: String = "calendar_create_event"
-    override val description: String = "Creates a new calendar event with natural date/time resolution."
+    override val category: ToolCategory = ToolCategory.CALENDAR
+    override val riskLevel: ToolRiskLevel = ToolRiskLevel.MEDIUM
+    override val description: String = "Creates a new calendar event with natural date/time resolution and conflict detection."
     override val parametersSchema: String = """
         {
           "type": "object",
@@ -162,6 +286,8 @@ class CalendarCreateEventTool : AssistantTool {
                 toolName = name,
                 resultJson = "{}",
                 isSuccess = false,
+                state = ToolExecutionState.PERMISSION_REQUIRED,
+                requiredPermission = Manifest.permission.WRITE_CALENDAR,
                 errorMessage = "Calendar permission (WRITE_CALENDAR) is not granted."
             )
         }
@@ -178,6 +304,7 @@ class CalendarCreateEventTool : AssistantTool {
                 toolName = name,
                 resultJson = "{}",
                 isSuccess = false,
+                state = ToolExecutionState.ERROR,
                 errorMessage = "Cannot create event without a title. Please specify what the event is called."
             )
         }
@@ -188,6 +315,7 @@ class CalendarCreateEventTool : AssistantTool {
                 toolName = name,
                 resultJson = "{}",
                 isSuccess = false,
+                state = ToolExecutionState.ERROR,
                 errorMessage = "Cannot create event without a start time. Please provide when it begins (e.g. 'tomorrow at 2pm')."
             )
         }
@@ -198,6 +326,7 @@ class CalendarCreateEventTool : AssistantTool {
                 toolName = name,
                 resultJson = "{}",
                 isSuccess = false,
+                state = ToolExecutionState.ERROR,
                 errorMessage = "Could not resolve the date/time '$startRaw'. Please clarify with a format like 'tomorrow at 3pm' or 'YYYY-MM-DD HH:MM'."
             )
 
@@ -206,6 +335,9 @@ class CalendarCreateEventTool : AssistantTool {
         } else {
             startMillis + 3600 * 1000L // Default 1 hour duration
         }
+
+        // Check for conflicts within this window
+        val conflicts = findConflictingEvents(context, startMillis, endMillis)
 
         // Get primary calendar ID
         val calId = getPrimaryCalendarId(context) ?: 1L
@@ -233,12 +365,19 @@ class CalendarCreateEventTool : AssistantTool {
                     put("endTime", CalendarNaturalDateResolver.formatDateTime(endMillis))
                     put("location", location)
                     put("status", "CREATED_AND_VERIFIED")
+                    if (conflicts.isNotEmpty()) {
+                        put("hasConflicts", true)
+                        put("conflicts", JSONArray(conflicts))
+                    } else {
+                        put("hasConflicts", false)
+                    }
                 }
                 return ToolResult(
                     toolCallId = toolCallId,
                     toolName = name,
                     resultJson = resultObj.toString(),
-                    isSuccess = true
+                    isSuccess = true,
+                    state = ToolExecutionState.SUCCESS
                 )
             } else {
                 return ToolResult(
@@ -246,6 +385,7 @@ class CalendarCreateEventTool : AssistantTool {
                     toolName = name,
                     resultJson = "{}",
                     isSuccess = false,
+                    state = ToolExecutionState.ERROR,
                     errorMessage = "Calendar provider returned null URI. Failed to persist event."
                 )
             }
@@ -255,9 +395,31 @@ class CalendarCreateEventTool : AssistantTool {
                 toolName = name,
                 resultJson = "{}",
                 isSuccess = false,
+                state = ToolExecutionState.ERROR,
                 errorMessage = "Error inserting calendar event: ${e.message}"
             )
         }
+    }
+
+    private fun findConflictingEvents(context: Context, start: Long, end: Long): List<String> {
+        val list = mutableListOf<String>()
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED) {
+            return list
+        }
+        val builder = CalendarContract.Instances.CONTENT_URI.buildUpon()
+        ContentUris.appendId(builder, start)
+        ContentUris.appendId(builder, end)
+        val projection = arrayOf(CalendarContract.Instances.TITLE, CalendarContract.Instances.BEGIN)
+        try {
+            context.contentResolver.query(builder.build(), projection, null, null, null)?.use { c ->
+                val titleIdx = c.getColumnIndex(CalendarContract.Instances.TITLE)
+                while (c.moveToNext()) {
+                    val t = if (titleIdx >= 0) c.getString(titleIdx) ?: "Event" else "Event"
+                    list.add(t)
+                }
+            }
+        } catch (_: Exception) {}
+        return list
     }
 
     private fun getPrimaryCalendarId(context: Context): Long? {
@@ -289,8 +451,120 @@ class CalendarCreateEventTool : AssistantTool {
     }
 }
 
+class CalendarUpdateEventTool : AssistantTool {
+    override val name: String = "calendar_update_event"
+    override val category: ToolCategory = ToolCategory.CALENDAR
+    override val riskLevel: ToolRiskLevel = ToolRiskLevel.MEDIUM
+    override val description: String = "Updates an existing calendar event title, time, or location."
+    override val parametersSchema: String = """
+        {
+          "type": "object",
+          "properties": {
+            "eventId": {"type": "integer", "description": "The ID of the event to modify"},
+            "title": {"type": "string", "description": "New title (optional)"},
+            "startTime": {"type": "string", "description": "New start time (optional)"},
+            "location": {"type": "string", "description": "New location (optional)"}
+          },
+          "required": ["eventId"]
+        }
+    """.trimIndent()
+    override val requiredPermissions: List<String> = listOf(Manifest.permission.WRITE_CALENDAR)
+    override val requiresConfirmation: Boolean = false
+
+    override suspend fun execute(
+        toolCallId: String,
+        arguments: Map<String, Any?>,
+        context: Context
+    ): ToolResult {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_CALENDAR) != PackageManager.PERMISSION_GRANTED) {
+            return ToolResult(
+                toolCallId = toolCallId,
+                toolName = name,
+                resultJson = "{}",
+                isSuccess = false,
+                state = ToolExecutionState.PERMISSION_REQUIRED,
+                requiredPermission = Manifest.permission.WRITE_CALENDAR,
+                errorMessage = "Calendar permission (WRITE_CALENDAR) is not granted."
+            )
+        }
+
+        val eventId = arguments["eventId"]?.toString()?.toLongOrNull()
+            ?: return ToolResult(
+                toolCallId = toolCallId,
+                toolName = name,
+                resultJson = "{}",
+                isSuccess = false,
+                state = ToolExecutionState.ERROR,
+                errorMessage = "Missing or invalid 'eventId' argument."
+            )
+
+        val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId)
+        val values = ContentValues()
+
+        arguments["title"]?.toString()?.trim()?.let { if (it.isNotEmpty()) values.put(CalendarContract.Events.TITLE, it) }
+        arguments["location"]?.toString()?.trim()?.let { values.put(CalendarContract.Events.EVENT_LOCATION, it) }
+
+        arguments["startTime"]?.toString()?.trim()?.let { startRaw ->
+            val startMillis = CalendarNaturalDateResolver.resolveToEpochMillis(startRaw)
+            if (startMillis != null) {
+                values.put(CalendarContract.Events.DTSTART, startMillis)
+                values.put(CalendarContract.Events.DTEND, startMillis + 3600 * 1000L)
+            }
+        }
+
+        if (values.size() == 0) {
+            return ToolResult(
+                toolCallId = toolCallId,
+                toolName = name,
+                resultJson = "{}",
+                isSuccess = false,
+                state = ToolExecutionState.ERROR,
+                errorMessage = "No fields to update were provided."
+            )
+        }
+
+        return try {
+            val rows = context.contentResolver.update(uri, values, null, null)
+            if (rows > 0) {
+                ToolResult(
+                    toolCallId = toolCallId,
+                    toolName = name,
+                    resultJson = JSONObject().apply {
+                        put("verified", true)
+                        put("eventId", eventId)
+                        put("updatedRows", rows)
+                        put("status", "UPDATED_AND_VERIFIED")
+                    }.toString(),
+                    isSuccess = true,
+                    state = ToolExecutionState.SUCCESS
+                )
+            } else {
+                ToolResult(
+                    toolCallId = toolCallId,
+                    toolName = name,
+                    resultJson = "{}",
+                    isSuccess = false,
+                    state = ToolExecutionState.NOT_FOUND,
+                    errorMessage = "Event with ID $eventId was not found."
+                )
+            }
+        } catch (e: Exception) {
+            ToolResult(
+                toolCallId = toolCallId,
+                toolName = name,
+                resultJson = "{}",
+                isSuccess = false,
+                state = ToolExecutionState.ERROR,
+                errorMessage = "Failed to update event: ${e.message}"
+            )
+        }
+    }
+}
+
 class CalendarDeleteEventTool : AssistantTool {
     override val name: String = "calendar_delete_event"
+    override val category: ToolCategory = ToolCategory.CALENDAR
+    override val riskLevel: ToolRiskLevel = ToolRiskLevel.HIGH_CONSEQUENTIAL
     override val description: String = "Deletes a calendar event by its event ID. This is a consequential action that requires user confirmation."
     override val parametersSchema: String = """
         {
@@ -316,6 +590,8 @@ class CalendarDeleteEventTool : AssistantTool {
                 toolName = name,
                 resultJson = "{}",
                 isSuccess = false,
+                state = ToolExecutionState.PERMISSION_REQUIRED,
+                requiredPermission = Manifest.permission.WRITE_CALENDAR,
                 errorMessage = "Calendar permission (WRITE_CALENDAR) is not granted."
             )
         }
@@ -326,6 +602,7 @@ class CalendarDeleteEventTool : AssistantTool {
                 toolName = name,
                 resultJson = "{}",
                 isSuccess = false,
+                state = ToolExecutionState.ERROR,
                 errorMessage = "Invalid or missing 'eventId' argument."
             )
 
@@ -340,6 +617,7 @@ class CalendarDeleteEventTool : AssistantTool {
                 isSuccess = false,
                 requiresUserConfirmation = true,
                 confirmationPayload = confReq,
+                state = ToolExecutionState.USER_ACTION_REQUIRED,
                 errorMessage = "Confirmation required before deleting calendar event."
             )
         }
@@ -358,7 +636,8 @@ class CalendarDeleteEventTool : AssistantTool {
                     toolCallId = toolCallId,
                     toolName = name,
                     resultJson = resultObj.toString(),
-                    isSuccess = true
+                    isSuccess = true,
+                    state = ToolExecutionState.SUCCESS
                 )
             } else {
                 return ToolResult(
@@ -366,6 +645,7 @@ class CalendarDeleteEventTool : AssistantTool {
                     toolName = name,
                     resultJson = "{}",
                     isSuccess = false,
+                    state = ToolExecutionState.NOT_FOUND,
                     errorMessage = "Event with ID $eventId was not found or could not be deleted."
                 )
             }
@@ -375,6 +655,7 @@ class CalendarDeleteEventTool : AssistantTool {
                 toolName = name,
                 resultJson = "{}",
                 isSuccess = false,
+                state = ToolExecutionState.ERROR,
                 errorMessage = "Failed to delete calendar event: ${e.message}"
             )
         }
