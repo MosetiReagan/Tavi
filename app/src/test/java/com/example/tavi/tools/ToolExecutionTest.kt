@@ -2,9 +2,12 @@ package com.example.tavi.tools
 
 import android.content.Context
 import android.content.ContextWrapper
+import com.example.tavi.tools.calendar.CalendarDeleteEventTool
+import com.example.tavi.tools.contacts.ContactsSearchTool
 import com.example.tavi.tools.everyday.CalculatorTool
 import com.example.tavi.tools.everyday.DateCalculationTool
 import com.example.tavi.tools.messages.MessagesDraftTool
+import com.example.tavi.tools.messages.MessagesSendTool
 import kotlinx.coroutines.test.runTest
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -69,5 +72,53 @@ class ToolExecutionTest {
         assertEquals("DRAFT_CREATED", json.getString("status"))
         assertEquals("Sarah", json.getString("recipient"))
         assertEquals("See you soon", json.getString("body"))
+    }
+
+    @Test
+    fun testCalendarDeleteRequiresConfirmation() = runTest {
+        val deleteTool = CalendarDeleteEventTool()
+
+        // Unconfirmed call must halt and return requiresUserConfirmation = true
+        val unconfirmedRes = deleteTool.execute(
+            "del-1",
+            mapOf("eventId" to "42"),
+            dummyContext
+        )
+        assertFalse(unconfirmedRes.isSuccess)
+        assertTrue(unconfirmedRes.requiresUserConfirmation)
+        assertEquals("calendar_delete_event", unconfirmedRes.confirmationPayload?.toolName)
+    }
+
+    @Test
+    fun testMessagesSendRequiresConfirmation() = runTest {
+        val sendTool = MessagesSendTool()
+
+        // Unconfirmed call must halt and return requiresUserConfirmation = true
+        val unconfirmedRes = sendTool.execute(
+            "sms-1",
+            mapOf("recipient" to "+15550199", "body" to "Confidential code 1234"),
+            dummyContext
+        )
+        assertFalse(unconfirmedRes.isSuccess)
+        assertTrue(unconfirmedRes.requiresUserConfirmation)
+        assertEquals("messages_send_sms", unconfirmedRes.confirmationPayload?.toolName)
+    }
+
+    @Test
+    fun testContactsSearchTool() = runTest {
+        val contactsTool = ContactsSearchTool()
+        assertEquals("contacts_search", contactsTool.name)
+        assertFalse(contactsTool.requiresConfirmation)
+        assertTrue(contactsTool.requiredPermissions.contains("android.permission.READ_CONTACTS"))
+
+        val res = contactsTool.execute(
+            "cont-1",
+            mapOf("name" to "Dennis"),
+            dummyContext
+        )
+        assertTrue(res.isSuccess)
+        val json = JSONObject(res.resultJson)
+        assertEquals("Dennis", json.getString("query"))
+        assertEquals(0, json.getInt("count"))
     }
 }
