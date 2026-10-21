@@ -3,7 +3,10 @@ package com.example.tavi.tools.browser
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import com.example.tavi.model.ToolCategory
+import com.example.tavi.model.ToolExecutionState
 import com.example.tavi.model.ToolResult
+import com.example.tavi.model.ToolRiskLevel
 import com.example.tavi.security.SecurityGuard
 import com.example.tavi.tools.AssistantTool
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +21,8 @@ import java.util.regex.Pattern
 
 class BrowserResearchTool : AssistantTool {
     override val name: String = "browser_research_topic"
+    override val category: ToolCategory = ToolCategory.RESEARCH
+    override val riskLevel: ToolRiskLevel = ToolRiskLevel.LOW
     override val description: String = "Reads accessible web page content, extracts relevant text, and supports multi-step research. Halts if login or CAPTCHA is encountered."
     override val parametersSchema: String = """
         {
@@ -166,6 +171,8 @@ class BrowserResearchTool : AssistantTool {
 
 class BrowserOpenPageTool : AssistantTool {
     override val name: String = "browser_open_page"
+    override val category: ToolCategory = ToolCategory.RESEARCH
+    override val riskLevel: ToolRiskLevel = ToolRiskLevel.LOW
     override val description: String = "Opens an accessible URL in the device browser so the user can interact directly."
     override val parametersSchema: String = """
         {

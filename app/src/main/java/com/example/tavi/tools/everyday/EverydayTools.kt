@@ -5,15 +5,23 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.example.tavi.MainActivity
 import com.example.tavi.data.TaviDatabase
+import com.example.tavi.model.SpecialAccessType
+import com.example.tavi.model.ToolCategory
+import com.example.tavi.model.ToolExecutionState
 import com.example.tavi.model.ToolResult
+import com.example.tavi.model.ToolRiskLevel
+import com.example.tavi.security.SecurityGuard
 import com.example.tavi.tools.AssistantTool
 import com.example.tavi.tools.calendar.CalendarNaturalDateResolver
+import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Calendar
 import java.util.Date
@@ -25,6 +33,8 @@ import kotlin.math.sqrt
 
 class CalculatorTool : AssistantTool {
     override val name: String = "calculator"
+    override val category: ToolCategory = ToolCategory.NOTES
+    override val riskLevel: ToolRiskLevel = ToolRiskLevel.LOW
     override val description: String = "Evaluates deterministic mathematical expressions (e.g., '145 * 12', 'sqrt(144) + 2^4'). Safe and local."
     override val parametersSchema: String = """
         {
@@ -50,6 +60,7 @@ class CalculatorTool : AssistantTool {
                 toolName = name,
                 resultJson = "{}",
                 isSuccess = false,
+                state = ToolExecutionState.ERROR,
                 errorMessage = "Expression cannot be empty."
             )
         }
@@ -65,7 +76,8 @@ class CalculatorTool : AssistantTool {
                 toolCallId = toolCallId,
                 toolName = name,
                 resultJson = resultObj.toString(),
-                isSuccess = true
+                isSuccess = true,
+                state = ToolExecutionState.SUCCESS
             )
         } catch (e: Exception) {
             ToolResult(
@@ -73,14 +85,12 @@ class CalculatorTool : AssistantTool {
                 toolName = name,
                 resultJson = "{}",
                 isSuccess = false,
+                state = ToolExecutionState.ERROR,
                 errorMessage = "Calculation error: ${e.message}"
             )
         }
     }
 
-    /**
-     * Deterministic, safe expression evaluator supporting +, -, *, /, ^, %, sqrt, parentheses.
-     */
     private fun evaluate(str: String): Double {
         var pos = -1
         var ch = 0
@@ -168,6 +178,8 @@ class CalculatorTool : AssistantTool {
 
 class DateCalculationTool : AssistantTool {
     override val name: String = "date_calculation"
+    override val category: ToolCategory = ToolCategory.CLOCK
+    override val riskLevel: ToolRiskLevel = ToolRiskLevel.LOW
     override val description: String = "Performs deterministic date math (e.g., days until a future date, adding days/weeks, timezone offset)."
     override val parametersSchema: String = """
         {
@@ -259,7 +271,8 @@ class DateCalculationTool : AssistantTool {
                 toolCallId = toolCallId,
                 toolName = name,
                 resultJson = resultObj.toString(),
-                isSuccess = true
+                isSuccess = true,
+                state = ToolExecutionState.SUCCESS
             )
         } catch (e: Exception) {
             ToolResult(
@@ -267,6 +280,7 @@ class DateCalculationTool : AssistantTool {
                 toolName = name,
                 resultJson = "{}",
                 isSuccess = false,
+                state = ToolExecutionState.ERROR,
                 errorMessage = "Date computation failed: ${e.message}"
             )
         }
@@ -309,7 +323,10 @@ class ReminderReceiver : BroadcastReceiver() {
 
 class ReminderCreateTool : AssistantTool {
     override val name: String = "reminder_create"
-    override val description: String = "Schedules a real Android system reminder notification at a designated natural time."
+    override val category: ToolCategory = ToolCategory.CLOCK
+    override val riskLevel: ToolRiskLevel = ToolRiskLevel.MEDIUM
+    override val specialAccessType: SpecialAccessType = SpecialAccessType.EXACT_ALARM
+    override val description: String = "Schedules an Android system reminder notification at a designated natural time."
     override val parametersSchema: String = """
         {
           "type": "object",
@@ -337,6 +354,7 @@ class ReminderCreateTool : AssistantTool {
                 toolName = name,
                 resultJson = "{}",
                 isSuccess = false,
+                state = ToolExecutionState.ERROR,
                 errorMessage = "Both 'title' and 'time' are required."
             )
         }
@@ -347,6 +365,7 @@ class ReminderCreateTool : AssistantTool {
                 toolName = name,
                 resultJson = "{}",
                 isSuccess = false,
+                state = ToolExecutionState.ERROR,
                 errorMessage = "Could not resolve time: '$timeRaw'."
             )
 
@@ -356,6 +375,7 @@ class ReminderCreateTool : AssistantTool {
                 toolName = name,
                 resultJson = "{}",
                 isSuccess = false,
+                state = ToolExecutionState.ERROR,
                 errorMessage = "Reminder time must be in the future."
             )
         }
@@ -373,7 +393,12 @@ class ReminderCreateTool : AssistantTool {
         )
 
         try {
-            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+                // If exact alarm permission not granted, schedule inexact window
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
+            } else {
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
+            }
 
             val resultObj = JSONObject().apply {
                 put("verified", true)
@@ -387,7 +412,8 @@ class ReminderCreateTool : AssistantTool {
                 toolCallId = toolCallId,
                 toolName = name,
                 resultJson = resultObj.toString(),
-                isSuccess = true
+                isSuccess = true,
+                state = ToolExecutionState.SUCCESS
             )
         } catch (e: Exception) {
             return ToolResult(
@@ -395,6 +421,7 @@ class ReminderCreateTool : AssistantTool {
                 toolName = name,
                 resultJson = "{}",
                 isSuccess = false,
+                state = ToolExecutionState.ERROR,
                 errorMessage = "Failed to schedule reminder alarm: ${e.message}"
             )
         }
@@ -403,6 +430,8 @@ class ReminderCreateTool : AssistantTool {
 
 class NoteCreateTool : AssistantTool {
     override val name: String = "note_create"
+    override val category: ToolCategory = ToolCategory.NOTES
+    override val riskLevel: ToolRiskLevel = ToolRiskLevel.MEDIUM
     override val description: String = "Creates a persistent local note."
     override val parametersSchema: String = """
         {
@@ -431,6 +460,7 @@ class NoteCreateTool : AssistantTool {
                 toolName = name,
                 resultJson = "{}",
                 isSuccess = false,
+                state = ToolExecutionState.ERROR,
                 errorMessage = "Both 'title' and 'content' are required to save a note."
             )
         }
@@ -441,6 +471,7 @@ class NoteCreateTool : AssistantTool {
         val resultObj = JSONObject().apply {
             put("verified", true)
             put("id", noteId)
+            put("noteId", noteId)
             put("title", title)
             put("content", content)
             put("status", "NOTE_SAVED")
@@ -450,7 +481,238 @@ class NoteCreateTool : AssistantTool {
             toolCallId = toolCallId,
             toolName = name,
             resultJson = resultObj.toString(),
-            isSuccess = true
+            isSuccess = true,
+            state = ToolExecutionState.SUCCESS
         )
+    }
+}
+
+class NotesListTool : AssistantTool {
+    override val name: String = "notes_list"
+    override val category: ToolCategory = ToolCategory.NOTES
+    override val riskLevel: ToolRiskLevel = ToolRiskLevel.LOW
+    override val description: String = "Lists or searches locally saved notes."
+    override val parametersSchema: String = """
+        {
+          "type": "object",
+          "properties": {
+            "query": {"type": "string", "description": "Optional search term to filter note titles or bodies"}
+          }
+        }
+    """.trimIndent()
+    override val requiredPermissions: List<String> = emptyList()
+    override val requiresConfirmation: Boolean = false
+
+    override suspend fun execute(
+        toolCallId: String,
+        arguments: Map<String, Any?>,
+        context: Context
+    ): ToolResult {
+        val query = arguments["query"]?.toString()?.trim()
+        val db = TaviDatabase.getInstance(context)
+        val notes = if (!query.isNullOrEmpty()) db.searchNotes(query) else db.getAllNotes()
+
+        val notesArray = JSONArray()
+        for (n in notes) {
+            notesArray.put(JSONObject().apply {
+                put("id", n["id"])
+                put("title", n["title"])
+                put("content", n["content"])
+                put("timestamp", n["timestamp"])
+            })
+        }
+
+        return ToolResult(
+            toolCallId = toolCallId,
+            toolName = name,
+            resultJson = JSONObject().apply {
+                put("count", notes.size)
+                put("notes", notesArray)
+            }.toString(),
+            isSuccess = true,
+            state = ToolExecutionState.SUCCESS
+        )
+    }
+}
+
+class NoteDeleteTool : AssistantTool {
+    override val name: String = "note_delete"
+    override val category: ToolCategory = ToolCategory.NOTES
+    override val riskLevel: ToolRiskLevel = ToolRiskLevel.HIGH_CONSEQUENTIAL
+    override val description: String = "Deletes a saved note by ID. Consequential action requiring confirmation."
+    override val parametersSchema: String = """
+        {
+          "type": "object",
+          "properties": {
+            "id": {"type": "string", "description": "The unique note ID to delete"}
+          },
+          "required": ["id"]
+        }
+    """.trimIndent()
+    override val requiredPermissions: List<String> = emptyList()
+    override val requiresConfirmation: Boolean = true
+
+    override suspend fun execute(
+        toolCallId: String,
+        arguments: Map<String, Any?>,
+        context: Context
+    ): ToolResult {
+        val noteId = arguments["id"]?.toString()?.trim()
+        if (noteId.isNullOrEmpty()) {
+            return ToolResult(
+                toolCallId = toolCallId,
+                toolName = name,
+                resultJson = "{}",
+                isSuccess = false,
+                state = ToolExecutionState.ERROR,
+                errorMessage = "Note ID is required to delete."
+            )
+        }
+
+        val isConfirmed = arguments["__user_confirmed"] == true
+        if (!isConfirmed) {
+            val confReq = SecurityGuard.createConfirmationRequest(name, mapOf("id" to noteId))
+            return ToolResult(
+                toolCallId = toolCallId,
+                toolName = name,
+                resultJson = "{}",
+                isSuccess = false,
+                requiresUserConfirmation = true,
+                confirmationPayload = confReq,
+                state = ToolExecutionState.USER_ACTION_REQUIRED,
+                errorMessage = "Confirmation required before deleting note."
+            )
+        }
+
+        val db = TaviDatabase.getInstance(context)
+        val deleted = db.deleteNote(noteId)
+        return if (deleted) {
+            ToolResult(
+                toolCallId = toolCallId,
+                toolName = name,
+                resultJson = JSONObject().apply { put("id", noteId); put("status", "DELETED") }.toString(),
+                isSuccess = true,
+                state = ToolExecutionState.SUCCESS
+            )
+        } else {
+            ToolResult(
+                toolCallId = toolCallId,
+                toolName = name,
+                resultJson = "{}",
+                isSuccess = false,
+                state = ToolExecutionState.NOT_FOUND,
+                errorMessage = "Note with ID $noteId not found."
+            )
+        }
+    }
+}
+
+class ClipboardReadTool : AssistantTool {
+    override val name: String = "clipboard_read"
+    override val category: ToolCategory = ToolCategory.NOTES
+    override val riskLevel: ToolRiskLevel = ToolRiskLevel.LOW
+    override val description: String = "Reads current text content from the Android system clipboard."
+    override val parametersSchema: String = """
+        {
+          "type": "object",
+          "properties": {}
+        }
+    """.trimIndent()
+    override val requiredPermissions: List<String> = emptyList()
+    override val requiresConfirmation: Boolean = false
+
+    override suspend fun execute(
+        toolCallId: String,
+        arguments: Map<String, Any?>,
+        context: Context
+    ): ToolResult {
+        return try {
+            val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+            val primaryClip = cm?.primaryClip
+            if (primaryClip != null && primaryClip.itemCount > 0) {
+                val rawText = primaryClip.getItemAt(0)?.text?.toString() ?: ""
+                val sanitized = SecurityGuard.sanitizeExternalContent(rawText, "Clipboard")
+                ToolResult(
+                    toolCallId = toolCallId,
+                    toolName = name,
+                    resultJson = JSONObject().apply {
+                        put("hasContent", rawText.isNotEmpty())
+                        put("text", sanitized)
+                    }.toString(),
+                    isSuccess = true,
+                    state = ToolExecutionState.SUCCESS
+                )
+            } else {
+                ToolResult(
+                    toolCallId = toolCallId,
+                    toolName = name,
+                    resultJson = JSONObject().apply {
+                        put("hasContent", false)
+                        put("text", "")
+                    }.toString(),
+                    isSuccess = true,
+                    state = ToolExecutionState.SUCCESS
+                )
+            }
+        } catch (e: Exception) {
+            ToolResult(
+                toolCallId = toolCallId,
+                toolName = name,
+                resultJson = "{}",
+                isSuccess = false,
+                state = ToolExecutionState.ERROR,
+                errorMessage = "Failed to access clipboard: ${e.message}"
+            )
+        }
+    }
+}
+
+class ClipboardCopyTool : AssistantTool {
+    override val name: String = "clipboard_copy"
+    override val category: ToolCategory = ToolCategory.NOTES
+    override val riskLevel: ToolRiskLevel = ToolRiskLevel.LOW
+    override val description: String = "Copies text to the Android system clipboard."
+    override val parametersSchema: String = """
+        {
+          "type": "object",
+          "properties": {
+            "text": {"type": "string", "description": "Text to copy to clipboard"}
+          },
+          "required": ["text"]
+        }
+    """.trimIndent()
+    override val requiredPermissions: List<String> = emptyList()
+    override val requiresConfirmation: Boolean = false
+
+    override suspend fun execute(
+        toolCallId: String,
+        arguments: Map<String, Any?>,
+        context: Context
+    ): ToolResult {
+        val text = arguments["text"]?.toString() ?: ""
+        return try {
+            val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+            val clip = ClipData.newPlainText("Tavi", text)
+            cm?.setPrimaryClip(clip)
+            ToolResult(
+                toolCallId = toolCallId,
+                toolName = name,
+                resultJson = JSONObject().apply {
+                    put("status", "COPIED_TO_CLIPBOARD")
+                    put("length", text.length)
+                }.toString(),
+                isSuccess = true,
+                state = ToolExecutionState.SUCCESS
+            )
+        } catch (e: Exception) {
+            ToolResult(
+                toolCallId = toolCallId,
+                toolName = name,
+                resultJson = "{}",
+                isSuccess = false,
+                state = ToolExecutionState.ERROR,
+                errorMessage = "Failed to copy to clipboard: ${e.message}"
+            )
+        }
     }
 }
