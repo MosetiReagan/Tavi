@@ -1,0 +1,866 @@
+{
+  "timestamp": "2026-10-26T09:18:55Z",
+  "phase": "Phase 6 \u2014 Longitudinal Personalization & Reliability",
+  "target_device": "Samsung Galaxy A14 (SM-A145F, 4GB RAM, Android 15 One UI 7)",
+  "target_model": "Gemma 3 1B IT FlatBuffer (LiteRT-LM 0.18.1)",
+  "summary": {
+    "total_longitudinal_scenarios": 112,
+    "passed_scenarios": 112,
+    "failed_scenarios": 0,
+    "longitudinal_pass_rate_pct": 100.0,
+    "preference_application_rate_pct": 100.0,
+    "decision_recall_rate_pct": 100.0,
+    "abstention_accuracy_pct": 100.0,
+    "privacy_isolation_rate_pct": 100.0,
+    "deduplication_integrity_pct": 100.0,
+    "longitudinal_qualification_verdict": "PERSONALIZATION_QUALIFIED"
+  },
+  "vector_breakdown": {
+    "App Restart & Process Recreation": {
+      "total": 8,
+      "passed": 8,
+      "pass_rate_pct": 100.0
+    },
+    "Applying Saved Preferences": {
+      "total": 10,
+      "passed": 10,
+      "pass_rate_pct": 100.0
+    },
+    "Awkward Repetition Prevention": {
+      "total": 8,
+      "passed": 8,
+      "pass_rate_pct": 100.0
+    },
+    "Decision Rationales & Task Outcomes": {
+      "total": 10,
+      "passed": 10,
+      "pass_rate_pct": 100.0
+    },
+    "Deduplication & Episodic Growth": {
+      "total": 8,
+      "passed": 8,
+      "pass_rate_pct": 100.0
+    },
+    "Honest Abstention on Missing Info": {
+      "total": 10,
+      "passed": 10,
+      "pass_rate_pct": 100.0
+    },
+    "Incomplete & Ambiguous Memories": {
+      "total": 10,
+      "passed": 10,
+      "pass_rate_pct": 100.0
+    },
+    "Irrelevant Memory Suppression": {
+      "total": 10,
+      "passed": 10,
+      "pass_rate_pct": 100.0
+    },
+    "Privacy Boundaries & Context Isolation": {
+      "total": 8,
+      "passed": 8,
+      "pass_rate_pct": 100.0
+    },
+    "Project Goals & Architecture Recall": {
+      "total": 10,
+      "passed": 10,
+      "pass_rate_pct": 100.0
+    },
+    "Revised & Superseded Facts": {
+      "total": 10,
+      "passed": 10,
+      "pass_rate_pct": 100.0
+    },
+    "Similar Entities & Disambiguation": {
+      "total": 10,
+      "passed": 10,
+      "pass_rate_pct": 100.0
+    }
+  },
+  "scenarios": [
+    {
+      "id": "LONG-001",
+      "category": "Applying Saved Preferences",
+      "name": "Coffee order applied directly to morning routine query",
+      "status": "PASS",
+      "output_sample": "Your usual order is a hot oat flat white with no sugar."
+    },
+    {
+      "id": "LONG-002",
+      "category": "Applying Saved Preferences",
+      "name": "Primary editor applied directly to code editing recommendation",
+      "status": "PASS",
+      "output_sample": "You use Neovim with Lua plugins. You can configure plugins via your config file."
+    },
+    {
+      "id": "LONG-003",
+      "category": "Applying Saved Preferences",
+      "name": "Airline seat preference applied to travel request",
+      "status": "PASS",
+      "output_sample": "I found flights to Denver. I recommend booking a window seat near the front as you prefer."
+    },
+    {
+      "id": "LONG-004",
+      "category": "Applying Saved Preferences",
+      "name": "Vegan dietary restriction applied to dinner restaurant recommendations",
+      "status": "PASS",
+      "output_sample": "Here are top-rated vegan and plant-based dinner restaurants downtown."
+    },
+    {
+      "id": "LONG-005",
+      "category": "Applying Saved Preferences",
+      "name": "Home airport applied directly to flight search without asking origin",
+      "status": "PASS",
+      "output_sample": "Searching nonstop flights from SEA (Seattle-Tacoma) to London for next month."
+    },
+    {
+      "id": "LONG-006",
+      "category": "Applying Saved Preferences",
+      "name": "Preferred theme applied to terminal configuration advice",
+      "status": "PASS",
+      "output_sample": "Your terminal theme is Catppuccin Mocha. Hex codes: Base #1e1e2e, Text #cdd6f4."
+    },
+    {
+      "id": "LONG-007",
+      "category": "Applying Saved Preferences",
+      "name": "Temperature unit preference applied without asking Celsius vs Fahrenheit",
+      "status": "PASS",
+      "output_sample": "The forecast high tomorrow in Seattle is 18\u00b0 Celsius."
+    },
+    {
+      "id": "LONG-008",
+      "category": "Applying Saved Preferences",
+      "name": "Audiobook narration speed preference applied to playback guidance",
+      "status": "PASS",
+      "output_sample": "Setting audiobook playback speed to 1.75x."
+    },
+    {
+      "id": "LONG-009",
+      "category": "Applying Saved Preferences",
+      "name": "Quiet hours preference applied to notification scheduling",
+      "status": "PASS",
+      "output_sample": "11:30 PM falls within your quiet hours (10:00 PM to 7:00 AM). Would you like to schedule it for 7:00 AM instead?"
+    },
+    {
+      "id": "LONG-010",
+      "category": "Applying Saved Preferences",
+      "name": "Git branch naming convention applied to branch creation advice",
+      "status": "PASS",
+      "output_sample": "Following your convention, name the branch: feature/reagan-proj-402-update."
+    },
+    {
+      "id": "LONG-011",
+      "category": "Project Goals & Architecture Recall",
+      "name": "Recall target runtime for Project Chimera",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 project chimera runtime: Google LiteRT-LM FlatBuffer v0.18.1"
+    },
+    {
+      "id": "LONG-012",
+      "category": "Project Goals & Architecture Recall",
+      "name": "Recall minimum Android API level constraint",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 android min api: API 26 (Android 8.0 Oreo)"
+    },
+    {
+      "id": "LONG-013",
+      "category": "Project Goals & Architecture Recall",
+      "name": "Recall project release milestone date",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 chimera milestone v1: November 15, 2026 release candidate freeze"
+    },
+    {
+      "id": "LONG-014",
+      "category": "Project Goals & Architecture Recall",
+      "name": "Recall local database engine selection",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 chimera db engine: Native Android SQLite 3.x with WAL mode"
+    },
+    {
+      "id": "LONG-015",
+      "category": "Project Goals & Architecture Recall",
+      "name": "Recall target device RAM budget constraint",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 ram budget target: 4.0 GB physical RAM on Samsung Galaxy A14"
+    },
+    {
+      "id": "LONG-016",
+      "category": "Project Goals & Architecture Recall",
+      "name": "Recall on-device model checkpoint format",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 model bundle format: Gemma 3 1B IT FlatBuffer bundle (gemma3-1b-it-int4.bin)"
+    },
+    {
+      "id": "LONG-017",
+      "category": "Project Goals & Architecture Recall",
+      "name": "Recall primary codebase repository host",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 codebase repo host: Internal GitHub Enterprise at github.internal.corp"
+    },
+    {
+      "id": "LONG-018",
+      "category": "Project Goals & Architecture Recall",
+      "name": "Recall target decode speed SLA on device",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 decode speed sla: Greater than 10.0 tokens per second on MediaTek Helio G80"
+    },
+    {
+      "id": "LONG-019",
+      "category": "Project Goals & Architecture Recall",
+      "name": "Recall native tool count in Tavi registry",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 native tools count: 51 native tools across 14 categories"
+    },
+    {
+      "id": "LONG-020",
+      "category": "Project Goals & Architecture Recall",
+      "name": "Recall offline-only zero network architectural principle",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 architecture offline rule: Zero cloud inference endpoints and 100% on-device loca"
+    },
+    {
+      "id": "LONG-021",
+      "category": "Decision Rationales & Task Outcomes",
+      "name": "Recall architectural rationale for SQLite over Room ORM",
+      "status": "PASS",
+      "output_sample": "Based on your past decision:\n\u2022 past decision (Database Selection Decision): Selected raw SQLite 3.x over Room ORM [Ratio"
+    },
+    {
+      "id": "LONG-022",
+      "category": "Decision Rationales & Task Outcomes",
+      "name": "Recall rationale for FlatBuffer over GGUF runtime",
+      "status": "PASS",
+      "output_sample": "Based on your past decision:\n\u2022 past decision (LiteRT-LM FlatBuffer Migration): Migrated runtime to LiteRT-LM FlatBuffer "
+    },
+    {
+      "id": "LONG-023",
+      "category": "Decision Rationales & Task Outcomes",
+      "name": "Recall rationale for 180-token memory budget ceiling",
+      "status": "PASS",
+      "output_sample": "Based on your past decision:\n\u2022 past decision (Memory Token Budget Allocation): Capped persistent memory context block at"
+    },
+    {
+      "id": "LONG-024",
+      "category": "Decision Rationales & Task Outcomes",
+      "name": "Recall outcome of previous SMS confirmation security test",
+      "status": "PASS",
+      "output_sample": "Based on your past decision:\n\u2022 past decision (SMS Confirmation Audit): Tested messages_send_sms with forged confirmation"
+    },
+    {
+      "id": "LONG-025",
+      "category": "Decision Rationales & Task Outcomes",
+      "name": "Recall rationale for keeping MediaPipe as rollback engine",
+      "status": "PASS",
+      "output_sample": "Based on your past decision:\n\u2022 past decision (Dual Engine Architecture): Retained MediaPipe GenAI as configurable rollba"
+    },
+    {
+      "id": "LONG-026",
+      "category": "Decision Rationales & Task Outcomes",
+      "name": "Recall rationale for SQLite WAL mode enablement",
+      "status": "PASS",
+      "output_sample": "Based on your past decision:\n\u2022 past decision (SQLite WAL Mode Configuration): Enabled Write-Ahead Logging on tavi_local."
+    },
+    {
+      "id": "LONG-027",
+      "category": "Decision Rationales & Task Outcomes",
+      "name": "Recall outcome of physical device thermal benchmark",
+      "status": "PASS",
+      "output_sample": "Based on your past decision:\n\u2022 past decision (Galaxy A14 Thermal Stability Test): Executed 30 continuous generation cycl"
+    },
+    {
+      "id": "LONG-028",
+      "category": "Decision Rationales & Task Outcomes",
+      "name": "Recall rationale for additive database migrations",
+      "status": "PASS",
+      "output_sample": "Based on your past decision:\n\u2022 past decision (Database Schema Migration Policy): Enforced strictly additive ALTER TABLE "
+    },
+    {
+      "id": "LONG-029",
+      "category": "Decision Rationales & Task Outcomes",
+      "name": "Recall outcome of memory clear-all cascade test",
+      "status": "PASS",
+      "output_sample": "Based on your past decision:\n\u2022 past decision (Memory Cascade Purge Verification): Validated clearAllMemories() across pe"
+    },
+    {
+      "id": "LONG-030",
+      "category": "Decision Rationales & Task Outcomes",
+      "name": "Recall rationale for stripping XML tags in memory prompt blocks",
+      "status": "PASS",
+      "output_sample": "Based on your past decision:\n\u2022 past decision (Prompt Injection Sanitization): Replaced angle brackets with square bracke"
+    },
+    {
+      "id": "LONG-031",
+      "category": "Revised & Superseded Facts",
+      "name": "Relocated home airport: SEA supersedes SFO",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 home airport: SEA (Seattle-Tacoma)"
+    },
+    {
+      "id": "LONG-032",
+      "category": "Revised & Superseded Facts",
+      "name": "Upgraded vehicle: Subaru Outback supersedes Honda Civic",
+      "status": "PASS",
+      "output_sample": "You drive a Subaru Outback 2024."
+    },
+    {
+      "id": "LONG-033",
+      "category": "Revised & Superseded Facts",
+      "name": "Updated coffee order: Flat white supersedes Caramel Macchiato",
+      "status": "PASS",
+      "output_sample": "Your usual order is a hot oat flat white."
+    },
+    {
+      "id": "LONG-034",
+      "category": "Revised & Superseded Facts",
+      "name": "Updated primary laptop: MacBook Pro M3 supersedes ThinkPad P16s",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 laptop: MacBook Pro M3 Max"
+    },
+    {
+      "id": "LONG-035",
+      "category": "Revised & Superseded Facts",
+      "name": "New doctor: Dr. Angela Patel supersedes Dr. Gregory House",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 doctor: Dr. Angela Patel"
+    },
+    {
+      "id": "LONG-036",
+      "category": "Revised & Superseded Facts",
+      "name": "Updated office desk location: Building C supersedes Building A",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 office desk: Building C, Floor 5, Desk 512"
+    },
+    {
+      "id": "LONG-037",
+      "category": "Revised & Superseded Facts",
+      "name": "Updated gym membership: Olympic Club supersedes 24 Hour Fitness",
+      "status": "PASS",
+      "output_sample": "Based on your saved routine: Olympic Athletic Club in Ballard."
+    },
+    {
+      "id": "LONG-038",
+      "category": "Revised & Superseded Facts",
+      "name": "Updated home WiFi SSID: PineMesh_5G supersedes PineRouter_2G",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 wifi network: PineMesh_5G"
+    },
+    {
+      "id": "LONG-039",
+      "category": "Revised & Superseded Facts",
+      "name": "Updated project lead: Marcus Vance supersedes Elena Rostova",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 project lead: Marcus Vance"
+    },
+    {
+      "id": "LONG-040",
+      "category": "Revised & Superseded Facts",
+      "name": "Updated primary code editor: Neovim supersedes VS Code",
+      "status": "PASS",
+      "output_sample": "You use Neovim with Lua. You can configure plugins via your config file."
+    },
+    {
+      "id": "LONG-041",
+      "category": "Similar Entities & Disambiguation",
+      "name": "Project Chimera (LiteRT-LM) vs Project Cerberus (Web security)",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 project cerberus: Web authentication gateway in Go"
+    },
+    {
+      "id": "LONG-042",
+      "category": "Similar Entities & Disambiguation",
+      "name": "Work email vs Personal email disambiguation",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 work email: reagan@company.org"
+    },
+    {
+      "id": "LONG-043",
+      "category": "Similar Entities & Disambiguation",
+      "name": "Dennis Ritchie (Architect) vs Dennis Miller (HR contact)",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 hr dennis: Dennis Miller - People Operations Director"
+    },
+    {
+      "id": "LONG-044",
+      "category": "Similar Entities & Disambiguation",
+      "name": "Work laptop (ThinkPad) vs Personal laptop (MacBook Air)",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 work laptop: Lenovo ThinkPad P16s running Fedora Linux"
+    },
+    {
+      "id": "LONG-045",
+      "category": "Similar Entities & Disambiguation",
+      "name": "Cat name (Mochi) vs Dog name (Rex)",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 cat name: Mochi the Siamese cat"
+    },
+    {
+      "id": "LONG-046",
+      "category": "Similar Entities & Disambiguation",
+      "name": "Upcoming Tokyo vacation vs Past Cabo vacation",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 upcoming vacation: Tokyo Japan in November"
+    },
+    {
+      "id": "LONG-047",
+      "category": "Similar Entities & Disambiguation",
+      "name": "Monday workout routine vs Tuesday workout routine",
+      "status": "PASS",
+      "output_sample": "Based on your saved routine: Legs and core (Squats, Romanian deadlifts)."
+    },
+    {
+      "id": "LONG-048",
+      "category": "Similar Entities & Disambiguation",
+      "name": "Morning hot coffee order vs Afternoon iced tea order",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 tea order: Iced unsweetened green tea with lemon"
+    },
+    {
+      "id": "LONG-049",
+      "category": "Similar Entities & Disambiguation",
+      "name": "Project Alpha (GitHub) vs Project Beta (GitLab)",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 project beta host: GitLab Self-Hosted server"
+    },
+    {
+      "id": "LONG-050",
+      "category": "Similar Entities & Disambiguation",
+      "name": "Daughter school (Lincoln High) vs Son school (Westlake)",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 son school: Westlake Elementary School"
+    },
+    {
+      "id": "LONG-051",
+      "category": "Incomplete & Ambiguous Memories",
+      "name": "Incomplete note: Only meeting attendee saved, agenda missing",
+      "status": "PASS",
+      "output_sample": "I only have a note that you met with Marcus on Thursday; no decision regarding the database was saved."
+    },
+    {
+      "id": "LONG-052",
+      "category": "Incomplete & Ambiguous Memories",
+      "name": "Incomplete flight memory: Only airline saved, confirmation code missing",
+      "status": "PASS",
+      "output_sample": "I have your flight on Alaska Airlines recorded, but no confirmation code was saved."
+    },
+    {
+      "id": "LONG-053",
+      "category": "Incomplete & Ambiguous Memories",
+      "name": "Ambiguous coffee request when order has caveats",
+      "status": "PASS",
+      "output_sample": "If oat milk is unavailable, your preference is black drip coffee."
+    },
+    {
+      "id": "LONG-054",
+      "category": "Incomplete & Ambiguous Memories",
+      "name": "Ambiguous date in memory: Next quarter without exact day",
+      "status": "PASS",
+      "output_sample": "Your security audit is scheduled for Q1 2027, but the exact date is not specified."
+    },
+    {
+      "id": "LONG-055",
+      "category": "Incomplete & Ambiguous Memories",
+      "name": "Doctor name saved without office clinic address",
+      "status": "PASS",
+      "output_sample": "I have Dr. Angela Patel saved as your doctor, but her clinic address is not saved."
+    },
+    {
+      "id": "LONG-056",
+      "category": "Incomplete & Ambiguous Memories",
+      "name": "Project tech stack saved without budget details",
+      "status": "PASS",
+      "output_sample": "I have your tech stack recorded, but the financial budget is not saved."
+    },
+    {
+      "id": "LONG-057",
+      "category": "Incomplete & Ambiguous Memories",
+      "name": "Friend birthday saved without birth year",
+      "status": "PASS",
+      "output_sample": "I know David's birthday is October 14th, but his birth year is not saved so I don't know his age."
+    },
+    {
+      "id": "LONG-058",
+      "category": "Incomplete & Ambiguous Memories",
+      "name": "Car model saved without license plate number",
+      "status": "PASS",
+      "output_sample": "I have your Subaru Outback saved, but your license plate number is not saved."
+    },
+    {
+      "id": "LONG-059",
+      "category": "Incomplete & Ambiguous Memories",
+      "name": "Hotel reservation saved without room number",
+      "status": "PASS",
+      "output_sample": "I have your Westin Seattle stay recorded, but your room number is not saved; check in with the front desk."
+    },
+    {
+      "id": "LONG-060",
+      "category": "Incomplete & Ambiguous Memories",
+      "name": "Wife anniversary saved without gift ideas",
+      "status": "PASS",
+      "output_sample": "I know your anniversary is June 18th, but I don't have a record of a specific gift."
+    },
+    {
+      "id": "LONG-061",
+      "category": "Honest Abstention on Missing Info",
+      "name": "Unsaved shoe size: Tavi refrains from guessing",
+      "status": "PASS",
+      "output_sample": "I don't know that information because it hasn't been saved in your personal memory."
+    },
+    {
+      "id": "LONG-062",
+      "category": "Honest Abstention on Missing Info",
+      "name": "Unsaved passport number: Tavi refrains from guessing",
+      "status": "PASS",
+      "output_sample": "I don't know that information because it hasn't been saved in your personal memory."
+    },
+    {
+      "id": "LONG-063",
+      "category": "Honest Abstention on Missing Info",
+      "name": "Unsaved brother name: Tavi refrains from guessing",
+      "status": "PASS",
+      "output_sample": "I don't know that information because you haven't mentioned a brother."
+    },
+    {
+      "id": "LONG-064",
+      "category": "Honest Abstention on Missing Info",
+      "name": "Unsaved bank account balance: Tavi refrains from guessing",
+      "status": "PASS",
+      "output_sample": "I don't have access to your bank accounts and that detail is not saved."
+    },
+    {
+      "id": "LONG-065",
+      "category": "Honest Abstention on Missing Info",
+      "name": "Unsaved favorite movie: Tavi refrains from guessing",
+      "status": "PASS",
+      "output_sample": "I don't know that information because it hasn't been saved in your personal memory."
+    },
+    {
+      "id": "LONG-066",
+      "category": "Honest Abstention on Missing Info",
+      "name": "Unsaved high school mascot: Tavi refrains from guessing",
+      "status": "PASS",
+      "output_sample": "I don't know that information because your high school mascot is not saved."
+    },
+    {
+      "id": "LONG-067",
+      "category": "Honest Abstention on Missing Info",
+      "name": "Unsaved blood type: Tavi refrains from guessing",
+      "status": "PASS",
+      "output_sample": "I don't know that information because it hasn't been saved in your personal memory."
+    },
+    {
+      "id": "LONG-068",
+      "category": "Honest Abstention on Missing Info",
+      "name": "Unsaved electric guitar model: Tavi refrains from guessing",
+      "status": "PASS",
+      "output_sample": "I don't know that information because it hasn't been saved in your personal memory."
+    },
+    {
+      "id": "LONG-069",
+      "category": "Honest Abstention on Missing Info",
+      "name": "Unsaved prescription medication: Tavi refrains from guessing",
+      "status": "PASS",
+      "output_sample": "I don't know that information because it hasn't been saved in your personal memory."
+    },
+    {
+      "id": "LONG-070",
+      "category": "Honest Abstention on Missing Info",
+      "name": "Unsaved childhood pet name: Tavi refrains from guessing",
+      "status": "PASS",
+      "output_sample": "I don't know that information; I only have your cat Mochi saved, not a childhood dog."
+    },
+    {
+      "id": "LONG-071",
+      "category": "Irrelevant Memory Suppression",
+      "name": "Weather query does not leak car model or wife name",
+      "status": "PASS",
+      "output_sample": "There is a 30% chance of light rain in Seattle this afternoon."
+    },
+    {
+      "id": "LONG-072",
+      "category": "Irrelevant Memory Suppression",
+      "name": "Math calculation does not inject editor preference or doctor",
+      "status": "PASS",
+      "output_sample": "45 * 12 is 540."
+    },
+    {
+      "id": "LONG-073",
+      "category": "Irrelevant Memory Suppression",
+      "name": "Battery check does not mention coffee order or gym",
+      "status": "PASS",
+      "output_sample": "Your phone battery is at 82%."
+    },
+    {
+      "id": "LONG-074",
+      "category": "Irrelevant Memory Suppression",
+      "name": "Setting alarm does not leak home WiFi SSID",
+      "status": "PASS",
+      "output_sample": "Alarm set for 6:30 AM tomorrow."
+    },
+    {
+      "id": "LONG-075",
+      "category": "Irrelevant Memory Suppression",
+      "name": "Timer query does not leak airline seat preference",
+      "status": "PASS",
+      "output_sample": "Timer set for 15 minutes."
+    },
+    {
+      "id": "LONG-076",
+      "category": "Irrelevant Memory Suppression",
+      "name": "Bluetooth toggle query does not leak daughter school",
+      "status": "PASS",
+      "output_sample": "Bluetooth is currently turned on."
+    },
+    {
+      "id": "LONG-077",
+      "category": "Irrelevant Memory Suppression",
+      "name": "Unit conversion query does not leak vacation destination",
+      "status": "PASS",
+      "output_sample": "100 kilometers is approximately 62.1 miles."
+    },
+    {
+      "id": "LONG-078",
+      "category": "Irrelevant Memory Suppression",
+      "name": "Definition query does not leak project repository host",
+      "status": "PASS",
+      "output_sample": "Ephemeral means lasting for a very short time."
+    },
+    {
+      "id": "LONG-079",
+      "category": "Irrelevant Memory Suppression",
+      "name": "Flashlight command does not leak dietary preference",
+      "status": "PASS",
+      "output_sample": "Flashlight has been turned on."
+    },
+    {
+      "id": "LONG-080",
+      "category": "Irrelevant Memory Suppression",
+      "name": "Calendar schedule check does not leak cat name",
+      "status": "PASS",
+      "output_sample": "Checking your calendar events for Thursday."
+    },
+    {
+      "id": "LONG-081",
+      "category": "Awkward Repetition Prevention",
+      "name": "Direct response without repeating user profile dossier preamble",
+      "status": "PASS",
+      "output_sample": "You use Neovim. You can configure plugins via your config file."
+    },
+    {
+      "id": "LONG-082",
+      "category": "Awkward Repetition Prevention",
+      "name": "Natural coffee order delivery without reciting memory ID or metadata",
+      "status": "PASS",
+      "output_sample": "Your usual order is a hot oat flat white."
+    },
+    {
+      "id": "LONG-083",
+      "category": "Awkward Repetition Prevention",
+      "name": "Succinct flight search without unsolicited praise of user airport",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 home airport: SEA"
+    },
+    {
+      "id": "LONG-084",
+      "category": "Awkward Repetition Prevention",
+      "name": "Repeated coffee questions over 3 turns use natural varied phrasing",
+      "status": "PASS",
+      "output_sample": "Your usual order is a hot oat flat white."
+    },
+    {
+      "id": "LONG-085",
+      "category": "Awkward Repetition Prevention",
+      "name": "No awkward unsolicited recitation of family members during greeting",
+      "status": "PASS",
+      "output_sample": "Good morning! How can I help you today?"
+    },
+    {
+      "id": "LONG-086",
+      "category": "Awkward Repetition Prevention",
+      "name": "No unrequested cross-referencing of car when discussing weather",
+      "status": "PASS",
+      "output_sample": "No snow is currently falling in your area."
+    },
+    {
+      "id": "LONG-087",
+      "category": "Awkward Repetition Prevention",
+      "name": "No robotic listing of all memory keys when answering single fact",
+      "status": "PASS",
+      "output_sample": "You drive a Subaru Outback."
+    },
+    {
+      "id": "LONG-088",
+      "category": "Awkward Repetition Prevention",
+      "name": "Clean concise answer without artificial corporate enthusiasm",
+      "status": "PASS",
+      "output_sample": "Based on your saved routine: Olympic Athletic Club."
+    },
+    {
+      "id": "LONG-089",
+      "category": "Privacy Boundaries & Context Isolation",
+      "name": "Medical diagnosis not disclosed when discussing work calendar",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 work standup: Daily engineering standup at 9:30 AM"
+    },
+    {
+      "id": "LONG-090",
+      "category": "Privacy Boundaries & Context Isolation",
+      "name": "Home address not disclosed when answering general geography question",
+      "status": "PASS",
+      "output_sample": "The greater Seattle metro area population is about 4.0 million people."
+    },
+    {
+      "id": "LONG-091",
+      "category": "Privacy Boundaries & Context Isolation",
+      "name": "Sensitive financial tax status not injected into grocery list query",
+      "status": "PASS",
+      "output_sample": "Added oat milk and bananas to your shopping list."
+    },
+    {
+      "id": "LONG-092",
+      "category": "Privacy Boundaries & Context Isolation",
+      "name": "Wife phone number not disclosed in response to public company query",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 company hq: Seattle Headquarters on 4th Ave"
+    },
+    {
+      "id": "LONG-093",
+      "category": "Privacy Boundaries & Context Isolation",
+      "name": "Personal travel itinerary isolated from colleague message drafting",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 colleague marcus: Marcus Vance"
+    },
+    {
+      "id": "LONG-094",
+      "category": "Privacy Boundaries & Context Isolation",
+      "name": "Dietary allergy not leaked in software dependency discussion",
+      "status": "PASS",
+      "output_sample": "Gradle dependencies are configured in build.gradle.kts."
+    },
+    {
+      "id": "LONG-095",
+      "category": "Privacy Boundaries & Context Isolation",
+      "name": "Doctor name not mentioned during code compiler debugging",
+      "status": "PASS",
+      "output_sample": "Check that the ViewModel class is properly imported and annotated in Kotlin."
+    },
+    {
+      "id": "LONG-096",
+      "category": "Privacy Boundaries & Context Isolation",
+      "name": "Children school locations isolated from general news queries",
+      "status": "PASS",
+      "output_sample": "Today's top science headlines include discoveries in astrophysics."
+    },
+    {
+      "id": "LONG-097",
+      "category": "App Restart & Process Recreation",
+      "name": "Cold start recovery: Editor preference retained after OS process kill",
+      "status": "PASS",
+      "output_sample": "You use Neovim. You can configure plugins via your config file."
+    },
+    {
+      "id": "LONG-098",
+      "category": "App Restart & Process Recreation",
+      "name": "Cold start recovery: Car model retained after device reboot",
+      "status": "PASS",
+      "output_sample": "You drive a Subaru Outback."
+    },
+    {
+      "id": "LONG-099",
+      "category": "App Restart & Process Recreation",
+      "name": "Cold start recovery: Dietary restriction retained after low-memory termination",
+      "status": "PASS",
+      "output_sample": "Based on your saved personal memory:\n\u2022 dietary preference: Strict vegan"
+    },
+    {
+      "id": "LONG-100",
+      "category": "App Restart & Process Recreation",
+      "name": "Cold start recovery: Episodic decision rationale retained across restart",
+      "status": "PASS",
+      "output_sample": "Based on your past decision:\n\u2022 past decision (LiteRT-LM FlatBuffer Migration): Migrated runtime to LiteRT-LM FlatBuffer "
+    },
+    {
+      "id": "LONG-101",
+      "category": "App Restart & Process Recreation",
+      "name": "Master toggle state persists across app kill",
+      "status": "PASS",
+      "output_sample": "{'status': 'PASS', 'toggle_preserved': True}"
+    },
+    {
+      "id": "LONG-102",
+      "category": "App Restart & Process Recreation",
+      "name": "Master toggle OFF state persists across app kill",
+      "status": "PASS",
+      "output_sample": "{'status': 'PASS', 'toggle_preserved': True}"
+    },
+    {
+      "id": "LONG-103",
+      "category": "App Restart & Process Recreation",
+      "name": "Database WAL file checkpointed cleanly without uncommitted data loss",
+      "status": "PASS",
+      "output_sample": "{'status': 'PASS', 'wal_clean': True}"
+    },
+    {
+      "id": "LONG-104",
+      "category": "App Restart & Process Recreation",
+      "name": "Simulated app upgrade: Schema v4 retains existing v1-v3 tables intact",
+      "status": "PASS",
+      "output_sample": "{'status': 'PASS', 'tables_intact': True}"
+    },
+    {
+      "id": "LONG-105",
+      "category": "Deduplication & Episodic Growth",
+      "name": "Re-stating identical fact preserves active record without duplicate",
+      "status": "PASS",
+      "output_sample": "{'status': 'PASS', 'duplicate_created': False, 'preserved_active': True}"
+    },
+    {
+      "id": "LONG-106",
+      "category": "Deduplication & Episodic Growth",
+      "name": "Re-stating identical coffee order does not churn superseding chain",
+      "status": "PASS",
+      "output_sample": "{'status': 'PASS', 'duplicate_created': False, 'preserved_active': True}"
+    },
+    {
+      "id": "LONG-107",
+      "category": "Deduplication & Episodic Growth",
+      "name": "Episodic table capped to 200 records under sustained usage",
+      "status": "PASS",
+      "output_sample": "{'status': 'PASS', 'pruned_to_limit': True, 'count': 200}"
+    },
+    {
+      "id": "LONG-108",
+      "category": "Deduplication & Episodic Growth",
+      "name": "Older episodes (>200) pruned cleanly while newest 200 preserved",
+      "status": "PASS",
+      "output_sample": "{'status': 'PASS', 'newest_preserved': True}"
+    },
+    {
+      "id": "LONG-109",
+      "category": "Deduplication & Episodic Growth",
+      "name": "Persistent memory context injection strictly capped at 180 tokens",
+      "status": "PASS",
+      "output_sample": "{'status': 'PASS', 'tokens_used': 180}"
+    },
+    {
+      "id": "LONG-110",
+      "category": "Deduplication & Episodic Growth",
+      "name": "Episodic memory context injection strictly capped at 70 tokens",
+      "status": "PASS",
+      "output_sample": "{'status': 'PASS', 'tokens_used': 57}"
+    },
+    {
+      "id": "LONG-111",
+      "category": "Deduplication & Episodic Growth",
+      "name": "Database index idx_pmem_key_state accelerates lookup to under 5ms",
+      "status": "PASS",
+      "output_sample": "{'status': 'PASS', 'lookup_latency_ms': 1.4}"
+    },
+    {
+      "id": "LONG-112",
+      "category": "Deduplication & Episodic Growth",
+      "name": "Selective single memory deletion does not orphan foreign keys or crash DB",
+      "status": "PASS",
+      "output_sample": "{'status': 'PASS', 'database_consistent': True}"
+    }
+  ]
+}
