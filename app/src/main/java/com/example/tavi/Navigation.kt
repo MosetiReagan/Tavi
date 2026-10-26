@@ -6,6 +6,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
+import com.example.tavi.ui.capabilities.CapabilitiesScreen
 import com.example.tavi.ui.main.MainScreen
 import com.example.tavi.ui.settings.SettingsScreen
 
@@ -25,6 +26,13 @@ fun MainNavigation() {
             }
             entry<Settings> {
                 SettingsScreen(
+                    onBack = { backStack.removeLastOrNull() },
+                    onNavigateToCapabilities = { backStack.add(Capabilities) },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            entry<Capabilities> {
+                CapabilitiesScreen(
                     onBack = { backStack.removeLastOrNull() },
                     modifier = Modifier.fillMaxSize()
                 )
