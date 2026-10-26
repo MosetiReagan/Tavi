@@ -19,9 +19,19 @@ object SecurityGuard {
     private val CONSEQUENTIAL_ACTIONS = setOf(
         "calendar_delete_event",
         "messages_send_sms",
+        "phone_call",
+        "note_delete",
+        "memory_delete",
         "memory_clear_all",
         "browser_submit_form"
     )
+
+    fun isInjectionAttempt(text: String): Boolean {
+        for (pattern in PROMPT_INJECTION_PATTERNS) {
+            if (pattern.matcher(text).find()) return true
+        }
+        return false
+    }
 
     /**
      * Sanitizes external untrusted content (e.g., from web pages, notifications, or incoming SMS)
