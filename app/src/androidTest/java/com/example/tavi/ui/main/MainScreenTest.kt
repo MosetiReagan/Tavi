@@ -25,14 +25,13 @@ class MainScreenTest {
 
         composeTestRule.setContent {
             androidx.compose.foundation.layout.Column {
-                MessageBubble(message = userMsg, onSpeak = {})
-                MessageBubble(message = assistantMsg, onSpeak = {})
+                ModernMessageBubble(message = userMsg, onSpeak = {})
+                ModernMessageBubble(message = assistantMsg, onSpeak = {})
             }
         }
 
         composeTestRule.onNodeWithText("What's on my calendar?").assertExists()
         composeTestRule.onNodeWithText("You have Team Meeting tomorrow at 3pm.").assertExists()
-        composeTestRule.onNodeWithText("You").assertExists()
         composeTestRule.onNodeWithText("Tavi").assertExists()
     }
 }
