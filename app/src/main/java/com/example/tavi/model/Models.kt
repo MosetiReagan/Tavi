@@ -9,6 +9,64 @@ enum class MessageRole {
     SYSTEM
 }
 
+enum class ToolExecutionState {
+    SUCCESS,
+    PERMISSION_REQUIRED,
+    USER_ACTION_REQUIRED,
+    UNSUPPORTED,
+    NOT_FOUND,
+    AMBIGUOUS,
+    CANCELLED,
+    ERROR
+}
+
+enum class ToolRiskLevel {
+    LOW,
+    MEDIUM,
+    HIGH_CONSEQUENTIAL
+}
+
+enum class ToolCategory {
+    CALENDAR,
+    CONTACTS,
+    NOTIFICATIONS,
+    TELEPHONY,
+    CLOCK,
+    APPLICATIONS,
+    FILES,
+    DEVICE,
+    LOCATION,
+    MEDIA,
+    NOTES,
+    CONNECTIVITY,
+    RESEARCH,
+    USAGE,
+    ACCESSIBILITY
+}
+
+enum class SpecialAccessType {
+    NONE,
+    NOTIFICATION_LISTENER,
+    EXACT_ALARM,
+    USAGE_STATS,
+    ACCESSIBILITY_SERVICE,
+    DEFAULT_ASSISTANT,
+    DEFAULT_SMS_APP,
+    DEFAULT_DIALER,
+    OVERLAY_PERMISSION,
+    ALL_FILES_ACCESS,
+    BATTERY_OPTIMIZATION
+}
+
+enum class AccessStatus {
+    GRANTED,
+    NOT_GRANTED,
+    ROLE_HELD,
+    ROLE_AVAILABLE,
+    ROLE_UNAVAILABLE,
+    UNSUPPORTED
+}
+
 data class ToolCall(
     val id: String = UUID.randomUUID().toString(),
     val toolName: String,
@@ -22,7 +80,11 @@ data class ToolResult(
     val isSuccess: Boolean = true,
     val errorMessage: String? = null,
     val requiresUserConfirmation: Boolean = false,
-    val confirmationPayload: ConfirmationRequest? = null
+    val confirmationPayload: ConfirmationRequest? = null,
+    val state: ToolExecutionState = if (isSuccess) ToolExecutionState.SUCCESS else ToolExecutionState.ERROR,
+    val requiredPermission: String? = null,
+    val settingsAction: String? = null,
+    val ambiguousOptions: List<String> = emptyList()
 )
 
 data class ConfirmationRequest(
@@ -35,8 +97,16 @@ data class ConfirmationRequest(
     val timestamp: Long = System.currentTimeMillis()
 )
 
+data class ConversationSession(
+    val id: String = UUID.randomUUID().toString(),
+    val title: String = "New Chat",
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
+)
+
 data class Message(
     val id: String = UUID.randomUUID().toString(),
+    val conversationId: String = "default",
     val role: MessageRole,
     val content: String,
     val timestamp: Long = System.currentTimeMillis(),
