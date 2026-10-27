@@ -2,8 +2,8 @@
 
 <img src="assets/branding/tavi_logo.png" width="112" height="112" alt="Tavi Mascot Icon" style="border-radius: 26px; box-shadow: 0 8px 24px rgba(0,0,0,0.18);" />
 
-# Tavi (タビ)
-### Privacy-First, 100% On-Device Personal AI Assistant for Android
+# Tavi — 100% On-Device Personal AI Assistant for Android
+### Powered by Google Gemma 3 1B IT & Google AI Edge LiteRT-LM
 
 [![Platform](https://img.shields.io/badge/Platform-Android%208.0%2B%20(API%2026--35)-3DDC84.svg?logo=android&logoColor=white)](https://developer.android.com)
 [![Model](https://img.shields.io/badge/Model-Gemma%203%201B%20IT-4285F4.svg?logo=google&logoColor=white)](https://huggingface.co/google/gemma-3-1b-it)
@@ -13,7 +13,9 @@
 [![Tests](https://img.shields.io/badge/Tests-128%20Passing-brightgreen.svg)](#-test-verification--benchmarks)
 [![License](https://img.shields.io/badge/License-Apache%202.0-F9A825.svg)](LICENSE)
 
-*Operates entirely on-device with zero cloud telemetry, deep native Android integration, persistent SQLite memory, and autonomous multi-step workflow execution.*
+*Private, local-first mobile AI assistant operating entirely on-device with zero cloud telemetry, deep native Android system integration, persistent SQLite memory, and autonomous multi-step workflow execution.*
+
+`#Android` • `#OnDeviceAI` • `#Gemma3` • `#LocalLLM` • `#LiteRTLM` • `#OfflineAssistant` • `#Privacy` • `#JetpackCompose`
 
 [App Showcase](#-app-showcase--screenshots) • [Architecture](#-architecture-overview) • [51 Native Tools](#-51-native-android-system-tools) • [Why Tavi?](#-why-tavi-vs-cloud-assistants) • [Quickstart](#-quickstart-build--run) • [Contributing](CONTRIBUTING.md)
 
