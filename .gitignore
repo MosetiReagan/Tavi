@@ -21,7 +21,9 @@ models/
 *.task
 *.litertlm
 *.bin
+*.safetensors
 *.zip
 tavi_main_screen.png
 __pycache__/
 *.pyc
+training/output/
