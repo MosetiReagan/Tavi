@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """
-Tavi Assistant Evaluation Harness
-Runs test prompts from evaluation/dataset_v1.json through Tavi's tool selection,
-security boundary verification, and ambiguity clarification logic.
+Tavi Assistant Static Dataset Validator (NOT AN LLM BENCHMARK)
+This script performs static schema and regex verification against evaluation/dataset_v1.json.
+It does not run neural inference or measure real on-device model behavior.
+For actual Gemma on-device evaluation, refer to GemmaOnDeviceInferenceTest (androidTest)
+and evaluation/evaluate_gemma_inference.py.
 """
 
 import json

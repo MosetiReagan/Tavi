@@ -15,3 +15,13 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Model binaries & caches
+models/
+*.task
+*.litertlm
+*.bin
+*.zip
+tavi_main_screen.png
+__pycache__/
+*.pyc
