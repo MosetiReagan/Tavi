@@ -1,55 +1,70 @@
 #!/usr/bin/env python3
 """
-Tavi Model Specialization Pipeline:
-Fine-tunes base Gemma 3 1B / Qwen2.5 on Tavi tool-calling dataset using PEFT/LoRA,
-and converts the resulting weights into a mobile LiteRT / MediaPipe .task bundle.
+Tavi Model Specialization Orchestrator.
+Coordinates dataset generation, LoRA fine-tuning, adapter merging, and LiteRT compilation.
 """
 
 import os
-import json
+import sys
 import argparse
+import subprocess
 
-def create_training_spec():
-    return {
-        "base_model": "google/gemma-3-1b-it",
-        "lora_r": 16,
-        "lora_alpha": 32,
-        "lora_target_modules": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
-        "learning_rate": 2e-4,
-        "batch_size": 4,
-        "max_seq_length": 2048,
-        "quantization": "int4",
-        "target_runtime": "MediaPipe Tasks GenAI / LiteRT"
-    }
+def run_command(cmd: str):
+    print(f"\n[EXEC] {cmd}\n")
+    ret = subprocess.run(cmd, shell=True)
+    if ret.returncode != 0:
+        print(f"[ERROR] Command failed with exit code {ret.returncode}: {cmd}")
+        sys.exit(ret.returncode)
 
-def print_conversion_steps():
-    steps = """
-    === Tavi Specialization & Conversion Pipeline ===
-    1. Dataset Preparation:
-       python -m evaluation.prepare_sft_data --input evaluation/dataset_v1.json --output data/train.jsonl
+def main():
+    parser = argparse.ArgumentParser(description="Tavi Gemma 3 1B Fine-Tuning & LiteRT Compilation Pipeline")
+    parser.add_argument("--step", type=str, choices=["dataset", "train", "export", "all"], default="all",
+                        help="Pipeline phase to execute.")
+    parser.add_argument("--samples", type=int, default=6000, help="Number of synthetic samples to generate.")
+    parser.add_argument("--epochs", type=int, default=3, help="Training epochs.")
+    parser.add_argument("--batch_size", type=int, default=4, help="Batch size per device.")
+    parser.add_argument("--model_id", type=str, default="google/gemma-3-1b-it", help="Base model identifier.")
+    parser.add_argument("--output_file", type=str, default="app/src/main/assets/models/gemma-3-1b-it-tavi.litertlm",
+                        help="Final LiteRT FlatBuffer path.")
+    args = parser.parse_args()
 
-    2. LoRA Fine-Tuning:
-       python -m trl.sft_trainer \
-           --model_name_or_path google/gemma-3-1b-it \
-           --dataset_name data/train.jsonl \
-           --output_dir output/gemma-3-1b-tavi-lora \
-           --learning_rate 2e-4 \
-           --per_device_train_batch_size 4 \
-           --lora_r 16
+    print("=" * 60)
+    print("🚀 TAVI GEMMA 3 1B MODEL SPECIALIZATION PIPELINE")
+    print("=" * 60)
 
-    3. Merge LoRA Adapters:
-       python -m peft.merge_and_unload \
-           --base_model google/gemma-3-1b-it \
-           --adapter_dir output/gemma-3-1b-tavi-lora \
-           --output_dir output/gemma-3-1b-tavi-merged
+    # 1. Dataset Generation
+    if args.step in ["dataset", "all"]:
+        print("\n--- PHASE 1: Dataset Generation ---")
+        run_command(f"python3 training/dataset_generator.py --samples {args.samples} --output_dir training/data")
 
-    4. Quantize and Export to LiteRT .task Bundle:
-       ai_edge_torch convert \
-           --model output/gemma-3-1b-tavi-merged \
-           --quantize int4 \
-           --output app/src/main/assets/models/gemma3-1b-it-tavi.task
-    """
-    print(steps)
+    # 2. LoRA Fine-Tuning
+    if args.step in ["train", "all"]:
+        print("\n--- PHASE 2: LoRA Fine-Tuning ---")
+        run_command(
+            f"python3 training/train_lora.py "
+            f"--model_id {args.model_id} "
+            f"--train_file training/data/tavi_train.jsonl "
+            f"--val_file training/data/tavi_val.jsonl "
+            f"--output_dir training/output/gemma-3-1b-tavi-lora "
+            f"--epochs {args.epochs} "
+            f"--batch_size {args.batch_size}"
+        )
+
+    # 3. LiteRT Export
+    if args.step in ["export", "all"]:
+        print("\n--- PHASE 3: Merge Adapters & Export to LiteRT ---")
+        run_command(
+            f"python3 training/export_litertlm.py "
+            f"--base_model_id {args.model_id} "
+            f"--adapter_dir training/output/gemma-3-1b-tavi-lora "
+            f"--merged_dir training/output/gemma-3-1b-tavi-merged "
+            f"--output_file {args.output_file} "
+            f"--quantization int4"
+        )
+
+    print("\n" + "=" * 60)
+    print("✅ Pipeline completed successfully.")
+    print("=" * 60)
 
 if __name__ == "__main__":
-    print_conversion_steps()
+    main()
