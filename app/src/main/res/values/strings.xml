@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">Tavi</string>
+    <string name="accessibility_service_label">Tavi Accessibility Assistant</string>
+    <string name="accessibility_service_description">Provides accessible on-screen inspection, text reading, and navigation assistance. Tavi operates strictly on-device, never inspects password fields, and never transmits screen data.</string>
+    <string name="voice_interaction_service_label">Tavi Voice Assistant</string>
 </resources>
