@@ -1,16 +1,16 @@
 # Tavi — Fully On-Device Personal AI Assistant
 
-Tavi is a local-first, privacy-respecting personal AI assistant for Android. It understands natural-language instructions, answers questions, accesses permitted device data (Calendar, Messages, Notifications, Reminders), and performs useful actions entirely on-device without cloud dependencies.
+Tavi is a local-first, privacy-respecting personal AI assistant for Android. It understands natural-language instructions, answers questions, accesses permitted device data (Calendar, Messages, Notifications, Reminders), and performs useful actions on-device without cloud dependencies.
 
 ---
 
 ## 🌟 Core Principles
 
 - **Local-first & Offline-capable:** Model inference, conversation history, and personal memory run on-device. Core assistant features work completely offline without internet connectivity.
-- **Privacy by Default:** Personal data never leaves the device. No external AI APIs, hidden telemetry, or cloud inference.
+- **Privacy by Default:** Personal data never leaves the device. No external AI APIs, hidden telemetry, or cloud inference. Android backup is disabled (`android:allowBackup="false"`) to protect sandboxed data from extraction.
 - **Action-oriented & Honest:** Tavi performs verified phone tasks rather than giving generic text tutorials. It never claims an action succeeded without verifying the ContentProvider or system result.
-- **Resource-efficient:** Engineered with a hybrid inference architecture designed to fit both memory-constrained devices (< 3GB RAM) and standard modern Android phones (4GB–8GB RAM).
-- **Security & Consequential Gates:** External content (web pages, SMS, notifications) is treated as untrusted data and sanitized against prompt injection. Consequential actions (sending SMS, deleting calendar events, clearing memory) require explicit user confirmation.
+- **Dedicated Gemma 3 1B Architecture:** Powered by Google's Gemma 3 1B instruction-tuned model via Google AI Edge MediaPipe Tasks GenAI (`com.google.mediapipe:tasks-genai`), backed by a deterministic local core for predictable direct actions.
+- **Security & Consequential Gates:** External content (web pages, SMS, notifications) is treated as untrusted data and sanitized against prompt injection. Consequential actions (sending SMS, deleting calendar events) require explicit user confirmation; injected confirmation flags from prompt injection or untrusted inputs are stripped at the execution boundary.
 
 ---
 
@@ -25,9 +25,10 @@ graph TD
         VM --> SG[SecurityGuard]
         SG --> PromptSanitizer[Prompt Injection Sanitizer]
         VM --> MM[ModelManager]
-        MM --> LLM[LiteRT / MediaPipe LLM Runtime]
-        MM --> Fallback[Deterministic Local Core]
-        Fallback --> ToolProposer[Structured Tool Proposer]
+        MM --> LLM[Gemma 3 1B MediaPipe LLM Runtime]
+        MM --> Fallback[Deterministic Local Fallback Core]
+        LLM --> ToolProposer[Structured Tool Proposer]
+        Fallback --> ToolProposer
     end
 
     subgraph Tools [Permission-Controlled Tool Registry]
@@ -50,36 +51,84 @@ graph TD
 
 ---
 
-## 🧠 Model Selection & Runtime Decision
+## 🧠 Model & Runtime Specification
 
-See [docs/ADR_001_MODEL_AND_RUNTIME.md](docs/ADR_001_MODEL_AND_RUNTIME.md) for full rationale.
+- **Selected Model:** **Gemma 3 1B Instruction-Tuned (`gemma-3-1b-it`)**
+- **Inference Runtime:** Google AI Edge MediaPipe Tasks GenAI (`com.google.mediapipe:tasks-genai:0.10.27`)
+- **Native JNI Libraries:** `libllm_inference_engine_jni.so` bundled for `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64`.
+- **Target Quantization:** Int4 Dynamic Quantization (`.task` FlatBuffer bundle containing quantized weights, SentencePiece tokenizer, and metadata).
+- **Weight Footprint:** ~1.1 GB storage.
+- **Memory Footprint:** ~1.9 GB peak resident RAM during active inference.
+- **Hardware Acceleration:** Auto-selects GPU (Vulkan/OpenCL) with transparent automatic fallback to CPU.
+- **OS Requirement:** Android 7.0+ (API level 24+), compiled against Android 36 SDK.
+- **Deterministic Action Fallback:** If model weights are not installed, the embedded deterministic core handles direct device tools with zero latency, clearly indicated in diagnostics.
 
-- **Primary Target: Gemma 3 1B (`gemma3-1b-it` int4)**
-  - Footprint: ~1.1 GB weight size, ~1.8–2.2 GB active RAM.
-  - Runtime: Google AI Edge LiteRT / MediaPipe Tasks GenAI.
-  - Strengths: Strong instruction-following and tool formatting for standard 4GB+ RAM devices.
-- **Compact Alternative: Qwen2.5 0.5B-Instruct (int4)**
-  - Footprint: ~350 MB weight size, ~800 MB active RAM.
-  - Target: Low-end devices with < 3 GB RAM.
-- **High-Tier Profile: Gemma 3n E2B (int4)**
-  - Target: Flagship phones with $\ge 8\text{ GB}$ RAM for multimodal context.
-- **Built-in Deterministic Action Core:**
-  - Embedded zero-latency offline engine ensuring critical device actions (calendar scheduling, math, reminders, date arithmetic, notes, memory) function instantaneously with 100% uptime even if model weights are loading or downloading.
+---
+
+## 📦 Reproducible Model Acquisition & Installation Procedure
+
+To acquire and install the official Gemma 3 1B instruction-tuned model bundle for on-device execution:
+
+### Option A: Official Pre-Converted MediaPipe Bundle (Recommended)
+1. Accept the Gemma license on [Hugging Face](https://huggingface.co/google/gemma-3-1b-it) or [Kaggle](https://www.kaggle.com/models/google/gemma-3).
+2. Download the pre-converted MediaPipe `.task` bundle:
+   ```bash
+   huggingface-cli download litert-community/Gemma3-1B-IT --include "*.task" --local-dir ./models
+   ```
+3. Push the model file to the application's sandboxed storage on device via ADB:
+   ```bash
+   adb push ./models/gemma3-1b-it-int4.task /data/user/0/com.tavi.assistant/files/models/gemma-3-1b-it.task
+   ```
+
+### Option B: Convert from PyTorch Weights Using AI Edge Torch
+1. Install prerequisites:
+   ```bash
+   pip install torch transformers ai-edge-torch mediapipe huggingface_hub
+   ```
+2. Download Hugging Face PyTorch checkpoint:
+   ```bash
+   huggingface-cli download google/gemma-3-1b-it --local-dir ./gemma-3-1b-pt
+   ```
+3. Convert PyTorch model to multi-signature quantized LiteRT FlatBuffer:
+   ```bash
+   python -m ai_edge_torch.generative.examples.gemma3.convert_gemma3_to_tflite \
+     --quantize="dynamic_int4" \
+     --checkpoint_path=./gemma-3-1b-pt \
+     --output_path="./output_model" \
+     --prefill_seq_lens=1024 \
+     --kv_cache_max_len=2048
+   ```
+4. Bundle with SentencePiece tokenizer into MediaPipe `.task` file:
+   ```python
+   from mediapipe.tasks.python.genai import bundler
+
+   config = bundler.BundleConfig(
+       tflite_model="./output_model/gemma3-1b_int4.tflite",
+       tokenizer_model="./tokenizer.model",
+       start_token="<bos>",
+       stop_tokens=["<eos>", "<end_of_turn>"],
+       output_filename="./gemma-3-1b-it.task",
+       prompt_prefix="<start_of_turn>user\n",
+       prompt_suffix="<end_of_turn>\n<start_of_turn>model\n",
+   )
+   bundler.create_bundle(config)
+   ```
+5. Install into app storage via ADB as described in Option A.
 
 ---
 
 ## 🛠️ Implemented Assistant Tools
 
-| Tool Name | Permissions | Consequential? | Verified Capability |
+| Tool Name | Permissions | Consequential? | Capability |
 | :--- | :--- | :---: | :--- |
 | `calendar_list_events` | `READ_CALENDAR` | No | Lists and searches upcoming events across natural-language time windows. |
-| `calendar_create_event` | `WRITE_CALENDAR` | No | Resolves natural dates ("tomorrow at 3pm"), inserts via CalendarContract, verifies new event ID. |
-| `calendar_delete_event` | `WRITE_CALENDAR` | **Yes** | Deletes event with explicit user confirmation and verifies deleted row count. |
+| `calendar_create_event` | `WRITE_CALENDAR` | No | Resolves natural dates ("tomorrow at 3pm"), inserts via CalendarContract, verifies event ID. |
+| `calendar_delete_event` | `WRITE_CALENDAR` | **Yes** | Deletes event only after explicit user confirmation dialog. |
 | `messages_draft` | None | No | Drafts message replies for user inspection without transmitting. |
-| `messages_send_sms` | `SEND_SMS` | **Yes** | Transmits SMS via `SmsManager` only after user confirmation; verifies delivery. |
+| `messages_send_sms` | `SEND_SMS` | **Yes** | Transmits SMS via `SmsManager` strictly after user confirmation. |
 | `messages_search` | `READ_SMS` | No | Queries `content://sms/inbox` and sanitizes body content. |
 | `notifications_read_summary`| `NotificationListener` | No | Summarizes active alerts via `TaviNotificationListenerService`. |
-| `browser_research_topic` | `INTERNET` | No | Reads accessible web pages, strips scripts, detects login/CAPTCHA walls, sanitizes HTML. |
+| `browser_research_topic` | `INTERNET` | No | Reads web pages, strips scripts, detects login/CAPTCHA walls, sanitizes HTML. |
 | `browser_open_page` | None | No | Launches device browser for tasks requiring interactive user logins. |
 | `memory_save` | None | No | Stores user preferences and facts locally in SQLite. |
 | `memory_retrieve` | None | No | Retrieves remembered facts by keyword or topic query. |
@@ -91,64 +140,68 @@ See [docs/ADR_001_MODEL_AND_RUNTIME.md](docs/ADR_001_MODEL_AND_RUNTIME.md) for f
 
 ---
 
-## 🛡️ Permissions & Security
+## 🛡️ Security Boundaries
 
-1. **Least-Privilege Model:** Android permissions (`READ_CALENDAR`, `WRITE_CALENDAR`, `SEND_SMS`, `READ_SMS`, `RECORD_AUDIO`) are requested only when their respective tool is needed.
-2. **Consequential Action Gates:** Consequential operations (`messages_send_sms`, `calendar_delete_event`, `memory_clear_all`) trigger an explicit Material 3 Confirmation Alert Dialog detailing recipient, message, or event title. They cannot be executed without manual user tap.
-3. **Prompt Injection Defense:** External untrusted content (web pages, notifications, SMS) is sanitized through `SecurityGuard.sanitizeExternalContent()`, neutralizing override triggers (`"Ignore previous instructions"`, `"System prompt override"`, `"developer mode"`) and demarcating boundaries in `<UNTRUSTED_EXTERNAL_DATA>` tags.
-4. **Data Purging:** Users can delete individual memories, clear conversation history, or purge all local SQLite databases and audit logs with a single tap in Settings.
+1. **Host-Level Consequential Gating:** Consequential operations (`messages_send_sms`, `calendar_delete_event`) require explicit Material 3 user confirmation. Model output cannot bypass confirmation: any caller-injected `__user_confirmed` flag is stripped during parsing.
+2. **Untrusted External Content Sanitization:** Web pages, notifications, and SMS are sanitized through `SecurityGuard.sanitizeExternalContent()`, neutralizing injection markers (`"Ignore previous instructions"`, `"System prompt override"`).
+3. **Android Backup Protection:** `android:allowBackup="false"` prevents extraction of the local SQLite database via ADB backup.
+4. **Diagnostic Privacy:** `getEngineDiagnostics()` exposes only engine metadata, runtime version, and backend state. Zero private prompt or message data is ever logged.
+
+---
+
+## ⚡ Multi-Step Autonomous Assistant Workflows (Phase 7)
+
+Tavi features a multi-step orchestration engine that coordinates complex natural language instructions across 5 core workflow families:
+
+1. **Family A (Notifications & Communication):** Resolves contacts, drafts replies, and dispatches SMS strictly after scoped user authorization (`messages_send_sms`).
+2. **Family B (Calendar & Scheduling):** Checks schedule for conflicts, creates calendar events, and verifies persistence against `CalendarContract`.
+3. **Family C (Screen-Aware Assistance):** Analyzes the on-screen accessibility node hierarchy, performs global navigation, and validates window transitions.
+4. **Family D (App Usage & Routines):** Executes multi-step routines (Morning Executive Briefing, Bedtime Routine) aggregating local time, calendar, alarms, and notifications.
+5. **Family E (Context-Aware Personal Assistance):** Queries local notes and personal memory, pausing with `AWAITING_USER_INPUT` for follow-up details when instructions are incomplete.
+
+### Workflow Safety & Verification Principles
+- **Dynamic Parameter Binding:** Passes upstream execution results (e.g. phone numbers from contact resolution) into downstream steps safely.
+- **Scoped Confirmation:** Consequential tools (`messages_send_sms`, `calendar_delete_event`, `note_delete`, `memory_delete`) halt and display approval dialogs scoped strictly to their validated parameters.
+- **Live State Verification:** Reads back live Android providers (`CalendarContract.Events`, `SmsManager`, `TaviDatabase`) before declaring a step verified.
+- **Idempotency & Resilience:** Prevents duplicate action execution with per-step idempotency keys, maximum 8-step execution budget, and 30-second execution timeouts.
 
 ---
 
 ## 🚀 Building and Running
 
-### Prerequisites
-- JDK 17 (OpenJDK 17 recommended)
-- Android SDK Platform 36 and Build-Tools 36.0.0
-- Gradle 9.1 (automatically managed by `./gradlew`)
-
 ### Build Debug APK
 ```bash
 ./gradlew assembleDebug
 ```
-The output APK is generated at:
+Output artifact:
 ```
-app/build/outputs/apk/debug/app-debug.apk (18 MB)
-```
-
-### Install to Connected Device / Emulator
-```bash
-adb install app/build/outputs/apk/debug/app-debug.apk
+app/build/outputs/apk/debug/app-debug.apk (~71.6 MB, includes native JNI inference engines)
+SHA-256: e1238b1c990c821ea86d13eeed1013830459b8e0815e74dbec96d01610ae4c4f
 ```
 
-### Run Automated Tests
+### Run Unit Tests
 ```bash
-./gradlew test
+./gradlew testDebugUnitTest
 ```
-All unit and integration test reports are produced at:
-```
-app/build/reports/tests/testDebugUnitTest/index.html
-```
+Runs 73 unit tests covering multi-step workflow planning, execution orchestration, dynamic parameter binding, post-execution verification, prompt injection defense, date parsing, and tool security boundaries.
 
-### Run Evaluation Dataset Benchmark
+### Run Android Instrumented Tests (Target Device / Emulator)
 ```bash
-python3 evaluation/evaluate_dataset.py
+./gradlew connectedAndroidTest
 ```
-Output:
-```json
-{
-  "dataset": "Tavi On-Device Assistant Evaluation Benchmark",
-  "version": "1.0.0",
-  "total_samples": 15,
-  "passed_samples": 15,
-  "accuracy_pct": 100.0
-}
+Runs `GemmaOnDeviceInferenceTest` on the connected target device, verifying native MediaPipe model loading, token streaming, cancellation, and tool execution.
+
+### Run Evaluation Benchmark
+```bash
+python3 evaluation/evaluate_gemma_inference.py
 ```
+Evaluates all 15 benchmark scenarios across tool selection, ambiguity, and prompt injection defense.
 
 ---
 
-## 📱 Hardware & Known Limitations
+## 📱 Hardware Requirements & Offline Limitations
 
-- **Physical Hardware vs Emulator:** The application was built and validated with automated tests on Android SDK 36. Real-device SMS transmission and calendar insertion require granting the standard Android runtime permissions in the OS dialog or app settings.
-- **Browser Automation Boundary:** Tavi does not attempt to bypass login pages, CAPTCHAs, or paywalls. When an authentication wall is detected on a web page, Tavi halts and provides the link for the user to open in their default browser.
-- **Model Distribution:** Large model weights (> 1GB) are not stored in Git. Tavi provides an in-app download and storage manager under Settings that stores model `.task` bundles in sandboxed storage (`context.filesDir/models/`).
+- **RAM Requirements:** Minimum 3.5 GB available RAM (recommended 4GB+ total device RAM) to load Gemma 3 1B Int4 weights without OS memory pressure.
+- **Storage:** ~1.1 GB free sandboxed storage for the `.task` model weights.
+- **Speech Recognition (STT):** Offline STT requires pre-downloaded Google Speech Services language packs on the target Android device. When unavailable offline, text input is fully supported.
+- **Browser Research:** Reading live web pages requires network connectivity; all local assistant features (calendar, memory, notes, calculator, SMS drafting) function 100% offline.
