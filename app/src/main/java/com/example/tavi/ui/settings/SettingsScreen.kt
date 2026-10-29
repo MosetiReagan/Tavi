@@ -129,6 +129,8 @@ fun SettingsScreen(
     var continuousVoice by remember { mutableStateOf(voiceManager.continuousVoice.value) }
     var followupWindowSeconds by remember { androidx.compose.runtime.mutableIntStateOf(voiceManager.followupWindowSeconds.value) }
     var bargeIn by remember { mutableStateOf(voiceManager.bargeIn.value) }
+    var agentModeEnabled by remember { mutableStateOf(com.example.tavi.agent.AgentPreferences.isAgentModeEnabled(context)) }
+    var showAgentExplanationDialog by remember { mutableStateOf(false) }
 
     fun refreshData() {
         scope.launch(Dispatchers.IO) {
@@ -870,6 +872,103 @@ fun SettingsScreen(
                 }
             }
 
+            // --- SECTION 3.5: SCREEN AGENT MODE (ACCESSIBILITY) ---
+            item {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = androidx.compose.ui.res.stringResource(com.example.tavi.R.string.agent_mode_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = androidx.compose.ui.res.stringResource(com.example.tavi.R.string.agent_mode_desc),
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(10.dp))
+
+                val isAccessibilityGranted = remember(agentModeEnabled) {
+                    com.example.tavi.tools.PermissionCoordinator.hasSpecialAccess(
+                        context,
+                        com.example.tavi.model.SpecialAccessType.ACCESSIBILITY_SERVICE
+                    )
+                }
+
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = androidx.compose.ui.res.stringResource(com.example.tavi.R.string.agent_mode_toggle_title),
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = when {
+                                        !agentModeEnabled -> androidx.compose.ui.res.stringResource(com.example.tavi.R.string.agent_mode_status_disabled)
+                                        !isAccessibilityGranted -> androidx.compose.ui.res.stringResource(com.example.tavi.R.string.agent_mode_status_needs_permission)
+                                        else -> androidx.compose.ui.res.stringResource(com.example.tavi.R.string.agent_mode_status_active)
+                                    },
+                                    fontSize = 11.sp,
+                                    color = if (agentModeEnabled && !isAccessibilityGranted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = agentModeEnabled,
+                                onCheckedChange = { checked ->
+                                    if (checked) {
+                                        if (!com.example.tavi.agent.AgentPreferences.isFirstRunExplanationShown(context)) {
+                                            showAgentExplanationDialog = true
+                                        } else {
+                                            com.example.tavi.agent.AgentPreferences.setAgentModeEnabled(context, true)
+                                            agentModeEnabled = true
+                                        }
+                                    } else {
+                                        com.example.tavi.agent.AgentPreferences.setAgentModeEnabled(context, false)
+                                        agentModeEnabled = false
+                                    }
+                                }
+                            )
+                        }
+
+                        if (agentModeEnabled && !isAccessibilityGranted) {
+                            OutlinedButton(
+                                onClick = {
+                                    val intent = android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                                    context.startActivity(intent)
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                            ) {
+                                Icon(Icons.Default.Security, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = androidx.compose.ui.res.stringResource(com.example.tavi.R.string.agent_mode_accessibility_btn),
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // --- SECTION 4: PERMISSIONS & SECURITY ---
             item {
                 Spacer(Modifier.height(8.dp))
@@ -1274,6 +1373,47 @@ fun SettingsScreen(
                 dismissButton = {
                     TextButton(onClick = { showClearMemoryConfirm = false }) {
                         Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        // Screen Agent First-Run Explanation Dialog
+        if (showAgentExplanationDialog) {
+            AlertDialog(
+                onDismissRequest = { showAgentExplanationDialog = false },
+                title = {
+                    Text(
+                        text = androidx.compose.ui.res.stringResource(com.example.tavi.R.string.agent_mode_dialog_title),
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Text(
+                        text = androidx.compose.ui.res.stringResource(com.example.tavi.R.string.agent_mode_dialog_explanation),
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            com.example.tavi.agent.AgentPreferences.setFirstRunExplanationShown(context, true)
+                            com.example.tavi.agent.AgentPreferences.setAgentModeEnabled(context, true)
+                            agentModeEnabled = true
+                            showAgentExplanationDialog = false
+                        }
+                    ) {
+                        Text(androidx.compose.ui.res.stringResource(com.example.tavi.R.string.agent_mode_dialog_accept))
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showAgentExplanationDialog = false
+                        }
+                    ) {
+                        Text(androidx.compose.ui.res.stringResource(com.example.tavi.R.string.agent_mode_dialog_cancel))
                     }
                 }
             )

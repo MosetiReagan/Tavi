@@ -57,10 +57,19 @@ jobs:
           name: tavi-v1.0.0-apk
           path: release-output/Tavi-v1.0.0.apk
 
+      - name: Extract Changelog Entry
+        id: changelog
+        run: |
+          if [ -f CHANGELOG.md ]; then
+            sed -n '/## \[1.0.0\]/,/## \[/p' CHANGELOG.md | sed '$d' > release-notes.md
+            echo "notes_file=release-notes.md" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/v')
         with:
+          body_path: ${{ steps.changelog.outputs.notes_file }}
           files: release-output/Tavi-v1.0.0.apk
           generate_release_notes: true
           draft: false

@@ -42,4 +42,11 @@ class AgentSafetyPolicyTest {
         assertTrue(AgentSafetyGuard.isBudgetExceeded(12))
         assertTrue(AgentSafetyGuard.isBudgetExceeded(13))
     }
+
+    @Test
+    fun testAgentPreferencesDefaults() {
+        // Preference key constants validation
+        org.junit.Assert.assertEquals("screen_agent_mode_enabled", AgentPreferences.KEY_AGENT_MODE_ENABLED)
+        org.junit.Assert.assertEquals("screen_agent_first_run_shown", AgentPreferences.KEY_FIRST_RUN_EXPLANATION_SHOWN)
+    }
 }

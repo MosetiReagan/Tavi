@@ -44,6 +44,17 @@ class ScreenAgentRunTool : AssistantTool {
         arguments: Map<String, Any?>,
         context: Context
     ): ToolResult {
+        if (!com.example.tavi.agent.AgentPreferences.isAgentModeEnabled(context)) {
+            return ToolResult(
+                toolCallId = toolCallId,
+                toolName = name,
+                resultJson = "{}",
+                isSuccess = false,
+                state = ToolExecutionState.ERROR,
+                errorMessage = "Screen Agent mode is disabled in Tavi Settings. Please enable it under Settings > Screen Agent Mode."
+            )
+        }
+
         if (!PermissionCoordinator.hasSpecialAccess(context, SpecialAccessType.ACCESSIBILITY_SERVICE)) {
             return ToolResult(
                 toolCallId = toolCallId,

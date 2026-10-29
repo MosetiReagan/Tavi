@@ -496,7 +496,9 @@ class ModelManager(private val context: Context) : ComponentCallbacks2 {
         } finally {
             try {
                 connection?.disconnect()
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                android.util.Log.w("ModelManager", "Error closing download connection: ${e.message}")
+            }
         }
     }
 

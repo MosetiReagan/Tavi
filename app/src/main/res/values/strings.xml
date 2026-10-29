@@ -103,4 +103,14 @@
     <string name="agent_step_running">Agent step %1$d of %2$d…</string>
     <string name="agent_step_verified">Step verified</string>
     <string name="agent_step_failed">Step failed to verify</string>
+    <string name="agent_mode_toggle_title">Enable Screen Agent Mode</string>
+    <string name="agent_mode_toggle_subtitle">Allow Tavi to read screen layouts and perform automated taps/swipes</string>
+    <string name="agent_mode_dialog_title">Screen Agent Mode &amp; Accessibility</string>
+    <string name="agent_mode_dialog_explanation">Screen Agent Mode allows Tavi to inspect UI elements on your screen and perform automated gestures (taps, swipes, typing) to accomplish tasks across apps on your behalf.\n\n🛡️ Hard Safety Boundaries:\n• Banking, cryptocurrency, password managers &amp; payment apps are strictly blacklisted\n• Passwords, PINs, OTP codes, and credit cards are automatically redacted\n• Consequential actions (Buy, Send, Delete, Pay) always require explicit confirmation\n• 12-step execution budget cap per task with an instant floating kill switch\n• 100% on-device: zero screen data or telemetry ever leaves your phone\n\nTo use this feature, Android Accessibility permission is also required.</string>
+    <string name="agent_mode_dialog_accept">I Understand &amp; Enable</string>
+    <string name="agent_mode_dialog_cancel">Cancel</string>
+    <string name="agent_mode_accessibility_btn">Open Accessibility Settings</string>
+    <string name="agent_mode_status_active">Enabled &amp; Ready</string>
+    <string name="agent_mode_status_disabled">Disabled (Default)</string>
+    <string name="agent_mode_status_needs_permission">Enabled, but Accessibility Service is OFF</string>
 </resources>

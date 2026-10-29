@@ -207,6 +207,8 @@ class AgentExecutor(
                     summary = details
                 )
             )
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to persist audit log entry for $action: ${e.message}")
+        }
     }
 }

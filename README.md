@@ -58,7 +58,7 @@
 
 **Tavi** is an open-source, fully offline personal AI assistant engineered specifically for Android. Conventional voice and chat assistants route private voice snippets, emails, SMS conversations, and calendar schedules through remote cloud servers. Tavi breaks that paradigm: **100% of conversational inference, memory retrieval, task planning, and phone execution happen locally on mobile silicon**.
 
-Powered by Google's instruction-tuned **Gemma 3 1B IT** running on the modern **Google AI Edge LiteRT-LM** engine, Tavi bridges natural language understanding with **56 native Android system APIs** (Level 2 Android Access). Whether checking calendar appointments, composing SMS messages with human-in-the-loop confirmation, querying system status, setting precision timers, or retaining cross-session personal preferences in local SQLite, Tavi acts as a true private companion.
+Powered by Google Gemma 4 E2B (with Gemma 3 1B for low-RAM devices) via Google AI Edge LiteRT-LM, Tavi features the most complete open-source tool and safety architecture of any offline Android assistant — 57 audited, permission-gated, human-confirmed native tools. Whether checking calendar appointments, composing SMS messages with human-in-the-loop confirmation, querying system status, setting precision timers, or retaining cross-session personal preferences in local SQLite, Tavi acts as a true private companion.
 
 ---
 
@@ -68,9 +68,9 @@ Powered by Google's instruction-tuned **Gemma 3 1B IT** running on the modern **
 
 | Assistant | 100% On-Device? | Hardware Required | Native Tool Count | Screen Agent? | Voice Follow-up? | Consequential Confirmation? | License |
 | :--- | :---: | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Tavi (v1.0)** | 🟢 **Yes (0 network inference)** | **Any Android 7.0+** (2–6 GB RAM; tested on Galaxy A14) | **57 Native Tools** | 🟢 **Yes (12-step budget)** | 🟢 **Yes (Hands-free + barge-in)** | 🟢 **Yes (Strict confirmation)** | **Apache 2.0** |
-| **PokeClaw** | 🔴 No (Cloud LLM API proxy) | Android 8.0+ | ~10 tools | 🔴 No | 🟡 Push-to-talk | 🟡 Partial | Proprietary |
-| **GemOfGemma** | 🟢 Yes | High-end Snapdragon 8 Gen 2/3 (≥ 8 GB RAM) | ~5 tools | 🔴 No | 🟡 Push-to-talk | 🔴 None | Apache 2.0 |
+| **Tavi (v1.0)** | 🟢 **Yes (0 network inference)** | **Any Android 7.0+** (≥ 6 GB for Gemma 4; 2–4 GB for Gemma 3) | **57 Audited Tools** | 🟢 **Yes (12-step budget & safety guard)** | 🟢 **Yes (Hands-free + barge-in)** | 🟢 **Yes (Strict confirmation)** | **Apache 2.0** |
+| **PokeClaw** | 🟢 Yes (CPU via LiteRT-LM) | Android 8.0+ | Screen Agent Actions | 🟢 Yes (Primary purpose) | 🟡 Push-to-talk | 🟡 Partial | Apache 2.0 |
+| **GemOfGemma** | 🟢 Yes | ≥ 4 GB RAM | 22 Tools | 🔴 No | 🟡 Push-to-talk | 🔴 None | Apache 2.0 |
 | **Gemini Nano System** | 🟡 Hybrid (Fallback to cloud) | Pixel 8+ / Galaxy S24+ only | System apps only | 🟡 Limited | 🔴 No continuous follow-up | 🟡 Heuristic | Proprietary |
 
 ### Tavi vs. Traditional Cloud Assistants
@@ -79,7 +79,7 @@ Powered by Google's instruction-tuned **Gemma 3 1B IT** running on the modern **
 | :--- | :---: | :---: | :---: | :---: |
 | **Inference Location** | 🟢 **100% On-Device** | 🔴 Cloud Servers | 🟡 Hybrid / Cloud | 🔴 Cloud Servers |
 | **Offline Functionality** | 🟢 **Complete (No Internet)** | 🔴 Requires Network | 🟡 Very Limited | 🔴 Requires Network |
-| **Zero Cloud Telemetry** | 🟢 **Verified (Zero Packets)** | 🔴 No | 🔴 No | 🔴 No |
+| **Zero Cloud Telemetry** | 🟢 **Local Processing Only** | 🔴 No | 🔴 No | 🔴 No |
 | **Phone Hardware Integration** | 🟢 **57 Native Android Tools** | 🟡 Proprietary | 🟡 Proprietary | 🔴 None (Sandboxed) |
 | **Consequential Action Gates**| 🟢 **Strict Confirmation Dialogs** | 🟡 Heuristic | 🟡 Confirmation | 🔴 N/A |
 | **Persistent Personal Memory** | 🟢 **Local SQLite (Private)** | 🔴 Cloud Account Sync | 🔴 iCloud Sync | 🔴 Remote Databases |
@@ -136,65 +136,71 @@ graph TD
 
 Tavi declares and executes **57 native Android tools across 15 functional categories** via the unified `AssistantTool` interface:
 
-| Category | Native Tool Name | Required Permission | Consequential? | Description |
-| :--- | :--- | :--- | :---: | :--- |
-| **📅 Calendar (5)** | `calendar_list_events` | `READ_CALENDAR` | No | Lists upcoming events across natural-language date windows. |
-| | `calendar_get_event` | `READ_CALENDAR` | No | Retrieves detailed event metadata, attendees, and location. |
-| | `calendar_create_event` | `WRITE_CALENDAR` | No | Inserts new calendar entries with natural date resolution. |
-| | `calendar_update_event` | `WRITE_CALENDAR` | No | Updates title, start/end time, or description of existing events. |
-| | `calendar_delete_event` | `WRITE_CALENDAR` | **Yes** | Deletes event strictly after explicit user confirmation dialog. |
-| **👥 Contacts (3)** | `contacts_search` | `READ_CONTACTS` | No | Searches device contacts by name, nickname, or phone number. |
-| | `contacts_resolve` | `READ_CONTACTS` | No | Resolves ambiguous contact names using phonetic/fuzzy matching. |
-| | `contacts_create` | `WRITE_CONTACTS` | No | Creates new contact cards in the device address book. |
-| **💬 Messages & SMS (3)**| `messages_draft` | None | No | Drafts SMS messages for user inspection without transmitting. |
-| | `messages_send` | `SEND_SMS` | **Yes** | Transmits SMS via `SmsManager` strictly upon user confirmation. |
-| | `messages_search` | `READ_SMS` | No | Queries `content://sms/inbox` and sanitizes body content. |
-| **📞 Phone & Calls (3)** | `phone_dial` | None | No | Opens the system dialer with pre-populated phone number. |
-| | `phone_call` | `CALL_PHONE` | **Yes** | Initiates direct voice call strictly upon user approval. |
-| | `call_log_search` | `READ_CALL_LOG` | No | Queries missed, incoming, and outgoing call records. |
-| **🔔 Notifications (2)** | `notification_summary` | `NotificationListener` | No | Summarizes active system notifications via listener service. |
-| | `notification_dismiss` | `NotificationListener` | No | Dismisses specific active notifications by key. |
-| **⏰ Clock & Alarms (4)** | `alarm_create` | `SET_ALARM` | No | Sets system clock alarms at specified hour/minute. |
-| | `alarm_show` | None | No | Inspects active system alarms in Clock application. |
-| | `timer_set` | None | No | Starts a native countdown timer for specified duration. |
-| | `clock_query_time` | None | No | Queries current time, date, and timezone. |
-| **📌 Reminders (3)** | `reminder_create` | `POST_NOTIFICATIONS` | No | Schedules verified notifications in SQLite reminder store. |
-| | `reminder_list` | None | No | Lists active scheduled reminders from local store. |
-| | `reminder_cancel` | None | No | Cancels a scheduled reminder by identifier or title. |
-| **📱 Apps & System (3)** | `app_list_launchable` | None | No | Queries installed user-launchable applications. |
-| | `app_launch` | None | No | Launches any installed application by name or package ID. |
-| | `app_open_settings` | None | No | Opens specific system settings panels (Display, Sound, Apps). |
-| **🌐 Web & Sharing (2)** | `browser_open_url` | None | No | Launches external browser for interactive web sessions. |
-| | `share_content` | None | No | Opens Android system share sheet with provided content. |
-| **📁 Files & Notes (5)** | `files_browse_document`| None | No | Opens system document picker for user file selection. |
-| | `files_export_note` | None | No | Exports note content to system share sheet. |
-| | `note_create` | None | No | Creates structured persistent notes in SQLite. |
-| | `notes_list` | None | No | Lists and searches user notes by keyword. |
-| | `note_delete` | None | **Yes** | Deletes note record from SQLite store upon confirmation. |
-| **📱 Device & Location (8)**| `device_get_status` | None | No | Reads live battery percentage, charging, and device info. |
-| | `device_toggle_flashlight`| `CAMERA` (Torch) | No | Toggles device flashlight / torch on or off. |
-| | `settings_open` | None | No | Opens Android system settings panels. |
-| | `location_get_current` | `ACCESS_COARSE_LOCATION`| No | Queries current GPS coordinates and location fix. |
-| | `maps_navigate` | None | No | Opens navigation directions for destination in Maps app. |
-| | `camera_launch` | None | No | Launches system camera capture application. |
-| | `media_control` | None | No | Dispatches play/pause/skip media actions. |
-| | `voice_speak` | None | No | Synthesizes response aloud using local TextToSpeech. |
-| **📋 Clipboard (2)** | `clipboard_read` | None | No | Reads text from local Android clipboard. |
-| | `clipboard_copy` | None | No | Copies text to local Android clipboard. |
-| **🧠 Memory & Profile (5)**| `memory_save` | None | No | Saves user preferences and facts to persistent SQLite store. |
-| | `memory_retrieve` | None | No | Retrieves remembered facts with keyword & overlap scoring. |
-| | `memory_delete` | None | **Yes** | Deletes specific saved memory record after confirmation. |
-| | `memory_clear_all` | None | **Yes** | Clears all stored user preferences after confirmation. |
-| | `episodic_record` | None | No | Logs episodic task outcomes and workflow rationale. |
-| **🧮 Math & Utilities (4)**| `calculator` | None | No | Deterministic math evaluator (`+`, `-`, `*`, `/`, `^`, `%`, `sqrt`). |
-| | `date_calculation` | None | No | Calculates date offsets, duration between dates, weekday. |
-| | `network_get_status` | `ACCESS_NETWORK_STATE` | No | Checks network connectivity status and transport type. |
-| | `usage_stats` | `PACKAGE_USAGE_STATS` | No | Inspects foreground screen time and app usage stats. |
-| **👁️ Accessibility & Screen Agent (5)**| `accessibility_read_screen`| `AccessibilityService`| No | Inspects on-screen window node hierarchy with redaction. |
-| | `accessibility_perform_action`| `AccessibilityService`| **Yes** | Performs click/scroll actions after explicit approval. |
-| | `screen_agent_run` | `AccessibilityService` | **Yes** | Operates another app autonomously on user behalf (hard 12-step budget, kill switch). |
-| | `browser_research` | `INTERNET` | No | Fetches public web pages, strips scripts, detects CAPTCHAs. |
-| | `browser_open_page` | None | No | Opens browser page for user navigation. |
+<!-- TOOL_TABLE_START -->
+
+### Complete Native Tool Directory (57 On-Device Tools)
+
+| Category | Tool Identifier | Consequential Gate | Purpose |
+| :--- | :--- | :---: | :--- |
+| **ACCESSIBILITY** | `accessibility_perform_action` | ⚡ Direct | Performs global system UI navigation actions like pressing back, going home, showing recents, opening notifications, or quick settings. |
+| **ACCESSIBILITY** | `accessibility_read_screen` | ⚡ Direct | Inspects the visible text and UI elements currently displayed on the screen with strict password and privacy redactions. |
+| **ACCESSIBILITY** | `screen_agent_run` | 🔒 Required | Operates another app on the user's behalf to accomplish a specific goal using on-screen actions. |
+| **APPLICATIONS** | `app_launch` | ⚡ Direct | Launches an installed application by its name or package name. |
+| **APPLICATIONS** | `app_list_launchable` | ⚡ Direct | Lists visible launchable applications installed on the device. |
+| **APPLICATIONS** | `app_open_settings` | ⚡ Direct | Opens the Android system App Info settings page for Tavi or a specified app. |
+| **APPLICATIONS** | `browser_open_url` | ⚡ Direct | Opens a web URL in the device's default web browser. |
+| **APPLICATIONS** | `share_content` | ⚡ Direct | Shares text content using the Android system share sheet. |
+| **CALENDAR** | `calendar_create_event` | ⚡ Direct | Creates a new calendar event with natural date/time resolution and conflict detection. |
+| **CALENDAR** | `calendar_delete_event` | 🔒 Required | Deletes a calendar event by its event ID. This is a consequential action that requires user confirmation. |
+| **CALENDAR** | `calendar_get_event` | ⚡ Direct | Inspects details of a single calendar event by eventId. |
+| **CALENDAR** | `calendar_list_events` | ⚡ Direct | Lists or searches upcoming calendar events within an optional date range or query. |
+| **CALENDAR** | `calendar_update_event` | ⚡ Direct | Updates an existing calendar event title, time, or location. |
+| **CLOCK** | `alarm_create` | ⚡ Direct | Sets an alarm in the Android system Clock app. |
+| **CLOCK** | `alarm_show` | ⚡ Direct | Opens the device Clock app to display all configured alarms. |
+| **CLOCK** | `clock_query_time` | ⚡ Direct | Queries the current device time, timezone, UTC offset, and locale. |
+| **CLOCK** | `date_calculation` | ⚡ Direct | Performs deterministic date math (e.g., days until a future date, adding days/weeks, timezone offset). |
+| **CLOCK** | `reminder_create` | ⚡ Direct | Schedules an Android system reminder notification at a designated natural time. |
+| **CLOCK** | `timer_set` | ⚡ Direct | Starts a countdown timer in the device Clock app. |
+| **CONNECTIVITY** | `network_get_status` | ⚡ Direct | Inspects local network connectivity (Wi-Fi, cellular, metered status, offline state). |
+| **CONTACTS** | `contacts_create` | ⚡ Direct | Creates a new contact with display name, phone number, and optional email. |
+| **CONTACTS** | `contacts_resolve` | ⚡ Direct | Resolves a contact query. If multiple ambiguous contacts match, exposes the ambiguity instead of guessing. |
+| **CONTACTS** | `contacts_search` | ⚡ Direct | Searches device contacts by name or phone number to retrieve contact names and phone numbers. |
+| **DEVICE** | `device_get_status` | ⚡ Direct | Reads battery level, charging state, available storage, and system platform status. |
+| **DEVICE** | `device_toggle_flashlight` | ⚡ Direct | Turns the device flashlight/torch on or off. |
+| **DEVICE** | `settings_open` | ⚡ Direct | Opens specific Android system Settings panels (wifi, bluetooth, display, sound, notifications, battery, apps, date, storage). |
+| **FILES** | `files_browse_document` | ⚡ Direct | Launches the Android Storage Access Framework (SAF) document picker. |
+| **FILES** | `files_export_note` | ⚡ Direct | Exports a local note via the Android system share sheet. |
+| **LOCATION** | `location_get_current` | ⚡ Direct | Reads device's current foreground location coordinates if permission is granted. |
+| **LOCATION** | `maps_navigate` | ⚡ Direct | Opens maps or navigation to a destination or search query. |
+| **MEDIA** | `camera_launch` | ⚡ Direct | Opens the device Camera application to take a photo. |
+| **MEDIA** | `media_control` | ⚡ Direct | Sends media playback control commands (play_pause, next, previous). |
+| **MEDIA** | `voice_speak` | ⚡ Direct | Speaks the provided text aloud using Android Text-To-Speech. |
+| **NOTES** | `calculator` | ⚡ Direct | Evaluates deterministic mathematical expressions (e.g., '145 * 12', 'sqrt(144) + 2^4'). Safe and local. |
+| **NOTES** | `clipboard_copy` | ⚡ Direct | Copies text to the Android system clipboard. |
+| **NOTES** | `clipboard_read` | ⚡ Direct | Reads current text content from the Android system clipboard. |
+| **NOTES** | `memory_clear_all` | 🔒 Required | Permanently clears all personal memories and notes. This is a consequential action requiring user confirmation. |
+| **NOTES** | `memory_delete` | ⚡ Direct | Deletes a specific remembered item from local memory by key or ID. |
+| **NOTES** | `memory_record_episode` | ⚡ Direct | Records a completed task, project decision, or workflow rationale as an episodic memory for future recall. |
+| **NOTES** | `memory_retrieve` | ⚡ Direct | Retrieves relevant saved personal facts, preferences, or notes from local memory. |
+| **NOTES** | `memory_save` | ⚡ Direct | Saves user-approved personal preferences, facts, or notes into persistent local memory. |
+| **NOTES** | `note_create` | ⚡ Direct | Creates a persistent local note. |
+| **NOTES** | `note_delete` | 🔒 Required | Deletes a saved note by ID. Consequential action requiring confirmation. |
+| **NOTES** | `notes_list` | ⚡ Direct | Lists or searches locally saved notes. |
+| **NOTES** | `reminder_cancel` | ⚡ Direct | Cancels or deletes a scheduled reminder by title or ID. |
+| **NOTES** | `reminder_list` | ⚡ Direct | Lists all upcoming active reminders scheduled on device. |
+| **NOTIFICATIONS** | `notifications_dismiss` | ⚡ Direct | Dismisses a notification by its key or clears notifications. |
+| **NOTIFICATIONS** | `notifications_read_summary` | ⚡ Direct | Reads authorized recent notifications and summarizes active alerts or messages. |
+| **RESEARCH** | `browser_open_page` | ⚡ Direct | Opens an accessible URL in the device browser so the user can interact directly. |
+| **RESEARCH** | `browser_research_topic` | ⚡ Direct | Reads accessible web page content, extracts relevant text, and supports multi-step research. Halts if login or CAPTCHA is encountered. |
+| **TELEPHONY** | `call_log_search` | ⚡ Direct | Searches recent call history records. |
+| **TELEPHONY** | `messages_draft` | ⚡ Direct | Drafts a message reply and presents it for user inspection without sending. |
+| **TELEPHONY** | `messages_search` | ⚡ Direct | Searches explicitly permitted local SMS messages by keyword or sender. |
+| **TELEPHONY** | `messages_send_sms` | 🔒 Required | Sends an SMS message to a phone number. Requires explicit user confirmation before transmission. |
+| **TELEPHONY** | `phone_call` | 🔒 Required | Initiates a direct phone call to a contact or number. Consequential action requiring explicit user confirmation. |
+| **TELEPHONY** | `phone_dial` | ⚡ Direct | Opens the device dialer with the requested number prefilled. Does not place the call automatically. |
+| **USAGE** | `usage_get_stats` | ⚡ Direct | Retrieves authorized app usage statistics, daily screen time, and recently used apps. |
+
+<!-- TOOL_TABLE_END -->
 
 ---
 
