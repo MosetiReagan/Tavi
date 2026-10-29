@@ -309,4 +309,16 @@ class ToolRegistry(private val context: Context) {
             - If no tool is needed, respond directly with normal text.
         """.trimIndent()
     }
+
+    companion object {
+        @Volatile
+        private var instance: ToolRegistry? = null
+
+        fun getInstance(context: Context): ToolRegistry {
+            return instance ?: synchronized(this) {
+                val appContext = try { context.applicationContext ?: context } catch (_: Throwable) { context }
+                instance ?: ToolRegistry(appContext).also { instance = it }
+            }
+        }
+    }
 }

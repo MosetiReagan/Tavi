@@ -21,7 +21,7 @@ import java.util.regex.Pattern
  */
 class WorkflowPlanner(
     private val context: Context,
-    private val toolRegistry: ToolRegistry = ToolRegistry(context)
+    private val toolRegistry: ToolRegistry = ToolRegistry.getInstance(context)
 ) {
 
     companion object {

@@ -119,7 +119,7 @@ class LiteRtLlmEngine(
     }
 
     private val deterministicEngine = DeterministicAssistantEngine()
-    private val toolRegistry: ToolRegistry = toolRegistry ?: ToolRegistry(context)
+    private val toolRegistry: ToolRegistry = toolRegistry ?: ToolRegistry.getInstance(context)
 
     @Volatile
     var activeRuntime: InferenceRuntime = initialRuntime

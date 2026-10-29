@@ -19,6 +19,15 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.security.MessageDigest
+import android.app.ActivityManager
+
+data class DeviceRamAssessment(
+    val isSupported: Boolean,
+    val isLowRamDevice: Boolean,
+    val totalRamMb: Long,
+    val availRamMb: Long,
+    val warningMessage: String? = null
+)
 
 data class InstalledModelInfo(
     val isInstalled: Boolean,
@@ -135,13 +144,38 @@ class ModelManager(private val context: Context) : ComponentCallbacks2 {
         )
     }
 
+    /**
+     * Assesses whether device has sufficient RAM to run local LLM inference without OOM risks.
+     * Checks ActivityManager.isLowRamDevice and total memory against 2048 MB requirement.
+     */
+    fun checkDeviceRamSupport(): DeviceRamAssessment {
+        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+        val isLowRam = am?.isLowRamDevice ?: false
+        val memInfo = ActivityManager.MemoryInfo()
+        am?.getMemoryInfo(memInfo)
+        val totalRamMb = memInfo.totalMem / (1024 * 1024)
+        val availRamMb = memInfo.availMem / (1024 * 1024)
+        val isInsufficient = isLowRam || (totalRamMb in 1 until 1900)
+        return DeviceRamAssessment(
+            isSupported = !isInsufficient,
+            isLowRamDevice = isLowRam,
+            totalRamMb = totalRamMb,
+            availRamMb = availRamMb,
+            warningMessage = if (isInsufficient) {
+                "Device has low RAM (${if (totalRamMb > 0) "${totalRamMb} MB" else "low-RAM mode"} detected, requires at least 2048 MB). Running on-device LLM may cause out-of-memory terminations. Offline fast-path rules will be used."
+            } else null
+        )
+    }
+
     fun getAvailableModels(): List<ModelOption> {
         val info = getInstalledModelInfo()
+        val ramAssessment = checkDeviceRamSupport()
+        val ramNote = if (!ramAssessment.isSupported) " • ⚠️ Low RAM (${ramAssessment.totalRamMb} MB)" else " • ~1.9 GB RAM"
         return listOf(
             ModelOption(
                 id = MODEL_GEMMA_3_1B,
                 name = "Gemma 3 1B (Int4)",
-                sizeDescription = if (info.isInstalled) "Installed • ${info.formattedSize}" else "1.1 GB • ~1.9 GB RAM",
+                sizeDescription = if (info.isInstalled) "Installed • ${info.formattedSize}" else "1.1 GB$ramNote",
                 ramRequiredMb = 2048,
                 isInstalled = info.isInstalled,
                 isLoaded = info.isInstalled && _isLoaded.value,

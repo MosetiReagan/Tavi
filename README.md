@@ -9,15 +9,15 @@
 [![Model](https://img.shields.io/badge/Model-Gemma%203%201B%20IT-4285F4.svg?logo=google&logoColor=white)](https://huggingface.co/google/gemma-3-1b-it)
 [![Runtime](https://img.shields.io/badge/Runtime-Google%20AI%20Edge%20LiteRT--LM%200.18.1-FF6F00.svg)](https://ai.google.dev/edge)
 [![Privacy](https://img.shields.io/badge/Privacy-100%25%20Offline%20%E2%80%A2%20Zero%20Cloud%20Telemetry-7C4DFF.svg)](#-security--privacy-threat-model)
-[![Tools](https://img.shields.io/badge/Native%20Tools-53%20Tools%20Across%2015%20Categories-00C853.svg)](#-53-native-android-system-tools)
-[![Tests](https://img.shields.io/badge/Tests-132%20Passing-brightgreen.svg)](#-test-verification--benchmarks)
+[![Tools](https://img.shields.io/badge/Native%20Tools-56%20Tools%20Across%2015%20Categories-00C853.svg)](#-56-native-android-system-tools)
+[![Tests](https://img.shields.io/badge/Tests-141%20Total%20(132%20Unit%20%7C%209%20Device)-brightgreen.svg)](#-test-verification--benchmarks)
 [![License](https://img.shields.io/badge/License-Apache%202.0-F9A825.svg)](LICENSE)
 
 *Private, local-first mobile AI assistant operating entirely on-device with zero cloud telemetry, deep native Android system integration, persistent SQLite memory, and autonomous multi-step workflow execution.*
 
 `#Android` • `#OnDeviceAI` • `#Gemma3` • `#LocalLLM` • `#LiteRTLM` • `#OfflineAssistant` • `#Privacy` • `#JetpackCompose`
 
-[App Showcase](#-app-showcase--screenshots) • [Architecture](#-architecture-overview) • [53 Native Tools](#-53-native-android-system-tools) • [Why Tavi?](#-why-tavi-vs-cloud-assistants) • [Fine-Tuning](training/README.md) • [Quickstart](#-quickstart-build--run) • [Contributing](CONTRIBUTING.md)
+[App Showcase](#-app-showcase--screenshots) • [Architecture](#-architecture-overview) • [56 Native Tools](#-56-native-android-system-tools) • [Why Tavi?](#-why-tavi-vs-cloud-assistants) • [Fine-Tuning](training/README.md) • [Quickstart](#-quickstart-build--run) • [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -58,7 +58,7 @@
 
 **Tavi** is an open-source, fully offline personal AI assistant engineered specifically for Android. Conventional voice and chat assistants route private voice snippets, emails, SMS conversations, and calendar schedules through remote cloud servers. Tavi breaks that paradigm: **100% of conversational inference, memory retrieval, task planning, and phone execution happen locally on mobile silicon**.
 
-Powered by Google's instruction-tuned **Gemma 3 1B IT** running on the modern **Google AI Edge LiteRT-LM** engine, Tavi bridges natural language understanding with **53 native Android system APIs** (Level 2 Android Access). Whether checking calendar appointments, composing SMS messages with human-in-the-loop confirmation, querying system status, setting precision timers, or retaining cross-session personal preferences in local SQLite, Tavi acts as a true private companion.
+Powered by Google's instruction-tuned **Gemma 3 1B IT** running on the modern **Google AI Edge LiteRT-LM** engine, Tavi bridges natural language understanding with **56 native Android system APIs** (Level 2 Android Access). Whether checking calendar appointments, composing SMS messages with human-in-the-loop confirmation, querying system status, setting precision timers, or retaining cross-session personal preferences in local SQLite, Tavi acts as a true private companion.
 
 ---
 
@@ -69,7 +69,7 @@ Powered by Google's instruction-tuned **Gemma 3 1B IT** running on the modern **
 | **Inference Location** | 🟢 **100% On-Device** | 🔴 Cloud Servers | 🟡 Hybrid / Cloud | 🔴 Cloud Servers |
 | **Offline Functionality** | 🟢 **Complete (No Internet)** | 🔴 Requires Network | 🟡 Very Limited | 🔴 Requires Network |
 | **Zero Cloud Telemetry** | 🟢 **Verified (Zero Packets)** | 🔴 No | 🔴 No | 🔴 No |
-| **Phone Hardware Integration** | 🟢 **53 Native Android Tools** | 🟡 Proprietary | 🟡 Proprietary | 🔴 None (Sandboxed) |
+| **Phone Hardware Integration** | 🟢 **56 Native Android Tools** | 🟡 Proprietary | 🟡 Proprietary | 🔴 None (Sandboxed) |
 | **Consequential Action Gates**| 🟢 **Strict Confirmation Dialogs** | 🟡 Heuristic | 🟡 Confirmation | 🔴 N/A |
 | **Persistent Personal Memory** | 🟢 **Local SQLite (Private)** | 🔴 Cloud Account Sync | 🔴 iCloud Sync | 🔴 Remote Databases |
 | **In-App Model Acquisition** | 🟢 **Direct HTTPS Streaming** | 🔴 Closed Bundles | 🔴 Closed Bundles | 🔴 Server-Side Only |
@@ -107,7 +107,7 @@ graph TD
         LiteRT --> Planner[Workflow Execution Planner]
         Planner --> Checkpoint{Consequential Checkpoint?}
         Checkpoint -->|Yes| Dialog[Material 3 User Confirmation Gate]
-        Dialog -->|Approved| Registry[51 Native Tool Registry]
+        Dialog -->|Approved| Registry[56 Native Tool Registry]
         Checkpoint -->|No| Registry
     end
 
@@ -121,9 +121,9 @@ graph TD
 
 ---
 
-## 🛠️ 53 Native Android System Tools
+## 🛠️ 56 Native Android System Tools
 
-Tavi declares and executes **53 native Android tools across 15 functional categories** via the unified `AssistantTool` interface:
+Tavi declares and executes **56 native Android tools across 15 functional categories** via the unified `AssistantTool` interface:
 
 | Category | Native Tool Name | Required Permission | Consequential? | Description |
 | :--- | :--- | :--- | :---: | :--- |
@@ -147,7 +147,9 @@ Tavi declares and executes **53 native Android tools across 15 functional catego
 | | `alarm_show` | None | No | Inspects active system alarms in Clock application. |
 | | `timer_set` | None | No | Starts a native countdown timer for specified duration. |
 | | `clock_query_time` | None | No | Queries current time, date, and timezone. |
-| **📌 Reminders (1)** | `reminder_create` | `POST_NOTIFICATIONS` | No | Schedules verified notifications in SQLite reminder store. |
+| **📌 Reminders (3)** | `reminder_create` | `POST_NOTIFICATIONS` | No | Schedules verified notifications in SQLite reminder store. |
+| | `reminder_list` | None | No | Lists active scheduled reminders from local store. |
+| | `reminder_cancel` | None | No | Cancels a scheduled reminder by identifier or title. |
 | **📱 Apps & System (3)** | `app_list_launchable` | None | No | Queries installed user-launchable applications. |
 | | `app_launch` | None | No | Launches any installed application by name or package ID. |
 | | `app_open_settings` | None | No | Opens specific system settings panels (Display, Sound, Apps). |
@@ -158,7 +160,8 @@ Tavi declares and executes **53 native Android tools across 15 functional catego
 | | `note_create` | None | No | Creates structured persistent notes in SQLite. |
 | | `notes_list` | None | No | Lists and searches user notes by keyword. |
 | | `note_delete` | None | **Yes** | Deletes note record from SQLite store upon confirmation. |
-| **📱 Device & Location (7)**| `device_get_status` | None | No | Reads live battery percentage, charging, and device info. |
+| **📱 Device & Location (8)**| `device_get_status` | None | No | Reads live battery percentage, charging, and device info. |
+| | `device_toggle_flashlight`| `CAMERA` (Torch) | No | Toggles device flashlight / torch on or off. |
 | | `settings_open` | None | No | Opens Android system settings panels. |
 | | `location_get_current` | `ACCESS_COARSE_LOCATION`| No | Queries current GPS coordinates and location fix. |
 | | `maps_navigate` | None | No | Opens navigation directions for destination in Maps app. |
@@ -219,11 +222,11 @@ Tavi implements a **Dual-Engine Architecture** managed through `InferenceRuntime
 * **Deterministic Action Core:**
   * Instant rule-based parsing with zero latency when LLM weights are not installed or device is under low-memory pressure.
 
-### Hardware Performance Benchmarks (Samsung Galaxy A14, 4 GB RAM)
-* **Time-to-First-Token (TTFT):** `~410 ms`
-* **Inference Throughput:** `18.6 tokens / second`
-* **Resident Set Size (PSS):** `~1,720 MB`
-* **Battery Consumption:** `< 3%` per 100 conversational turns
+### Hardware Specifications & Resource Profiles (Samsung Galaxy A14, 4 GB RAM)
+* **Target Inference Runtime:** Google AI Edge LiteRT-LM (Direct JNI / Vulkan GPU pipeline with CPU fallback)
+* **Context KV-Cache Capacity:** 2,048 tokens native window
+* **Memory Management:** Enforces `< 2,048 MB` RAM guard via `ModelManager.checkDeviceRamSupport()` with zero heap leak
+* **Battery Efficiency:** On-demand execution with zero persistent wakelocks and zero background telemetry
 
 ---
 
@@ -262,7 +265,7 @@ Tavi provides built-in model download and import controls in **Settings & Privac
 
 Tavi includes an end-to-end training suite to fine-tune **Google Gemma 3 1B IT** and compile it directly into an optimized dynamic **Int4 LiteRT FlatBuffer (`.litertlm`)** for mobile execution.
 
-* **Context Overhead Reduction:** Embeds 51 native Android tool signatures directly into the model weights, shrinking the system prompt from **~350 tokens down to ~30 tokens** (slashing Time-To-First-Token by **42%** on mobile RAM).
+* **Context Overhead Reduction:** Embeds 56 native Android tool signatures directly into the model weights, shrinking the system prompt from **~350 tokens down to ~30 tokens** (slashing Time-To-First-Token by **42%** on mobile RAM).
 * **Deterministic Tool Calling:** Achieves 99.6% JSON syntax and parameter adherence.
 * **Turnkey Google Colab Notebook:** Run 4-bit QLoRA training in ~20 minutes on a free Google Colab T4 GPU:
   * 📓 **[Open Training Notebook in Google Colab](training/Tavi_Gemma3_FineTuning_Colab.ipynb)**
@@ -288,7 +291,7 @@ Tavi includes an end-to-end training suite to fine-tune **Google Gemma 3 1B IT**
 
 ### Prerequisites
 * **Android Studio Ladybug (2024.2.1+)** or newer
-* **Android SDK:** API 35 (Android 15), Minimum API 26 (Android 8.0)
+* **Android SDK:** API 35 (Android 15), Minimum API 24 (Android 7.0)
 * **JDK:** Java 17+
 
 ### 1. Clone the Repository
@@ -314,7 +317,7 @@ adb shell "am start -n com.tavi.assistant/com.example.tavi.MainActivity"
 
 ## 🧪 Test Verification & Benchmarks
 
-Tavi includes a comprehensive automated test battery verified on JVM and physical Android devices:
+Tavi includes 141 automated tests (132 JVM unit tests across 14 suites, plus 9 physical on-device instrumented tests):
 
 ```bash
 # Run all 132 JVM unit tests across 14 test suites
@@ -324,7 +327,7 @@ Tavi includes a comprehensive automated test battery verified on JVM and physica
 ```
 > Task :app:testDebugUnitTest
 
-com.example.tavi.tools.NativeToolSystemTest           [PASS - 53 Native Tools]
+com.example.tavi.tools.NativeToolSystemTest           [PASS - 56 Native Tools]
 com.example.tavi.tools.ToolExecutionTest              [PASS - Schema Validation]
 com.example.tavi.tools.ClockAndDeviceToolsTest        [PASS - Clock & Device]
 com.example.tavi.engine.LiteRtLlmEngineTest           [PASS - Engine Routing & Fallback]
@@ -353,7 +356,7 @@ Tavi/
 ├── app/
 │   ├── src/main/java/com/example/tavi/
 │   │   ├── engine/          # LiteRT-LM, MediaPipe, & ModelManager HTTP downloader
-│   │   ├── tools/           # 53 Native tools (Calendar, SMS, Device, Files...)
+│   │   ├── tools/           # 56 Native tools (Calendar, SMS, Device, Files...)
 │   │   ├── context/         # Conversation State Ledger & ContextBudgetManager
 │   │   ├── memory/          # SQLite PersistentMemoryManager & Privacy Rules
 │   │   ├── workflow/        # Autonomous Multi-Step Execution & Planning
@@ -361,7 +364,7 @@ Tavi/
 │   │   ├── accessibility/   # TaviAccessibilityService & Password Redaction
 │   │   └── ui/              # Jetpack Compose UI (Navigation 3, Main, Settings)
 │   ├── src/test/            # 132 Unit tests across 14 test suites
-│   └── src/androidTest/     # On-device Gemma inference validation tests
+│   └── src/androidTest/     # 9 On-device Gemma inference validation tests
 ├── assets/
 │   ├── branding/            # High-resolution logos & mascot artwork
 │   └── screenshots/         # Real physical device screenshots on Galaxy A14

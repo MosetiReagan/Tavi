@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Warning
 import com.example.tavi.engine.InferenceRuntime
 import androidx.compose.material3.AlertDialog
@@ -54,6 +55,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -62,6 +64,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -119,6 +122,10 @@ fun SettingsScreen(
     var showAuditDialog by remember { mutableStateOf(false) }
     var showClearMemoryConfirm by remember { mutableStateOf(false) }
     var isMemoryEnabled by remember { mutableStateOf(com.example.tavi.memory.PersistentMemoryManager.isMemoryEnabled(context)) }
+    val voiceManager = remember { com.example.tavi.voice.VoiceManager(context) }
+    var speechRate by remember { mutableFloatStateOf(voiceManager.speechRate.value) }
+    var pitch by remember { mutableFloatStateOf(voiceManager.pitch.value) }
+    var autoReadReplies by remember { mutableStateOf(voiceManager.autoReadReplies.value) }
 
     fun refreshData() {
         scope.launch(Dispatchers.IO) {
@@ -389,7 +396,7 @@ fun SettingsScreen(
                                 Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))
                                 Text(
-                                    text = "Model weights not installed. Deterministic fallback active.",
+                                    text = "Model weights not installed. Fast-path offline rules active.",
                                     fontSize = 11.sp,
                                     color = MaterialTheme.colorScheme.error
                                 )
@@ -578,7 +585,141 @@ fun SettingsScreen(
                 }
             }
 
-            // --- SECTION 3: PERMISSIONS & SECURITY ---
+            // --- SECTION 3: VOICE & SPEECH (TTS) ---
+            item {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Voice & Speech (TTS)",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "Configure on-device text-to-speech rate, voice pitch, and hands-free automatic read aloud.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(10.dp))
+
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        // Auto-Read Replies Switch
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Auto-Read Assistant Replies",
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = if (autoReadReplies) "Enabled: Speaks replies automatically" else "Disabled: Tap speaker icon to hear replies",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = autoReadReplies,
+                                onCheckedChange = { checked ->
+                                    voiceManager.setAutoReadReplies(checked)
+                                    autoReadReplies = checked
+                                }
+                            )
+                        }
+
+                        HorizontalDivider()
+
+                        // Speech Rate Slider
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Speech Speed",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "%.1fx".format(speechRate),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Slider(
+                                value = speechRate,
+                                onValueChange = {
+                                    speechRate = it
+                                    voiceManager.setSpeechRate(it)
+                                },
+                                valueRange = 0.5f..2.0f,
+                                steps = 14
+                            )
+                        }
+
+                        // Speech Pitch Slider
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Voice Pitch",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "%.1fx".format(pitch),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Slider(
+                                value = pitch,
+                                onValueChange = {
+                                    pitch = it
+                                    voiceManager.setPitch(it)
+                                },
+                                valueRange = 0.5f..1.5f,
+                                steps = 9
+                            )
+                        }
+
+                        // Test Voice Button
+                        OutlinedButton(
+                            onClick = {
+                                voiceManager.speak("Hello! I am Tavi, your private on-device assistant.")
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.VolumeUp, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Test Voice Synthesis")
+                        }
+                    }
+                }
+            }
+
+            // --- SECTION 4: PERMISSIONS & SECURITY ---
             item {
                 Spacer(Modifier.height(8.dp))
                 Row(
@@ -612,7 +753,7 @@ fun SettingsScreen(
                         Spacer(Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Capability & Permission Manager", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            Text("Inspect all 12 native categories, special access, platform limits, and audit trails.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f))
+                            Text("Inspect all 15 native categories, special access, platform limits, and audit trails.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f))
                         }
                     }
                 }
@@ -944,7 +1085,7 @@ fun SettingsScreen(
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(log.toolName, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                         Spacer(Modifier.width(6.dp))
-                                        Text(log.status, fontSize = 11.sp, color = if (log.verified) Color(0xFF2E7D32) else MaterialTheme.colorScheme.error)
+                                        Text(log.status, fontSize = 11.sp, color = if (log.verified) SuccessGreen else MaterialTheme.colorScheme.error)
                                     }
                                     Text(log.summary, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     HorizontalDivider(Modifier.padding(top = 4.dp))

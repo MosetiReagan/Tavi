@@ -3,6 +3,7 @@ package com.example.tavi.ui.main
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.tavi.context.ContextBudgetManager
 import com.example.tavi.data.TaviDatabase
 import com.example.tavi.memory.PersistentMemoryManager
 import com.example.tavi.memory.PersistentMemoryRecord
@@ -59,7 +60,7 @@ data class ChatUiState(
 class MainScreenViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = TaviDatabase.getInstance(application)
-    val toolRegistry = ToolRegistry(application)
+    val toolRegistry = ToolRegistry.getInstance(application)
     val modelManager = ModelManager.getInstance(application)
     val voiceManager = VoiceManager(application)
     val workflowPlanner = WorkflowPlanner(application, toolRegistry)
@@ -614,6 +615,10 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
             )
             db.insertMessage(finalizedMessage, userMessage.conversationId)
 
+            val prunedNotice = if (ContextBudgetManager.lastPrunedMessageCount > 0) {
+                "Context limit reached: ${ContextBudgetManager.lastPrunedMessageCount} earlier messages were pruned to fit memory."
+            } else null
+
             withContext(Dispatchers.Main) {
                 val currentMsgs = _uiState.value.messages.toMutableList()
                 if (currentMsgs.isNotEmpty() && currentMsgs.last().isStreaming) {
@@ -623,8 +628,12 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                 }
                 _uiState.value = _uiState.value.copy(
                     messages = currentMsgs,
-                    isStreaming = false
+                    isStreaming = false,
+                    statusBanner = prunedNotice ?: _uiState.value.statusBanner
                 )
+                if (voiceManager.autoReadReplies.value && finalReply.isNotBlank()) {
+                    voiceManager.speak(finalReply)
+                }
             }
         }
     }
@@ -684,10 +693,15 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         )
         db.insertMessage(assistantMessage, currentConvId)
 
+        val prunedNotice = if (ContextBudgetManager.lastPrunedMessageCount > 0) {
+            "Context limit reached: ${ContextBudgetManager.lastPrunedMessageCount} earlier messages were pruned to fit memory."
+        } else null
+
         withContext(Dispatchers.Main) {
             _uiState.value = _uiState.value.copy(
                 messages = currentHistory + assistantMessage,
-                isStreaming = false
+                isStreaming = false,
+                statusBanner = prunedNotice ?: _uiState.value.statusBanner
             )
         }
     }

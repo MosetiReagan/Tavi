@@ -10,4 +10,65 @@
     <string name="shortcut_alarm">Set Alarm</string>
     <string name="shortcut_alarm_long">Quickly set a clock alarm</string>
     <string name="quick_tile_label">Tavi Assistant</string>
+
+    <!-- Chat & Main Screen UI Strings -->
+    <string name="chat_input_placeholder">Ask Tavi or request an action…</string>
+    <string name="chat_new_chat">New Conversation</string>
+    <string name="chat_clear_history">Clear History</string>
+    <string name="chat_delete_chat">Delete Chat</string>
+    <string name="chat_copy_message">Copy message</string>
+    <string name="chat_read_aloud">Read aloud</string>
+    <string name="chat_voice_input">Voice Input</string>
+    <string name="action_confirm">Confirm</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_dismiss">Dismiss</string>
+    <string name="action_remove">Remove</string>
+    <string name="action_run">RUN ➔</string>
+    <string name="action_try_asking">Try asking: </string>
+
+    <!-- Empty State Hero -->
+    <string name="hero_title">Private AI Assistant</string>
+    <string name="hero_subtitle">Powered locally on your device by Google Gemma 3 1B IT.</string>
+    <string name="hero_chip_sms">💬 Send SMS</string>
+    <string name="hero_chip_calendar">📅 Schedule</string>
+    <string name="hero_chip_alarm">⏰ Set Alarm</string>
+    <string name="hero_chip_flashlight">💡 Flashlight</string>
+    <string name="hero_chip_battery">🔋 Battery</string>
+    <string name="hero_chip_reminders">🔔 Reminders</string>
+    <string name="hero_chip_calc">🧮 Math</string>
+    <string name="hero_chip_memory">🧠 Remember</string>
+
+    <!-- Dialogs -->
+    <string name="dialog_delete_conversation_title">Delete Conversation</string>
+    <string name="dialog_delete_conversation_message">Are you sure you want to delete this conversation? This action cannot be undone.</string>
+    <string name="dialog_clear_all_title">Clear All History</string>
+    <string name="dialog_clear_all_message">This will delete all conversations, messages, and execution audit logs. This cannot be undone.</string>
+    <string name="dialog_clear_memory_title">Clear All Memories</string>
+    <string name="dialog_clear_memory_message">Are you sure you want to clear all remembered preferences and facts? This cannot be undone.</string>
+
+    <!-- Settings UI Strings -->
+    <string name="settings_title">Settings &amp; Privacy</string>
+    <string name="settings_model_header">Local Language Model</string>
+    <string name="settings_memory_header">Personal Memory</string>
+    <string name="settings_tts_header">Voice &amp; Speech (TTS)</string>
+    <string name="settings_capabilities_header">Android Capabilities &amp; Permissions</string>
+    <string name="settings_privacy_header">Privacy &amp; Local Data Management</string>
+    <string name="settings_clear_memory">Clear All</string>
+    <string name="settings_audit_logs">Audit Logs</string>
+    <string name="settings_auto_read">Auto-Read Assistant Replies</string>
+    <string name="settings_speech_speed">Speech Speed</string>
+    <string name="settings_speech_pitch">Voice Pitch</string>
+    <string name="settings_test_voice">Test Voice Synthesis</string>
+    <string name="settings_privacy_guarantee">100% Local Privacy Guarantee</string>
+
+    <!-- Status Banners & System Notices -->
+    <string name="status_offline_rules">Model weights not installed. Fast-path offline rules active.</string>
+    <string name="status_model_loading">Loading Gemma 3 1B on device…</string>
+    <string name="status_context_pruned">Context limit reached: earlier messages were pruned from memory window.</string>
+
+    <!-- Capabilities & Access Screen -->
+    <string name="capabilities_title">Capabilities &amp; Access</string>
+    <string name="capabilities_search_placeholder">Search tools or actions (e.g. flashlight, sms, alarm)…</string>
+    <string name="capabilities_tab_catalog">Tool Catalog</string>
+    <string name="capabilities_tab_permissions">Permissions &amp; Roles</string>
 </resources>

@@ -30,7 +30,7 @@ import org.json.JSONObject
  */
 class WorkflowEngine(
     private val context: Context,
-    private val toolRegistry: ToolRegistry = ToolRegistry(context),
+    private val toolRegistry: ToolRegistry = ToolRegistry.getInstance(context),
     private val db: TaviDatabase = TaviDatabase.getInstance(context)
 ) {
 

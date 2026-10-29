@@ -122,7 +122,7 @@ data class CatalogToolItem(
 )
 
 private val ALL_CATALOG_TOOLS = listOf(
-    // Telephony & Messages
+    // 1. Telephony, Messages & Notifications (11)
     CatalogToolItem("messages_send_sms", "Send Text Message", "Messages & Calls", "Sends an SMS to any contact or phone number with on-device confirmation.", "Message Dennis: Are we still meeting?", "Requires: SEND_SMS", Icons.Default.Sms),
     CatalogToolItem("messages_draft", "Draft Message", "Messages & Calls", "Prepares an SMS draft for review without sending.", "Draft a message to Dennis: On my way", "No permissions required", Icons.Default.Sms),
     CatalogToolItem("messages_search", "Search Messages", "Messages & Calls", "Searches your local SMS inbox by query or sender name.", "Search messages from Dennis", "Requires: READ_SMS", Icons.Default.Sms),
@@ -130,13 +130,19 @@ private val ALL_CATALOG_TOOLS = listOf(
     CatalogToolItem("phone_dial", "Open Dialer", "Messages & Calls", "Pre-fills a phone number into your default dialer.", "Dial 555-0199", "No permissions required", Icons.Default.Phone),
     CatalogToolItem("call_log_search", "Recent Call History", "Messages & Calls", "Searches recent incoming and outgoing phone calls.", "Show recent calls", "Requires: READ_CALL_LOG", Icons.Default.Phone),
     CatalogToolItem("contacts_search", "Search Contacts", "Messages & Calls", "Finds contact phone numbers and emails in your address book.", "Find contact Dennis", "Requires: READ_CONTACTS", Icons.Default.Contacts),
+    CatalogToolItem("contacts_resolve", "Resolve Contact Details", "Messages & Calls", "Retrieves complete contact card details including addresses and notes.", "Get details for Alice", "Requires: READ_CONTACTS", Icons.Default.Contacts),
+    CatalogToolItem("contacts_create", "Create New Contact", "Messages & Calls", "Adds a new contact to device address book with name and phone number.", "Save Dennis with number 555-0199", "Requires: WRITE_CONTACTS", Icons.Default.Contacts),
+    CatalogToolItem("notification_summary", "Summarize Notifications", "Messages & Calls", "Reads recent unread device notifications safely on-device.", "Check my notifications", "Requires: Notification Access", Icons.Default.Notifications),
+    CatalogToolItem("notification_dismiss", "Dismiss Notification", "Messages & Calls", "Dismisses a notification by package name or notification key.", "Clear notifications from Twitter", "Requires: Notification Access", Icons.Default.Notifications),
 
-    // Calendar
+    // 2. Calendar (5)
     CatalogToolItem("calendar_list_events", "View Calendar Schedule", "Calendar", "Lists upcoming events and meetings from your local calendar.", "What's on my agenda today?", "Requires: READ_CALENDAR", Icons.Default.CalendarMonth),
+    CatalogToolItem("calendar_get_event", "Event Details", "Calendar", "Fetches complete event details, location, and guest lists.", "Show details for event #10", "Requires: READ_CALENDAR", Icons.Default.CalendarMonth),
     CatalogToolItem("calendar_create_event", "Create Calendar Event", "Calendar", "Schedules an event with smart natural date and time parsing.", "Schedule meeting tomorrow at 3 PM", "Requires: WRITE_CALENDAR", Icons.Default.CalendarMonth),
+    CatalogToolItem("calendar_update_event", "Update Calendar Event", "Calendar", "Modifies title, start/end time, or location of an existing event.", "Move my 3 PM meeting to 4 PM", "Requires: WRITE_CALENDAR", Icons.Default.CalendarMonth),
     CatalogToolItem("calendar_delete_event", "Cancel Calendar Event", "Calendar", "Removes an event from your local calendar by title or ID.", "Cancel event #12", "Requires: WRITE_CALENDAR", Icons.Default.CalendarMonth),
 
-    // Alarms & Timers
+    // 3. Alarms & Timers (7)
     CatalogToolItem("alarm_create", "Set Alarm", "Alarms & Timers", "Schedules an alarm directly in the system Clock app.", "Set an alarm for 7:30 AM", "No special permissions", Icons.Default.Alarm),
     CatalogToolItem("alarm_show", "Show Alarms", "Alarms & Timers", "Opens the system Clock app to view all scheduled alarms.", "Show my alarms", "No special permissions", Icons.Default.Alarm),
     CatalogToolItem("timer_set", "Set Timer", "Alarms & Timers", "Starts a countdown timer for seconds, minutes, or hours.", "Set a timer for 10 minutes", "No special permissions", Icons.Default.Timer),
@@ -145,14 +151,19 @@ private val ALL_CATALOG_TOOLS = listOf(
     CatalogToolItem("reminder_list", "View Reminders", "Alarms & Timers", "Lists all active upcoming reminders saved in Tavi.", "Show my reminders", "No special permissions", Icons.Default.Notifications),
     CatalogToolItem("reminder_cancel", "Cancel Reminder", "Alarms & Timers", "Cancels a scheduled reminder by title or query.", "Cancel reminder to take medicine", "No special permissions", Icons.Default.Notifications),
 
-    // Notes & Memory
+    // 4. Notes, Memory & Math (10)
     CatalogToolItem("notes_list", "View Notes", "Notes & Memory", "Lists private local notes saved on device.", "Show my notes", "Stored in app database", Icons.Default.Folder),
     CatalogToolItem("note_create", "Take a Note", "Notes & Memory", "Creates a persistent note stored privately on your phone.", "Take a note: Buy groceries", "Stored in app database", Icons.Default.Folder),
+    CatalogToolItem("note_delete", "Delete Note", "Notes & Memory", "Deletes a private local note by title or identifier.", "Delete note #5", "Stored in app database", Icons.Default.Folder),
     CatalogToolItem("memory_save", "Remember Preference", "Notes & Memory", "Saves personal facts and preferences strictly on-device.", "Remember that my gate code is 4421", "100% private & on-device", Icons.Default.AutoAwesome),
     CatalogToolItem("memory_retrieve", "Recall Saved Facts", "Notes & Memory", "Answers questions using your stored private memories.", "What is my gate code?", "100% private & on-device", Icons.Default.AutoAwesome),
+    CatalogToolItem("memory_delete", "Delete Memory", "Notes & Memory", "Deletes a specific remembered key/fact from local SQLite.", "Forget my gate code", "Stored in app database", Icons.Default.AutoAwesome),
+    CatalogToolItem("memory_clear_all", "Clear All Memories", "Notes & Memory", "Wipes all stored personal memories with user confirmation.", "Clear all memories", "Requires confirmation", Icons.Default.AutoAwesome),
+    CatalogToolItem("episodic_record", "Record Routine Record", "Notes & Memory", "Records episodic outcome and decisions for complex workflow steps.", "Save workflow record", "Stored in app database", Icons.Default.AutoAwesome),
     CatalogToolItem("calculator", "Math & Calculation", "Notes & Memory", "Computes arithmetic and math expressions offline.", "What is 15% tip on 85 dollars?", "Runs locally", Icons.Default.Calculate),
+    CatalogToolItem("date_calculation", "Date & Days Calculation", "Notes & Memory", "Calculates elapsed days, future dates, and weekdays offline.", "How many days until Christmas?", "Runs locally", Icons.Default.CalendarMonth),
 
-    // Device & Hardware
+    // 5. Device & Settings (9)
     CatalogToolItem("device_toggle_flashlight", "Flashlight / Torch", "Device & Settings", "Turns your phone flashlight on or off.", "Turn on the flashlight", "Uses Camera torch API", Icons.Default.FlashlightOn),
     CatalogToolItem("device_get_status", "Battery & Storage", "Device & Settings", "Reads current battery percentage, charging state, and available storage.", "Check device battery and storage", "Reads local hardware status", Icons.Default.Settings),
     CatalogToolItem("network_get_status", "WiFi & Network", "Device & Settings", "Checks active WiFi, cellular data, and offline status.", "Am I connected to WiFi?", "Requires: ACCESS_NETWORK_STATE", Icons.Default.Wifi),
@@ -161,16 +172,23 @@ private val ALL_CATALOG_TOOLS = listOf(
     CatalogToolItem("maps_navigate", "Maps Navigation", "Device & Settings", "Opens turn-by-turn navigation in your maps app.", "Directions to nearest pharmacy", "Standard Maps Intent", Icons.Default.LocationOn),
     CatalogToolItem("camera_launch", "Open Camera", "Device & Settings", "Launches the default system camera app.", "Open camera", "Standard Camera Intent", Icons.Default.CameraAlt),
     CatalogToolItem("media_control", "Media Controls", "Device & Settings", "Controls active media playback (play, pause, next).", "Pause music", "Dispatches media key event", Icons.Default.MusicNote),
+    CatalogToolItem("voice_speak", "Speak Aloud (TTS)", "Device & Settings", "Speaks assistant text output through on-device text-to-speech engine.", "Read aloud: Hello world", "Runs via TextToSpeech", Icons.Default.Mic),
 
-    // System & Apps
+    // 6. System & Apps (14)
     CatalogToolItem("app_launch", "Open App", "System & Apps", "Launches any installed app on your device.", "Open Spotify", "Standard Launcher Intent", Icons.Default.Apps),
     CatalogToolItem("app_list_launchable", "List Installed Apps", "System & Apps", "Lists all launchable applications installed on your phone.", "What apps do I have?", "Requires: QUERY_ALL_PACKAGES", Icons.Default.Apps),
+    CatalogToolItem("app_open_settings", "App Info & Settings", "System & Apps", "Opens the system App Info settings screen for a specified app.", "Open app info for WhatsApp", "Standard Android Intent", Icons.Default.Apps),
+    CatalogToolItem("browser_open_url", "Open Web Link", "System & Apps", "Opens a URL safely in your default browser.", "Open https://wikipedia.org", "Standard Browser Intent", Icons.Default.Language),
+    CatalogToolItem("browser_open_page", "Open Browser Page", "System & Apps", "Directly opens a specific webpage URL.", "Go to https://news.ycombinator.com", "Standard Browser Intent", Icons.Default.Language),
+    CatalogToolItem("browser_research", "Offline Browser Research", "System & Apps", "Extracts readable text and topics from a local or open page.", "Research this page", "Runs locally on-device", Icons.Default.Language),
+    CatalogToolItem("files_browse_document", "Browse Files", "System & Apps", "Opens system Storage Access Framework document picker.", "Open documents", "Standard SAF Intent", Icons.Default.Folder),
+    CatalogToolItem("files_export_note", "Export Note to File", "System & Apps", "Exports local note text into an external text file.", "Export my meeting note", "Standard SAF Intent", Icons.Default.Folder),
+    CatalogToolItem("share_content", "Share Sheet", "System & Apps", "Displays the native Android share sheet with custom text.", "Share this note", "Standard Share Intent", Icons.Default.Share),
     CatalogToolItem("clipboard_read", "Read Clipboard", "System & Apps", "Reads text currently copied to your system clipboard.", "What is on my clipboard?", "Uses ClipboardManager", Icons.Default.ContentCopy),
     CatalogToolItem("clipboard_copy", "Copy to Clipboard", "System & Apps", "Copies specified text to your device clipboard.", "Copy to clipboard: Meeting notes", "Uses ClipboardManager", Icons.Default.ContentCopy),
     CatalogToolItem("accessibility_read_screen", "Read Active Screen", "System & Apps", "Reads UI elements and text on your screen for accessibility.", "Read my screen", "Requires: Accessibility Service", Icons.Default.Visibility),
-    CatalogToolItem("usage_get_stats", "Screen Time & Usage", "System & Apps", "Summarizes app usage and screen time for today.", "How much did I use my phone today?", "Requires: Usage Access", Icons.Default.Android),
-    CatalogToolItem("browser_open_url", "Open Web Link", "System & Apps", "Opens a URL safely in your default browser.", "Open https://wikipedia.org", "Standard Browser Intent", Icons.Default.Language),
-    CatalogToolItem("share_content", "Share Sheet", "System & Apps", "Displays the native Android share sheet with custom text.", "Share this note", "Standard Share Intent", Icons.Default.Share)
+    CatalogToolItem("accessibility_perform_action", "Perform Screen Action", "System & Apps", "Clicks or scrolls UI elements on-screen on your behalf.", "Click the Submit button", "Requires: Accessibility Service", Icons.Default.Visibility),
+    CatalogToolItem("usage_stats", "Screen Time & Usage", "System & Apps", "Summarizes app usage and screen time for today.", "How much did I use my phone today?", "Requires: Usage Access", Icons.Default.Android)
 )
 
 @OptIn(ExperimentalMaterial3Api::class)

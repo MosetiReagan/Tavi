@@ -55,7 +55,7 @@ class LiteRtLmBackendEngine(
     }
 
     private val fallbackEngine = DeterministicAssistantEngine()
-    private val toolRegistry: ToolRegistry = toolRegistry ?: ToolRegistry(context)
+    private val toolRegistry: ToolRegistry = toolRegistry ?: ToolRegistry.getInstance(context)
     private val inferenceMutex = Mutex()
 
     @Volatile
