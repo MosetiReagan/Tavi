@@ -60,7 +60,15 @@ def train():
             TrainingArguments,
         )
         from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
-        from trl import SFTTrainer
+        from trl import SFTTrainer, SFTConfig
+        # Ensure compatibility with Turing GPUs (Tesla T4 / compute capability < 8.0)
+        if torch.cuda.is_available() and torch.cuda.get_device_capability()[0] < 8:
+            try:
+                import trl.kernels.chunked_logprob
+                trl.kernels.chunked_logprob._MM_OUT_DTYPE = False
+                logger.info("Configured TRL chunked_logprob for Turing (Compute < 8.0) FP16 GEMM fallback.")
+            except Exception:
+                pass
     except ImportError as e:
         logger.error(
             f"Required ML packages not installed: {e}\n"
@@ -89,7 +97,9 @@ def train():
     tokenizer.padding_side = "right"
 
     # 3. Model Configuration (Quantization & Device Setup)
-    compute_dtype = torch.bfloat16 if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else torch.float16
+    major = torch.cuda.get_device_capability()[0] if torch.cuda.is_available() else 0
+    compute_dtype = torch.bfloat16 if major >= 8 else torch.float16
+    logger.info(f"Target compute dtype: {compute_dtype} (CUDA major capability: {major})")
 
     bnb_config = None
     if args.use_4bit and torch.cuda.is_available():
@@ -107,6 +117,7 @@ def train():
         args.model_id,
         quantization_config=bnb_config,
         device_map=device_map,
+        dtype=compute_dtype,
         torch_dtype=compute_dtype,
         trust_remote_code=True,
     )
@@ -136,29 +147,36 @@ def train():
     )
 
     model = get_peft_model(model, peft_config)
+    # Ensure all trainable LoRA parameters are float32 for AMP GradScaler compatibility on Turing/T4 GPUs
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            param.data = param.data.to(torch.float32)
+
     trainable_params, all_param = model.get_nb_trainable_parameters()
     logger.info(
         f"LoRA Trainable Parameters: {trainable_params:,} / {all_param:,} "
         f"({100 * trainable_params / all_param:.3f}% of total weights)"
     )
 
-    # 5. Training Arguments
-    training_args = TrainingArguments(
+    # 5. Training Arguments (SFTConfig for TRL)
+    training_args = SFTConfig(
         output_dir=args.output_dir,
+        dataset_text_field="text",
+        max_seq_length=args.max_seq_length,
         num_train_epochs=args.epochs,
         per_device_train_batch_size=args.batch_size,
         gradient_accumulation_steps=args.grad_accum,
         learning_rate=args.lr,
-        warmup_ratio=0.03,
+        warmup_steps=30,
         lr_scheduler_type="cosine",
         logging_steps=25,
-        evaluation_strategy="steps" if "validation" in dataset else "no",
+        eval_strategy="steps" if "validation" in dataset else "no",
         eval_steps=100 if "validation" in dataset else None,
         save_strategy="steps",
         save_steps=200,
         save_total_limit=2,
-        fp16=(compute_dtype == torch.float16),
-        bf16=(compute_dtype == torch.bfloat16),
+        fp16=False if args.use_4bit else (compute_dtype == torch.float16),
+        bf16=False if args.use_4bit else (compute_dtype == torch.bfloat16),
         optim="paged_adamw_8bit" if (args.use_4bit and torch.cuda.is_available()) else "adamw_torch",
         report_to="none",
     )
@@ -169,11 +187,8 @@ def train():
         model=model,
         train_dataset=dataset["train"],
         eval_dataset=dataset.get("validation"),
-        dataset_text_field="text",
-        max_seq_length=args.max_seq_length,
-        tokenizer=tokenizer,
         args=training_args,
-        peft_config=peft_config,
+        processing_class=tokenizer,
     )
 
     logger.info("Starting training loop...")

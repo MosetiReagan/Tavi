@@ -214,7 +214,9 @@ class ConversationLedger {
                         recentToolSummaries.add("Screen time: top app is $top ($mins minutes)")
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                android.util.Log.w("ConversationLedger", "Failed parsing tool result for ledger summary", e)
+            }
         }
     }
 

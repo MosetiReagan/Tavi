@@ -27,7 +27,9 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
     init {
         try {
             textToSpeech = TextToSpeech(context.applicationContext, this)
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.w("VoiceManager", "Failed initializing TextToSpeech", e)
+        }
     }
 
     override fun onInit(status: Int) {
@@ -37,7 +39,11 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
         }
     }
 
-    fun startListening(onResult: (String) -> Unit, onError: (String) -> Unit) {
+    fun startListening(
+        onPartialResult: (String) -> Unit = {},
+        onResult: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
         if (!SpeechRecognizer.isRecognitionAvailable(context)) {
             onError("Speech recognition not available on this device.")
             return
@@ -67,7 +73,7 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
                     val errorMsg = when (error) {
                         SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
                         SpeechRecognizer.ERROR_CLIENT -> "Client side error"
-                        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Audio permission missing"
+                        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Microphone permission required"
                         SpeechRecognizer.ERROR_NETWORK -> "Network error during speech recognition"
                         SpeechRecognizer.ERROR_NO_MATCH -> "No speech recognized"
                         SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Speech recognizer busy"
@@ -86,7 +92,13 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
                     }
                 }
 
-                override fun onPartialResults(partialResults: Bundle?) {}
+                override fun onPartialResults(partialResults: Bundle?) {
+                    val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    val partial = matches?.firstOrNull()
+                    if (!partial.isNullOrEmpty()) {
+                        onPartialResult(partial)
+                    }
+                }
                 override fun onEvent(eventType: Int, params: Bundle?) {}
             })
             startListening(intent)
@@ -98,7 +110,9 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
             speechRecognizer?.stopListening()
             speechRecognizer?.destroy()
             speechRecognizer = null
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.w("VoiceManager", "Error destroying speech recognizer", e)
+        }
         _isListening.value = false
     }
 

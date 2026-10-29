@@ -32,6 +32,7 @@ import com.example.tavi.tools.contacts.ContactsCreateTool
 import com.example.tavi.tools.contacts.ContactsResolveTool
 import com.example.tavi.tools.contacts.ContactsSearchTool
 import com.example.tavi.tools.device.DeviceGetStatusTool
+import com.example.tavi.tools.device.DeviceToggleFlashlightTool
 import com.example.tavi.tools.device.SettingsOpenTool
 import com.example.tavi.tools.everyday.CalculatorTool
 import com.example.tavi.tools.everyday.ClipboardCopyTool
@@ -40,7 +41,9 @@ import com.example.tavi.tools.everyday.DateCalculationTool
 import com.example.tavi.tools.everyday.NoteCreateTool
 import com.example.tavi.tools.everyday.NoteDeleteTool
 import com.example.tavi.tools.everyday.NotesListTool
+import com.example.tavi.tools.everyday.ReminderCancelTool
 import com.example.tavi.tools.everyday.ReminderCreateTool
+import com.example.tavi.tools.everyday.ReminderListTool
 import com.example.tavi.tools.files.FilesBrowseDocumentTool
 import com.example.tavi.tools.files.FilesExportNoteTool
 import com.example.tavi.tools.location.LocationGetCurrentTool
@@ -100,6 +103,8 @@ class ToolRegistry(private val context: Context) {
         register(TimerSetTool())
         register(ClockQueryTimeTool())
         register(ReminderCreateTool())
+        register(ReminderListTool())
+        register(ReminderCancelTool())
 
         // Applications & System Navigation
         register(AppListLaunchableTool())
@@ -114,6 +119,7 @@ class ToolRegistry(private val context: Context) {
 
         // Device & Settings
         register(DeviceGetStatusTool())
+        register(DeviceToggleFlashlightTool())
         register(SettingsOpenTool())
 
         // Location & Maps

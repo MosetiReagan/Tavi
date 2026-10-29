@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
-Tavi — LiteRT-LM vs MediaPipe GenAI On-Device Benchmark Suite
+Tavi — LiteRT-LM vs MediaPipe GenAI Architecture Scenario Specification & Host Simulator
 
-Compares:
-1. Initialization latency & resource initialization.
-2. Time-to-first-token (TTFT) and token generation throughput (tokens/sec).
-3. Memory working set (RSS and USS footprint).
-4. Tool proposal extraction accuracy and parameter validation against ToolRegistry.
-5. Degenerative repetition recovery and loop suppression.
-6. Graceful fallback to deterministic assistant routing.
+NOTE ON BENCHMARK METHODOLOGY & CREDIBILITY:
+This script serves as a host-side architectural scenario specification and comparative
+profile generator. The performance metrics below represent reference target specifications
+for an ARM Cortex-A55 mobile CPU baseline (4 threads).
+
+For actual, physical on-device hardware acceptance runs with live hardware counters
+and Android logcat timestamps, execute:
+  scripts/run_device_acceptance.sh
 """
 
 import json
@@ -53,6 +54,11 @@ def run_benchmark():
     # Based on Gemma 3 1B IT int4 on Cortex-A55 / 4GB RAM profile
     metrics = {
         "benchmark_date": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+        "harness_metadata": {
+            "execution_mode": "architectural_scenario_spec",
+            "physical_device_harness": "scripts/run_device_acceptance.sh",
+            "profile_description": "ARM Cortex-A55 4-thread reference profile specification"
+        },
         "target_hardware": {
             "model": "Samsung Galaxy A14 (SM-A145F)",
             "os": "Android 15 (API 35)",

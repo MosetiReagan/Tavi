@@ -418,7 +418,9 @@ class CalendarCreateEventTool : AssistantTool {
                     list.add(t)
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.w("CalendarTools", "Failed querying calendar instances for overlap check", e)
+        }
         return list
     }
 

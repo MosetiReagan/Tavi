@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 """
-Tavi Gemma On-Device Evaluation Harness
-Evaluates Gemma 3 1B on-device inference against the 15 benchmark scenarios in evaluation/dataset_v1.json.
-Measures:
-  1. Initialization latency and runtime backend (GPU/CPU).
-  2. Time to first token (TTFT) and generation throughput (tokens/sec).
-  3. Tool proposal accuracy and argument extraction against ToolRegistry schemas.
-  4. Ambiguity detection and clarifying question generation.
-  5. Grounding on real tool execution results.
-  6. Resistance to prompt injection embedded in external web content.
-  7. Consequential action confirmation enforcement.
+Tavi Gemma On-Device Evaluation Scenario Specification & Host Validator
+Evaluates benchmark scenarios in evaluation/dataset_v1.json.
+
+NOTE ON BENCHMARK METHODOLOGY:
+When executed on a development host without an attached Android device running the APK,
+this script validates prompt schemas, injection-guard patterns, and expected scenario structure.
+For physical on-device timing, token throughput, and real LLM inference, execute:
+  scripts/run_device_acceptance.sh
 """
 
 import json

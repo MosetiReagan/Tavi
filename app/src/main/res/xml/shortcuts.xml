@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="new_chat"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_new_chat"
+        android:shortcutLongLabel="@string/shortcut_new_chat_long">
+        <intent
+            android:action="com.example.tavi.shortcut.NEW_CHAT"
+            android:targetPackage="com.tavi.assistant"
+            android:targetClass="com.example.tavi.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="voice_assistant"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_voice"
+        android:shortcutLongLabel="@string/shortcut_voice_long">
+        <intent
+            android:action="com.example.tavi.shortcut.VOICE"
+            android:targetPackage="com.tavi.assistant"
+            android:targetClass="com.example.tavi.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="set_alarm"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_alarm"
+        android:shortcutLongLabel="@string/shortcut_alarm_long">
+        <intent
+            android:action="com.example.tavi.shortcut.ALARM"
+            android:targetPackage="com.tavi.assistant"
+            android:targetClass="com.example.tavi.MainActivity" />
+    </shortcut>
+</shortcuts>

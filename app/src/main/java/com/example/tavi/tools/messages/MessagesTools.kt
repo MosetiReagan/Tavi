@@ -210,14 +210,18 @@ class MessagesSendTool : AssistantTool {
                     put(android.provider.Telephony.Sms.TYPE, android.provider.Telephony.Sms.MESSAGE_TYPE_SENT)
                 }
                 context.contentResolver.insert(android.provider.Telephony.Sms.Sent.CONTENT_URI, values)
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                android.util.Log.w("MessagesTools", "Failed logging sent SMS to system telephony provider", e)
+            }
 
             val resultObj = JSONObject().apply {
                 put("verified", true)
+                put("carrierDeliveryPending", true)
                 put("recipient", resolvedName ?: resolvedNumber)
                 put("phoneNumber", resolvedNumber)
                 put("partsCount", parts.size)
-                put("status", "SENT_AND_VERIFIED")
+                put("status", "DISPATCHED_TO_CARRIER")
+                put("summary", "Message handed off to cellular radio for transmission.")
             }
 
             return ToolResult(

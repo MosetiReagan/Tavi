@@ -5,19 +5,19 @@
 # Tavi — 100% On-Device Personal AI Assistant for Android
 ### Powered by Google Gemma 3 1B IT & Google AI Edge LiteRT-LM
 
-[![Platform](https://img.shields.io/badge/Platform-Android%208.0%2B%20(API%2026--35)-3DDC84.svg?logo=android&logoColor=white)](https://developer.android.com)
+[![Platform](https://img.shields.io/badge/Platform-Android%207.0%2B%20(API%2024--36)-3DDC84.svg?logo=android&logoColor=white)](https://developer.android.com)
 [![Model](https://img.shields.io/badge/Model-Gemma%203%201B%20IT-4285F4.svg?logo=google&logoColor=white)](https://huggingface.co/google/gemma-3-1b-it)
 [![Runtime](https://img.shields.io/badge/Runtime-Google%20AI%20Edge%20LiteRT--LM%200.18.1-FF6F00.svg)](https://ai.google.dev/edge)
 [![Privacy](https://img.shields.io/badge/Privacy-100%25%20Offline%20%E2%80%A2%20Zero%20Cloud%20Telemetry-7C4DFF.svg)](#-security--privacy-threat-model)
-[![Tools](https://img.shields.io/badge/Native%20Tools-51%20Tools%20Across%2014%20Categories-00C853.svg)](#-51-native-android-system-tools)
-[![Tests](https://img.shields.io/badge/Tests-128%20Passing-brightgreen.svg)](#-test-verification--benchmarks)
+[![Tools](https://img.shields.io/badge/Native%20Tools-53%20Tools%20Across%2015%20Categories-00C853.svg)](#-53-native-android-system-tools)
+[![Tests](https://img.shields.io/badge/Tests-132%20Passing-brightgreen.svg)](#-test-verification--benchmarks)
 [![License](https://img.shields.io/badge/License-Apache%202.0-F9A825.svg)](LICENSE)
 
 *Private, local-first mobile AI assistant operating entirely on-device with zero cloud telemetry, deep native Android system integration, persistent SQLite memory, and autonomous multi-step workflow execution.*
 
 `#Android` • `#OnDeviceAI` • `#Gemma3` • `#LocalLLM` • `#LiteRTLM` • `#OfflineAssistant` • `#Privacy` • `#JetpackCompose`
 
-[App Showcase](#-app-showcase--screenshots) • [Architecture](#-architecture-overview) • [51 Native Tools](#-51-native-android-system-tools) • [Why Tavi?](#-why-tavi-vs-cloud-assistants) • [Fine-Tuning](training/README.md) • [Quickstart](#-quickstart-build--run) • [Contributing](CONTRIBUTING.md)
+[App Showcase](#-app-showcase--screenshots) • [Architecture](#-architecture-overview) • [53 Native Tools](#-53-native-android-system-tools) • [Why Tavi?](#-why-tavi-vs-cloud-assistants) • [Fine-Tuning](training/README.md) • [Quickstart](#-quickstart-build--run) • [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -58,7 +58,7 @@
 
 **Tavi** is an open-source, fully offline personal AI assistant engineered specifically for Android. Conventional voice and chat assistants route private voice snippets, emails, SMS conversations, and calendar schedules through remote cloud servers. Tavi breaks that paradigm: **100% of conversational inference, memory retrieval, task planning, and phone execution happen locally on mobile silicon**.
 
-Powered by Google's instruction-tuned **Gemma 3 1B IT** running on the modern **Google AI Edge LiteRT-LM** engine, Tavi bridges natural language understanding with **51 native Android system APIs** (Level 2 Android Access). Whether checking calendar appointments, composing SMS messages with human-in-the-loop confirmation, toggling system radios, setting precision timers, or retaining cross-session personal preferences in local SQLite, Tavi acts as a true private companion.
+Powered by Google's instruction-tuned **Gemma 3 1B IT** running on the modern **Google AI Edge LiteRT-LM** engine, Tavi bridges natural language understanding with **53 native Android system APIs** (Level 2 Android Access). Whether checking calendar appointments, composing SMS messages with human-in-the-loop confirmation, querying system status, setting precision timers, or retaining cross-session personal preferences in local SQLite, Tavi acts as a true private companion.
 
 ---
 
@@ -69,7 +69,7 @@ Powered by Google's instruction-tuned **Gemma 3 1B IT** running on the modern **
 | **Inference Location** | 🟢 **100% On-Device** | 🔴 Cloud Servers | 🟡 Hybrid / Cloud | 🔴 Cloud Servers |
 | **Offline Functionality** | 🟢 **Complete (No Internet)** | 🔴 Requires Network | 🟡 Very Limited | 🔴 Requires Network |
 | **Zero Cloud Telemetry** | 🟢 **Verified (Zero Packets)** | 🔴 No | 🔴 No | 🔴 No |
-| **Phone Hardware Integration** | 🟢 **51 Native Android Tools** | 🟡 Proprietary | 🟡 Proprietary | 🔴 None (Sandboxed) |
+| **Phone Hardware Integration** | 🟢 **53 Native Android Tools** | 🟡 Proprietary | 🟡 Proprietary | 🔴 None (Sandboxed) |
 | **Consequential Action Gates**| 🟢 **Strict Confirmation Dialogs** | 🟡 Heuristic | 🟡 Confirmation | 🔴 N/A |
 | **Persistent Personal Memory** | 🟢 **Local SQLite (Private)** | 🔴 Cloud Account Sync | 🔴 iCloud Sync | 🔴 Remote Databases |
 | **In-App Model Acquisition** | 🟢 **Direct HTTPS Streaming** | 🔴 Closed Bundles | 🔴 Closed Bundles | 🔴 Server-Side Only |
@@ -121,65 +121,65 @@ graph TD
 
 ---
 
-## 🛠️ 51 Native Android System Tools
+## 🛠️ 53 Native Android System Tools
 
-Tavi declares and executes **51 native Android tools across 14 functional categories** via the unified `AssistantTool` interface:
+Tavi declares and executes **53 native Android tools across 15 functional categories** via the unified `AssistantTool` interface:
 
 | Category | Native Tool Name | Required Permission | Consequential? | Description |
 | :--- | :--- | :--- | :---: | :--- |
-| **📅 Calendar** | `calendar_list_events` | `READ_CALENDAR` | No | Lists and searches upcoming events across natural-language date windows. |
+| **📅 Calendar (5)** | `calendar_list_events` | `READ_CALENDAR` | No | Lists upcoming events across natural-language date windows. |
 | | `calendar_get_event` | `READ_CALENDAR` | No | Retrieves detailed event metadata, attendees, and location. |
 | | `calendar_create_event` | `WRITE_CALENDAR` | No | Inserts new calendar entries with natural date resolution. |
 | | `calendar_update_event` | `WRITE_CALENDAR` | No | Updates title, start/end time, or description of existing events. |
 | | `calendar_delete_event` | `WRITE_CALENDAR` | **Yes** | Deletes event strictly after explicit user confirmation dialog. |
-| **👥 Contacts** | `contacts_search` | `READ_CONTACTS` | No | Searches device contacts by name, nickname, or phone number. |
+| **👥 Contacts (3)** | `contacts_search` | `READ_CONTACTS` | No | Searches device contacts by name, nickname, or phone number. |
 | | `contacts_resolve` | `READ_CONTACTS` | No | Resolves ambiguous contact names using phonetic/fuzzy matching. |
 | | `contacts_create` | `WRITE_CONTACTS` | No | Creates new contact cards in the device address book. |
-| **💬 Telephony & SMS** | `messages_draft` | None | No | Drafts SMS messages for user inspection without transmitting. |
-| | `messages_send_sms` | `SEND_SMS` | **Yes** | Transmits SMS via `SmsManager` strictly upon user confirmation. |
+| **💬 Messages & SMS (3)**| `messages_draft` | None | No | Drafts SMS messages for user inspection without transmitting. |
+| | `messages_send` | `SEND_SMS` | **Yes** | Transmits SMS via `SmsManager` strictly upon user confirmation. |
 | | `messages_search` | `READ_SMS` | No | Queries `content://sms/inbox` and sanitizes body content. |
-| | `phone_dial` | None | No | Opens the system dialer with pre-populated phone number. |
+| **📞 Phone & Calls (3)** | `phone_dial` | None | No | Opens the system dialer with pre-populated phone number. |
 | | `phone_call` | `CALL_PHONE` | **Yes** | Initiates direct voice call strictly upon user approval. |
 | | `call_log_search` | `READ_CALL_LOG` | No | Queries missed, incoming, and outgoing call records. |
-| **🔔 Notifications** | `notifications_read_summary` | `NotificationListener` | No | Summarizes active system notifications via notification listener service. |
-| | `notifications_send_local` | `POST_NOTIFICATIONS` | No | Dispatches instant local notification banner. |
-| **⏰ Clock & Timers** | `alarm_create` | `SET_ALARM` | No | Sets system clock alarms at specified hour/minute. |
-| | `alarm_list` | None | No | Inspects active system alarms. |
-| | `timer_start` | None | No | Starts a native countdown timer for specified duration. |
-| | `timer_get_status` | None | No | Checks remaining countdown timer status. |
-| | `stopwatch_start` | None | No | Initiates precision system stopwatch. |
-| | `stopwatch_stop` | None | No | Stops stopwatch and returns elapsed split time. |
-| **💡 Device Controls** | `flashlight_toggle` | None | No | Toggles device camera LED torch on/off via `CameraManager`. |
-| | `brightness_set` | `WRITE_SETTINGS` | No | Adjusts screen brightness level dynamically. |
-| | `volume_set` | None | No | Controls media, ring, notification, or alarm volume streams. |
-| | `battery_status` | None | No | Reads live battery percentage, health, and charging status. |
-| | `device_info` | None | No | Inspects device model, RAM, storage, and Android OS version. |
-| **📶 Connectivity** | `wifi_status` | `ACCESS_NETWORK_STATE` | No | Checks WiFi connection state, SSID, and signal strength. |
-| | `wifi_toggle` | None | No | Opens system WiFi panel for user toggle. |
-| | `bluetooth_status` | `BLUETOOTH` | No | Checks Bluetooth radio state and paired peripheral devices. |
-| | `bluetooth_toggle` | None | No | Opens system Bluetooth settings panel. |
-| **📱 Apps & System** | `app_launch` | None | No | Launches any installed application by name or package ID. |
-| | `app_list_installed` | None | No | Queries installed user and system applications. |
-| | `settings_open` | None | No | Opens specific system settings panels (Display, Sound, Apps). |
-| **📁 Files & Storage** | `files_list` | None | No | Lists files and directories in standard public storage folders. |
-| | `files_read` | None | No | Safely reads local text documents and logs. |
-| | `files_storage_summary`| None | No | Analyzes available, used, and total device internal storage. |
-| **🎵 Media & Audio** | `media_play_pause` | None | No | Controls media playback on active music/podcast players. |
-| | `media_next` | None | No | Skips to the next track on the active media session. |
-| | `media_previous` | None | No | Rewinds to the previous track on the active media session. |
-| | `audio_record_snippet` | `RECORD_AUDIO` | No | Captures short audio sample for voice note storage. |
-| **📍 Location** | `location_get_current` | `ACCESS_COARSE_LOCATION`| No | Queries current GPS coordinates and city name. |
-| | `location_reverse_geocode`| None | No | Converts latitude/longitude to street address. |
-| **🌐 Safe Web Research**| `browser_research_topic`| `INTERNET` | No | Fetches public web pages, strips scripts, detects CAPTCHAs. |
-| | `browser_open_page` | None | No | Launches external browser for interactive sessions. |
-| **🧠 Personal Memory** | `memory_save` | None | No | Saves user preferences and facts to persistent SQLite store. |
+| **🔔 Notifications (2)** | `notification_summary` | `NotificationListener` | No | Summarizes active system notifications via listener service. |
+| | `notification_dismiss` | `NotificationListener` | No | Dismisses specific active notifications by key. |
+| **⏰ Clock & Alarms (4)** | `alarm_create` | `SET_ALARM` | No | Sets system clock alarms at specified hour/minute. |
+| | `alarm_show` | None | No | Inspects active system alarms in Clock application. |
+| | `timer_set` | None | No | Starts a native countdown timer for specified duration. |
+| | `clock_query_time` | None | No | Queries current time, date, and timezone. |
+| **📌 Reminders (1)** | `reminder_create` | `POST_NOTIFICATIONS` | No | Schedules verified notifications in SQLite reminder store. |
+| **📱 Apps & System (3)** | `app_list_launchable` | None | No | Queries installed user-launchable applications. |
+| | `app_launch` | None | No | Launches any installed application by name or package ID. |
+| | `app_open_settings` | None | No | Opens specific system settings panels (Display, Sound, Apps). |
+| **🌐 Web & Sharing (2)** | `browser_open_url` | None | No | Launches external browser for interactive web sessions. |
+| | `share_content` | None | No | Opens Android system share sheet with provided content. |
+| **📁 Files & Notes (5)** | `files_browse_document`| None | No | Opens system document picker for user file selection. |
+| | `files_export_note` | None | No | Exports note content to system share sheet. |
+| | `note_create` | None | No | Creates structured persistent notes in SQLite. |
+| | `notes_list` | None | No | Lists and searches user notes by keyword. |
+| | `note_delete` | None | **Yes** | Deletes note record from SQLite store upon confirmation. |
+| **📱 Device & Location (7)**| `device_get_status` | None | No | Reads live battery percentage, charging, and device info. |
+| | `settings_open` | None | No | Opens Android system settings panels. |
+| | `location_get_current` | `ACCESS_COARSE_LOCATION`| No | Queries current GPS coordinates and location fix. |
+| | `maps_navigate` | None | No | Opens navigation directions for destination in Maps app. |
+| | `camera_launch` | None | No | Launches system camera capture application. |
+| | `media_control` | None | No | Dispatches play/pause/skip media actions. |
+| | `voice_speak` | None | No | Synthesizes response aloud using local TextToSpeech. |
+| **📋 Clipboard (2)** | `clipboard_read` | None | No | Reads text from local Android clipboard. |
+| | `clipboard_copy` | None | No | Copies text to local Android clipboard. |
+| **🧠 Memory & Profile (5)**| `memory_save` | None | No | Saves user preferences and facts to persistent SQLite store. |
 | | `memory_retrieve` | None | No | Retrieves remembered facts with keyword & overlap scoring. |
 | | `memory_delete` | None | **Yes** | Deletes specific saved memory record after confirmation. |
-| | `note_create` | None | No | Creates structured persistent notes in SQLite. |
-| | `note_search` | None | No | Searches notes by keyword or creation date. |
-| **🧮 Everyday Math** | `calculator` | None | No | Deterministic math evaluator (`+`, `-`, `*`, `/`, `^`, `%`, `sqrt`). |
+| | `memory_clear_all` | None | **Yes** | Clears all stored user preferences after confirmation. |
+| | `episodic_record` | None | No | Logs episodic task outcomes and workflow rationale. |
+| **🧮 Math & Utilities (4)**| `calculator` | None | No | Deterministic math evaluator (`+`, `-`, `*`, `/`, `^`, `%`, `sqrt`). |
 | | `date_calculation` | None | No | Calculates date offsets, duration between dates, weekday. |
-| **👁️ Accessibility** | `screen_inspect_content`| `AccessibilityService` | No | Inspects on-screen window node hierarchy with password redaction. |
+| | `network_get_status` | `ACCESS_NETWORK_STATE` | No | Checks network connectivity status and transport type. |
+| | `usage_stats` | `PACKAGE_USAGE_STATS` | No | Inspects foreground screen time and app usage stats. |
+| **👁️ Accessibility & Auto (4)**| `accessibility_read_screen`| `AccessibilityService`| No | Inspects on-screen window node hierarchy with redaction. |
+| | `accessibility_perform_action`| `AccessibilityService`| **Yes** | Performs click/scroll actions after explicit approval. |
+| | `browser_research` | `INTERNET` | No | Fetches public web pages, strips scripts, detects CAPTCHAs. |
+| | `browser_open_page` | None | No | Opens browser page for user navigation. |
 
 ---
 
@@ -317,14 +317,17 @@ adb shell "am start -n com.tavi.assistant/com.example.tavi.MainActivity"
 Tavi includes a comprehensive automated test battery verified on JVM and physical Android devices:
 
 ```bash
-# Run all 128 unit tests
+# Run all 132 JVM unit tests across 14 test suites
 ./gradlew testDebugUnitTest
 ```
 
 ```
 > Task :app:testDebugUnitTest
 
-com.example.tavi.tools.NativeToolSystemTest           [PASS - 51 Native Tools]
+com.example.tavi.tools.NativeToolSystemTest           [PASS - 53 Native Tools]
+com.example.tavi.tools.ToolExecutionTest              [PASS - Schema Validation]
+com.example.tavi.tools.ClockAndDeviceToolsTest        [PASS - Clock & Device]
+com.example.tavi.engine.LiteRtLlmEngineTest           [PASS - Engine Routing & Fallback]
 com.example.tavi.engine.LiteRtLmBackendEngineTest      [PASS - LiteRT-LM Engine]
 com.example.tavi.engine.ModelManagerDownloadTest       [PASS - Redirects & SHA-256]
 com.example.tavi.context.ConversationContextBenchmark  [PASS - Context Budgeting]
@@ -332,12 +335,13 @@ com.example.tavi.memory.PersistentMemoryTest           [PASS - SQLite Memory & P
 com.example.tavi.workflow.WorkflowEngineTest           [PASS - Multi-Step Orchestration]
 com.example.tavi.security.SecurityGuardTest            [PASS - Injection Sanitization]
 
-BUILD SUCCESSFUL in 5s (128 / 128 tests passing)
+BUILD SUCCESSFUL in 5s (132 / 132 tests passing)
 ```
 
-To run instrumented tests on an attached device:
+To run physical on-device acceptance testing with authentic hardware timing counters and logcat traces:
 ```bash
-./gradlew connectedAndroidTest
+# Physical device execution harness via ADB
+bash scripts/run_device_acceptance.sh
 ```
 
 ---
@@ -349,14 +353,14 @@ Tavi/
 ├── app/
 │   ├── src/main/java/com/example/tavi/
 │   │   ├── engine/          # LiteRT-LM, MediaPipe, & ModelManager HTTP downloader
-│   │   ├── tools/           # 51 Native tools (Calendar, SMS, Device, Files...)
+│   │   ├── tools/           # 53 Native tools (Calendar, SMS, Device, Files...)
 │   │   ├── context/         # Conversation State Ledger & ContextBudgetManager
 │   │   ├── memory/          # SQLite PersistentMemoryManager & Privacy Rules
 │   │   ├── workflow/        # Autonomous Multi-Step Execution & Planning
 │   │   ├── roles/           # Android Assistant & System Role Managers
 │   │   ├── accessibility/   # TaviAccessibilityService & Password Redaction
 │   │   └── ui/              # Jetpack Compose UI (Navigation 3, Main, Settings)
-│   ├── src/test/            # 128 Unit tests & adversarial test suites
+│   ├── src/test/            # 132 Unit tests across 14 test suites
 │   └── src/androidTest/     # On-device Gemma inference validation tests
 ├── assets/
 │   ├── branding/            # High-resolution logos & mascot artwork

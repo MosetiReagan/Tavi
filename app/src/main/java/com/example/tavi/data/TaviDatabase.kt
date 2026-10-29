@@ -58,9 +58,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         ensureAllTables(db)
-        if (oldVersion < 3) {
-            db.delete("workflows", null, null)
-        }
     }
 
     private fun ensureAllTables(db: SQLiteDatabase) {
@@ -216,7 +213,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
     fun getConversations(): List<ConversationSession> {
         val list = mutableListOf<ConversationSession>()
         try {
-            ensureAllTables(writableDatabase)
             readableDatabase.query("conversations", null, null, null, null, null, "updated_at DESC").use { c ->
                 val idIdx = c.getColumnIndex("id")
                 val titleIdx = c.getColumnIndex("title")
@@ -244,7 +240,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     fun insertOrUpdateConversation(session: ConversationSession) {
         try {
-            ensureAllTables(writableDatabase)
             val values = ContentValues().apply {
                 put("id", session.id)
                 put("title", session.title)
@@ -259,7 +254,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     fun updateConversationTitle(id: String, newTitle: String) {
         try {
-            ensureAllTables(writableDatabase)
             val values = ContentValues().apply {
                 put("title", newTitle)
                 put("updated_at", System.currentTimeMillis())
@@ -272,7 +266,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     fun deleteConversation(id: String) {
         try {
-            ensureAllTables(writableDatabase)
             writableDatabase.delete("conversations", "id = ?", arrayOf(id))
             writableDatabase.delete("messages", "conversation_id = ?", arrayOf(id))
         } catch (e: Exception) {
@@ -284,7 +277,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     fun insertMessage(msg: Message, conversationId: String = msg.conversationId) {
         try {
-            ensureAllTables(writableDatabase)
             val targetConvId = if (conversationId.isBlank()) "default" else conversationId
             val values = ContentValues().apply {
                 put("id", msg.id)
@@ -310,7 +302,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
     fun getMessagesForConversation(conversationId: String): List<Message> {
         val list = mutableListOf<Message>()
         try {
-            ensureAllTables(writableDatabase)
             readableDatabase.query(
                 "messages",
                 null,
@@ -345,7 +336,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
     fun getAllMessages(): List<Message> {
         val list = mutableListOf<Message>()
         try {
-            ensureAllTables(writableDatabase)
             readableDatabase.query("messages", null, null, null, null, null, "timestamp ASC").use { c ->
                 val idIdx = c.getColumnIndex("id")
                 val convIdx = c.getColumnIndex("conversation_id")
@@ -391,7 +381,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
     fun saveMemory(key: String, value: String, category: String = "general"): String {
         val id = UUID.randomUUID().toString()
         try {
-            ensureAllTables(writableDatabase)
             val values = ContentValues().apply {
                 put("id", id)
                 put("mem_key", key.trim().lowercase())
@@ -408,7 +397,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     fun getMemory(key: String): String? {
         return try {
-            ensureAllTables(writableDatabase)
             readableDatabase.query(
                 "memory",
                 arrayOf("mem_value"),
@@ -429,7 +417,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
     fun searchMemory(query: String): List<MemoryEntry> {
         val list = mutableListOf<MemoryEntry>()
         try {
-            ensureAllTables(writableDatabase)
             val wild = "%${query.trim().lowercase()}%"
             val cursor = readableDatabase.query(
                 "memory",
@@ -467,7 +454,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
     fun getAllMemory(): List<MemoryEntry> {
         val list = mutableListOf<MemoryEntry>()
         try {
-            ensureAllTables(writableDatabase)
             val cursor = readableDatabase.query("memory", null, null, null, null, null, "timestamp DESC")
             cursor.use { c ->
                 val idIdx = c.getColumnIndex("id")
@@ -515,7 +501,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     fun insertPersistentMemory(record: PersistentMemoryRecord) {
         try {
-            ensureAllTables(writableDatabase)
             val values = ContentValues().apply {
                 put("id", record.id)
                 put("memory_type", record.memoryType.name)
@@ -544,7 +529,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     fun getPersistentMemory(id: String): PersistentMemoryRecord? {
         return try {
-            ensureAllTables(writableDatabase)
             readableDatabase.query(
                 "persistent_memories",
                 null,
@@ -563,7 +547,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
     fun getActivePersistentMemories(): List<PersistentMemoryRecord> {
         val list = mutableListOf<PersistentMemoryRecord>()
         try {
-            ensureAllTables(writableDatabase)
             readableDatabase.query(
                 "persistent_memories",
                 null,
@@ -585,7 +568,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
     fun searchPersistentMemories(query: String, maxResults: Int = 10): List<PersistentMemoryRecord> {
         val list = mutableListOf<PersistentMemoryRecord>()
         try {
-            ensureAllTables(writableDatabase)
             val wild = "%${query.trim().lowercase()}%"
             readableDatabase.query(
                 "persistent_memories",
@@ -608,7 +590,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     fun supersedePersistentMemory(oldId: String, newId: String) {
         try {
-            ensureAllTables(writableDatabase)
             val values = ContentValues().apply {
                 put("state", MemoryState.SUPERSEDED.name)
                 put("superseded_by_id", newId)
@@ -622,7 +603,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     fun deletePersistentMemory(keyOrId: String): Boolean {
         return try {
-            ensureAllTables(writableDatabase)
             val values = ContentValues().apply {
                 put("state", MemoryState.DELETED.name)
                 put("updated_at", System.currentTimeMillis())
@@ -642,7 +622,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     fun clearAllPersistentMemories() {
         try {
-            ensureAllTables(writableDatabase)
             writableDatabase.delete("persistent_memories", null, null)
         } catch (e: Exception) {
             android.util.Log.e("TaviDatabase", "Error clearing all persistent memories", e)
@@ -676,7 +655,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     fun insertEpisodicMemory(record: EpisodicMemoryRecord) {
         try {
-            ensureAllTables(writableDatabase)
             val values = ContentValues().apply {
                 put("id", record.id)
                 put("title", record.title.trim())
@@ -703,7 +681,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
     fun getEpisodicMemories(limit: Int = 10): List<EpisodicMemoryRecord> {
         val list = mutableListOf<EpisodicMemoryRecord>()
         try {
-            ensureAllTables(writableDatabase)
             readableDatabase.query(
                 "episodic_memories",
                 null,
@@ -726,7 +703,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
     fun searchEpisodicMemories(query: String, limit: Int = 5): List<EpisodicMemoryRecord> {
         val list = mutableListOf<EpisodicMemoryRecord>()
         try {
-            ensureAllTables(writableDatabase)
             val wild = "%${query.trim().lowercase()}%"
             readableDatabase.query(
                 "episodic_memories",
@@ -749,7 +725,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     fun clearAllEpisodicMemories() {
         try {
-            ensureAllTables(writableDatabase)
             writableDatabase.delete("episodic_memories", null, null)
         } catch (e: Exception) {
             android.util.Log.e("TaviDatabase", "Error clearing all episodic memories", e)
@@ -764,7 +739,9 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
             for (i in 0 until arr.length()) {
                 tagsList.add(arr.getString(i))
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.w("TaviDatabase", "Failed parsing episodic tags_json: $tagsJson", e)
+        }
 
         return EpisodicMemoryRecord(
             id = c.getString(c.getColumnIndexOrThrow("id")),
@@ -784,7 +761,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
     fun saveNote(title: String, content: String): String {
         val id = UUID.randomUUID().toString()
         try {
-            ensureAllTables(writableDatabase)
             val values = ContentValues().apply {
                 put("id", id)
                 put("title", title.trim())
@@ -801,7 +777,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
     fun getAllNotes(): List<Map<String, Any>> {
         val list = mutableListOf<Map<String, Any>>()
         try {
-            ensureAllTables(writableDatabase)
             readableDatabase.query("notes", null, null, null, null, null, "timestamp DESC").use { c ->
                 val idIdx = c.getColumnIndex("id")
                 val titleIdx = c.getColumnIndex("title")
@@ -827,7 +802,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
     fun searchNotes(query: String): List<Map<String, Any>> {
         val list = mutableListOf<Map<String, Any>>()
         try {
-            ensureAllTables(writableDatabase)
             val wild = "%${query.trim()}%"
             readableDatabase.query(
                 "notes",
@@ -869,11 +843,69 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
         }
     }
 
+    // --- REMINDERS ---
+
+    fun insertReminder(id: String, title: String, triggerTime: Long): Boolean {
+        return try {
+            val values = ContentValues().apply {
+                put("id", id)
+                put("title", title)
+                put("trigger_time", triggerTime)
+                put("is_completed", 0)
+            }
+            val rowId = writableDatabase.insertWithOnConflict("reminders", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+            rowId != -1L
+        } catch (e: Exception) {
+            android.util.Log.e("TaviDatabase", "Error inserting reminder", e)
+            false
+        }
+    }
+
+    fun getActiveReminders(): List<Map<String, Any>> {
+        val list = mutableListOf<Map<String, Any>>()
+        try {
+            readableDatabase.query(
+                "reminders",
+                null,
+                "is_completed = 0",
+                null,
+                null,
+                null,
+                "trigger_time ASC"
+            ).use { c ->
+                val idIdx = c.getColumnIndex("id")
+                val titleIdx = c.getColumnIndex("title")
+                val timeIdx = c.getColumnIndex("trigger_time")
+                while (c.moveToNext()) {
+                    list.add(
+                        mapOf(
+                            "id" to c.getString(idIdx),
+                            "title" to c.getString(titleIdx),
+                            "triggerTime" to c.getLong(timeIdx)
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("TaviDatabase", "Error querying reminders", e)
+        }
+        return list
+    }
+
+    fun deleteReminder(id: String): Boolean {
+        return try {
+            val rows = writableDatabase.delete("reminders", "id = ?", arrayOf(id))
+            rows > 0
+        } catch (e: Exception) {
+            android.util.Log.e("TaviDatabase", "Error deleting reminder", e)
+            false
+        }
+    }
+
     // --- AUDIT LOGS ---
 
     fun insertAuditLog(entry: AuditLogEntry) {
         try {
-            ensureAllTables(writableDatabase)
             val values = ContentValues().apply {
                 put("id", entry.id)
                 put("tool_name", entry.toolName)
@@ -891,7 +923,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
     fun getAllAuditLogs(): List<AuditLogEntry> {
         val list = mutableListOf<AuditLogEntry>()
         try {
-            ensureAllTables(writableDatabase)
             readableDatabase.query("audit_logs", null, null, null, null, null, "timestamp DESC LIMIT 100").use { c ->
                 val idIdx = c.getColumnIndex("id")
                 val toolIdx = c.getColumnIndex("tool_name")
@@ -930,7 +961,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     fun saveWorkflow(plan: WorkflowPlan) {
         try {
-            ensureAllTables(writableDatabase)
             val stepsJson = serializeSteps(plan.steps)
             val values = ContentValues().apply {
                 put("id", plan.id)
@@ -957,7 +987,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     fun getWorkflow(id: String): WorkflowPlan? {
         return try {
-            ensureAllTables(writableDatabase)
             readableDatabase.query("workflows", null, "id = ?", arrayOf(id), null, null, null).use { c ->
                 if (c.moveToFirst()) {
                     parseWorkflowCursor(c)
@@ -971,7 +1000,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     fun getActiveWorkflow(): WorkflowPlan? {
         return try {
-            ensureAllTables(writableDatabase)
             val activeStates = arrayOf(
                 WorkflowState.PLANNING.name,
                 WorkflowState.AWAITING_USER_INPUT.name,
@@ -1001,7 +1029,6 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     fun clearWorkflows() {
         try {
-            ensureAllTables(writableDatabase)
             writableDatabase.delete("workflows", null, null)
         } catch (e: Exception) {
             android.util.Log.e("TaviDatabase", "Error clearing workflows", e)
@@ -1208,7 +1235,9 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
                     )
                 )
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.w("TaviDatabase", "Failed parsing workflow steps: $jsonStr", e)
+        }
 
         return list
     }

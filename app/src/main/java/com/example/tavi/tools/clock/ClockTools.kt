@@ -45,7 +45,7 @@ class AlarmCreateTool : AssistantTool {
         val hour = arguments["hour"]?.toString()?.toIntOrNull()
         val minutes = arguments["minutes"]?.toString()?.toIntOrNull() ?: 0
         val title = arguments["title"]?.toString()?.trim() ?: "Tavi Alarm"
-        val skipUi = arguments["skipUi"]?.toString()?.toBooleanStrictOrNull() ?: false
+        val skipUi = arguments["skipUi"]?.toString()?.toBooleanStrictOrNull() ?: true
 
         if (hour == null || hour !in 0..23 || minutes !in 0..59) {
             return ToolResult(
@@ -73,12 +73,14 @@ class AlarmCreateTool : AssistantTool {
                 toolCallId = toolCallId,
                 toolName = name,
                 resultJson = JSONObject().apply {
-                    put("verified", true)
+                    put("verified", skipUi)
                     put("time", timeString)
                     put("hour", hour)
                     put("minutes", minutes)
                     put("title", title)
-                    put("status", "ALARM_SET")
+                    put("skipUi", skipUi)
+                    put("status", if (skipUi) "ALARM_REQUEST_SUBMITTED" else "CLOCK_APP_OPENED")
+                    put("message", if (skipUi) "Alarm scheduled for $timeString via system Clock." else "Opened system Clock. Tap Save to set the alarm.")
                 }.toString(),
                 isSuccess = true,
                 state = ToolExecutionState.SUCCESS

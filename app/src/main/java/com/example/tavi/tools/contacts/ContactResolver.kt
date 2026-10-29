@@ -105,7 +105,9 @@ object ContactResolver {
                     }
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.w("ContactResolver", "Failed searching contacts by query", e)
+        }
         return results
     }
 

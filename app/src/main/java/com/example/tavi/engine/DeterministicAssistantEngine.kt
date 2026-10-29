@@ -29,13 +29,13 @@ class DeterministicAssistantEngine : InferenceEngine {
         // 1. Check for prompt injection attacks
         for (msg in conversationHistory) {
             if (containsInjectionAttempt(msg.content)) {
-                val refusal = "I detected an attempt to override my security instructions or exfiltrate private data in external content. As a privacy-focused assistant, I strictly refuse to execute untrusted directives."
+                val refusal = "I noticed an untrusted instruction in this conversation that attempts to bypass security boundaries. For your privacy and safety, I cannot process it."
                 streamText(refusal, onToken)
                 return refusal
             }
         }
         if (containsInjectionAttempt(prompt)) {
-            val refusal = "I cannot process instructions that attempt to override my security parameters or safety boundaries."
+            val refusal = "I cannot process instructions that attempt to bypass safety boundaries or override security rules."
             streamText(refusal, onToken)
             return refusal
         }
@@ -186,6 +186,18 @@ class DeterministicAssistantEngine : InferenceEngine {
             return toolCalls
         }
 
+        // 8a. Device Flashlight
+        if (q.contains("flashlight") || q.contains("torch") || q == "💡 flashlight" || q.contains("turn on flashlight") || q.contains("turn off flashlight")) {
+            val enabled = !q.contains("off")
+            toolCalls.add(
+                ToolCall(
+                    toolName = "device_toggle_flashlight",
+                    arguments = mapOf("enabled" to enabled)
+                )
+            )
+            return toolCalls
+        }
+
         // 8b. Level 2 Access: Usage Stats & Screen Time
         if (q.contains("screen time") || q.contains("usage stats") || q.contains("app usage") ||
             q.contains("how much did i use") || q.contains("phone usage") || q == "usage"
@@ -287,6 +299,16 @@ class DeterministicAssistantEngine : InferenceEngine {
         }
 
         // 13. Reminders
+        if (q == "show reminders" || q == "list reminders" || q == "show my reminders" || q == "view reminders" || q == "what reminders do i have") {
+            toolCalls.add(ToolCall(toolName = "reminder_list", arguments = emptyMap()))
+            return toolCalls
+        }
+        val cancelRemindMatch = Pattern.compile("(?i)(?:cancel|delete|remove)\\s+(?:reminder|my reminder)\\s+(?:for\\s+|to\\s+)?(.+)$").matcher(userQuery)
+        if (cancelRemindMatch.find()) {
+            val target = cancelRemindMatch.group(1)?.trim() ?: ""
+            toolCalls.add(ToolCall(toolName = "reminder_cancel", arguments = mapOf("query" to target)))
+            return toolCalls
+        }
         val remindMatch = Pattern.compile("(?i)(?:remind me to|set a reminder to|reminder:?)\\s+(.+?)(?:\\s+(?:at|in|on)\\s+(.+))?$").matcher(userQuery)
         if (remindMatch.find()) {
             val title = remindMatch.group(1)?.trim() ?: "Reminder"
@@ -415,7 +437,7 @@ class DeterministicAssistantEngine : InferenceEngine {
         }
 
         // 19. Messages: Draft
-        val draftMatchWithBody = Pattern.compile("(?i)(?:can you\\s+)?(?:draft|prepare message|compose)(?:\\s+an?\\s*(?:test|sample)?\\s*(?:sms|message|text))?(?:\\s+to\\s+([a-zA-Z0-9\\+\\s]+?))?\\s*(?:saying|body:?)\\s+(.+)$").matcher(userQuery)
+        val draftMatchWithBody = Pattern.compile("(?i)(?:can you\\s+)?(?:draft|prepare message|compose)(?:\\s+an?\\s*(?:test|sample)?\\s*(?:sms|message|text))?(?:\\s+to\\s+([a-zA-Z0-9\\+\\s]+?))?\\s*(?:saying|body:?|:)\\s+(.+)$").matcher(userQuery)
         val draftMatchSimple = Pattern.compile("(?i)(?:can you\\s+)?(?:draft|prepare|compose)(?:\\s+an?\\s*(?:test|sample)?\\s*(?:sms|message|text))?(?:\\s+to\\s+([a-zA-Z0-9\\+\\s]+))?$").matcher(userQuery)
         if (q.contains("draft") || q.contains("prepare message") || (q.contains("compose") && q.contains("message"))) {
             if (draftMatchWithBody.find()) {
@@ -451,7 +473,7 @@ class DeterministicAssistantEngine : InferenceEngine {
 
         // 20. Messages: Send SMS
         val sendSmsMatch = Pattern.compile(
-            "(?i)(?:actually\\s+|please\\s+)?(?:send\\s+(?:an?\\s+|it\\s+|this\\s+)?(?:sms|message|text)?\\s*(?:to)?|do\\s+(?:an?\\s+|it\\s+|this\\s+)?(?:sms|message|text)?\\s*to|write\\s+(?:an?\\s+|it\\s+|this\\s+)?(?:sms|message|text)?\\s*to|text|tell|message\\s+to|message)\\s+([a-zA-Z0-9\\+\\-\\(\\)\\s]+?)\\s+(?:and\\s+(?:tell|say|ask)(?:\\s+(?:him|her|them))?(?:\\s+to)?|saying|telling (?:him|her|them) to|with body|that|to|message:?)\\s+(.+)$"
+            "(?i)(?:actually\\s+|please\\s+)?(?:send\\s+(?:an?\\s+|it\\s+|this\\s+)?(?:sms|message|text)?\\s*(?:to)?|do\\s+(?:an?\\s+|it\\s+|this\\s+)?(?:sms|message|text)?\\s*to|write\\s+(?:an?\\s+|it\\s+|this\\s+)?(?:sms|message|text)?\\s*to|text|tell|message\\s+to|message)\\s+([a-zA-Z0-9\\+\\-\\(\\)\\s]+?)(?:\\s*:\\s*|\\s+(?:and\\s+(?:tell|say|ask)(?:\\s+(?:him|her|them))?(?:\\s+to)?|saying|telling (?:him|her|them) to|with body|that|to|message:?)\\s+)(.+)$"
         ).matcher(userQuery)
         val sendSmsSimple = Pattern.compile("(?i)(?:actually\\s+|please\\s+)?(?:send\\s+(?:an?\\s+|it\\s+|this\\s+)?(?:sms|message|text)?\\s*to|do\\s+(?:an?\\s+|it\\s+|this\\s+)?(?:sms|message|text)?\\s*to|write\\s+(?:an?\\s+|it\\s+|this\\s+)?(?:sms|message|text)?\\s*to|text|message\\s+to)\\s+([a-zA-Z0-9\\+\\-\\(\\)\\s]+)$").matcher(userQuery)
         if (sendSmsMatch.find()) {

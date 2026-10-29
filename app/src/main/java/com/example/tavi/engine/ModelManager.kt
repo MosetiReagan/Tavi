@@ -38,10 +38,19 @@ class ModelManager(private val context: Context) : ComponentCallbacks2 {
         const val MODEL_GEMMA_3_1B = "gemma-3-1b-it"
         const val MODEL_FILE_NAME = "$MODEL_GEMMA_3_1B.task"
         const val MODEL_FILE_NAME_LITERTLM = "$MODEL_GEMMA_3_1B.litertlm"
-        const val DEFAULT_MODEL_DOWNLOAD_URL = "https://huggingface.co/google/gemma-3-1b-it-litert/resolve/main/gemma-3-1b-it.litertlm"
+        const val DEFAULT_MODEL_DOWNLOAD_URL = "https://huggingface.co/lotapa/gemma3-1b-it-int4.litertlm/resolve/main/gemma3-1b-it-int4.litertlm"
         private const val MIN_MODEL_BYTES = 100L * 1024 * 1024
         private const val PREFS_NAME = "tavi_model_prefs"
         private const val KEY_RUNTIME = "active_inference_runtime"
+
+        @Volatile
+        private var INSTANCE: ModelManager? = null
+
+        fun getInstance(context: Context): ModelManager {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: ModelManager(context.applicationContext).also { INSTANCE = it }
+            }
+        }
     }
 
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -181,7 +190,9 @@ class ModelManager(private val context: Context) : ComponentCallbacks2 {
                     displayName = cursor.getString(nameIndex) ?: ""
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.w("ModelManager", "Failed resolving content URI metadata", e)
+        }
 
         val targetDestination = if (displayName.endsWith(".task", ignoreCase = true)) {
             File(modelsDir, MODEL_FILE_NAME)
@@ -296,6 +307,20 @@ class ModelManager(private val context: Context) : ComponentCallbacks2 {
         expectedSha256: String? = null,
         onProgress: (bytesDownloaded: Long, totalBytes: Long) -> Unit
     ): Result<File> = withContext(Dispatchers.IO) {
+        // Verify available device storage space (at least 750 MB free)
+        try {
+            val freeBytes = modelsDir.usableSpace
+            val requiredBytes = 750L * 1024 * 1024
+            if (freeBytes in 1 until requiredBytes) {
+                val freeMb = freeBytes / (1024 * 1024)
+                return@withContext Result.failure(
+                    java.io.IOException("Insufficient storage space: Tavi requires at least 750 MB free space to download model weights, but only ${freeMb} MB is available.")
+                )
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("ModelManager", "Could not check free storage space", e)
+        }
+
         val targetDestination = if (url.contains(".task", ignoreCase = true)) {
             File(modelsDir, MODEL_FILE_NAME)
         } else {

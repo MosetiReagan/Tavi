@@ -103,7 +103,9 @@ class MemorySaveTool : AssistantTool {
                 try {
                     val db = TaviDatabase.getInstance(context)
                     db.saveMemory(key, value, category)
-                } catch (_: Exception) {}
+                } catch (e: Exception) {
+                    android.util.Log.w("MemoryTools", "Failed saving memory to legacy table", e)
+                }
 
                 val resultObj = JSONObject().apply {
                     put("verified", true)

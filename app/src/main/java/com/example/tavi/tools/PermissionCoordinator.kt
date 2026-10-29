@@ -396,7 +396,7 @@ object PermissionCoordinator {
                 category = ToolCategory.CLOCK,
                 title = "Alarms, Timers & Reminders",
                 description = "Create system alarms, set countdown timers, schedule exact notifications, query local time.",
-                requiredPermissions = listOf(Manifest.permission.SCHEDULE_EXACT_ALARM),
+                requiredPermissions = listOf(Manifest.permission.USE_EXACT_ALARM),
                 specialAccessType = SpecialAccessType.EXACT_ALARM,
                 supportedOperations = listOf("alarm_create", "alarm_show", "timer_set", "reminder_create", "clock_query_time"),
                 limitations = "Exact alarms require Android 12+ permission; delegates to system clock app for alarms.",

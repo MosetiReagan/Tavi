@@ -45,14 +45,22 @@ data class ChatUiState(
     val activeWorkflow: WorkflowPlan? = null,
     val isOffline: Boolean = false,
     val activeModelName: String = "Gemma 3 1B",
-    val statusBanner: String? = null
+    val statusBanner: String? = null,
+    val isModelInstalled: Boolean = false,
+    val isDownloadingModel: Boolean = false,
+    val downloadProgress: Float = 0f,
+    val downloadStatusText: String? = null,
+    val errorMessage: String? = null,
+    val snackbarMessage: String? = null,
+    val interimVoiceTranscript: String? = null,
+    val userName: String? = null
 )
 
 class MainScreenViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = TaviDatabase.getInstance(application)
     val toolRegistry = ToolRegistry(application)
-    val modelManager = ModelManager(application)
+    val modelManager = ModelManager.getInstance(application)
     val voiceManager = VoiceManager(application)
     val workflowPlanner = WorkflowPlanner(application, toolRegistry)
     val workflowEngine = WorkflowEngine(application, toolRegistry, db)
@@ -60,7 +68,8 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
     private var activeEngine: InferenceEngine = LiteRtLlmEngine(
         application,
         modelManager.modelFile.let { if (it.exists() && it.length() > 0) it.absolutePath else null },
-        modelManager.activeRuntime.value
+        modelManager.activeRuntime.value,
+        toolRegistry
     )
 
     private val coroutineExceptionHandler = CoroutineExceptionHandler { _, throwable ->
@@ -71,11 +80,44 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     init {
+        checkModelInstallation()
         loadPersistedMessages()
         loadPersistedWorkflow()
         observeNetworkAndModel()
         observeVoiceState()
+        observeDownloadProgress()
         preloadModel()
+    }
+
+    fun checkModelInstallation() {
+        val info = modelManager.getInstalledModelInfo()
+        _uiState.value = _uiState.value.copy(
+            isModelInstalled = info.isInstalled,
+            activeModelName = if (info.isInstalled) "Gemma 3 1B" else "Model Setup Required"
+        )
+    }
+
+    private fun observeDownloadProgress() {
+        viewModelScope.launch {
+            modelManager.downloadProgress.collect { progressMap ->
+                val progress = progressMap[ModelManager.MODEL_GEMMA_3_1B]
+                if (progress != null && progress in 0f..1f) {
+                    _uiState.value = _uiState.value.copy(
+                        isDownloadingModel = true,
+                        downloadProgress = progress,
+                        downloadStatusText = "Downloading weights: ${(progress * 100).toInt()}%"
+                    )
+                } else if (_uiState.value.isDownloadingModel) {
+                    val installed = modelManager.getInstalledModelInfo().isInstalled
+                    _uiState.value = _uiState.value.copy(
+                        isDownloadingModel = false,
+                        isModelInstalled = installed,
+                        downloadProgress = 0f,
+                        downloadStatusText = null
+                    )
+                }
+            }
+        }
     }
 
     private fun preloadModel() {
@@ -133,7 +175,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
             return currentEngine
         }
         (currentEngine as? AutoCloseable)?.close()
-        val newEngine = LiteRtLlmEngine(getApplication(), path, runtime)
+        val newEngine = LiteRtLlmEngine(getApplication(), path, runtime, toolRegistry)
         activeEngine = newEngine
         return newEngine
     }
@@ -180,7 +222,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                     return@collect
                 }
                 (currentEngine as? AutoCloseable)?.close()
-                activeEngine = LiteRtLlmEngine(getApplication(), path, runtime)
+                activeEngine = LiteRtLlmEngine(getApplication(), path, runtime, toolRegistry)
                 _uiState.value = _uiState.value.copy(activeModelName = displayName)
             }
         }
@@ -337,7 +379,13 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         }
 
         val summary = workflow.executionSummary?.humanReadableText
-            ?: if (workflow.state == WorkflowState.COMPLETED) "Workflow completed successfully." else "Workflow finished with state: ${workflow.state}."
+            ?: when (workflow.state) {
+                WorkflowState.COMPLETED -> "Workflow completed successfully."
+                WorkflowState.PARTIALLY_COMPLETED -> "Workflow completed with some skipped or unavailable steps."
+                WorkflowState.CANCELLED -> "Workflow was cancelled."
+                WorkflowState.FAILED -> "Workflow could not be completed."
+                else -> "Action updated."
+            }
 
         val verifiedOutcomes = workflow.executionSummary?.verifiedOutcomes ?: emptyList()
         val formattedContent = buildString {
@@ -618,7 +666,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         }
 
         // Synthesize tool output to truthful, verified local explanation
-        val deterministicSummary = synthesizeToolResults(tools, executedResults)
+        val deterministicSummary = ToolResultSynthesizer.synthesize(tools, executedResults)
         val finalSummary = if (deterministicSummary.isNotBlank()) {
             deterministicSummary
         } else {
@@ -698,333 +746,60 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    private fun synthesizeToolResults(tools: List<ToolCall>, results: List<ToolResult>): String {
-        val sb = StringBuilder()
-        for (i in tools.indices) {
-            val t = tools[i]
-            val r = results.getOrNull(i)
-            if (r == null) continue
-
-            if (!r.isSuccess) {
-                sb.append("⚠️ ${r.errorMessage ?: "Failed to execute ${t.toolName}."}\n")
-                continue
-            }
-
-            when (t.toolName) {
-                "calendar_list_events" -> {
-                    sb.append("Here are your calendar events:\n")
-                    sb.append(formatCalendarResult(r.resultJson))
-                }
-                "calendar_get_event" -> {
-                    sb.append("Event details:\n${r.resultJson}")
-                }
-                "calendar_create_event" -> {
-                    val conf = try { org.json.JSONObject(r.resultJson).optBoolean("hasConflicts") } catch (_: Exception) { false }
-                    if (conf) {
-                        sb.append("⚠️ Note: Event overlaps with an existing meeting. Scheduled: \"${t.arguments["title"]}\" at ${t.arguments["startTime"]}.")
-                    } else {
-                        sb.append("✅ Event scheduled and verified in your calendar: \"${t.arguments["title"]}\" at ${t.arguments["startTime"]}.")
-                    }
-                }
-                "calendar_update_event" -> {
-                    sb.append("✅ Calendar event updated successfully.")
-                }
-                "calendar_delete_event" -> {
-                    sb.append("✅ Calendar event deleted and verified.")
-                }
-                "calculator" -> {
-                    val displayResult = try {
-                        org.json.JSONObject(r.resultJson).opt("result")?.toString() ?: r.resultJson
-                    } catch (_: Exception) {
-                        r.resultJson
-                    }
-                    sb.append("Result: ${t.arguments["expression"]} = $displayResult")
-                }
-                "date_calculation" -> {
-                    sb.append("Date calculation result: ${r.resultJson}")
-                }
-                "alarm_create" -> {
-                    sb.append("⏰ Alarm set for ${t.arguments["hour"]}:${String.format(java.util.Locale.getDefault(), "%02d", t.arguments["minutes"]?.toString()?.toIntOrNull() ?: 0)}.")
-                }
-                "alarm_show" -> {
-                    sb.append("⏰ System Clock alarms opened.")
-                }
-                "timer_set" -> {
-                    sb.append("⏳ Timer started for ${t.arguments["seconds"]} seconds.")
-                }
-                "clock_query_time" -> {
-                    sb.append(formatTimeResult(r.resultJson))
-                }
-                "reminder_create" -> {
-                    sb.append("⏰ Reminder scheduled: \"${t.arguments["title"]}\" for ${t.arguments["time"]}.")
-                }
-                "app_launch" -> {
-                    sb.append("🚀 Launched app: ${t.arguments["appName"]}.")
-                }
-                "app_list_launchable" -> {
-                    sb.append(formatAppListResult(r.resultJson))
-                }
-                "app_open_settings" -> {
-                    sb.append("⚙️ Opened App Info settings.")
-                }
-                "settings_open" -> {
-                    sb.append("⚙️ Opened ${t.arguments["panel"] ?: "system"} settings.")
-                }
-                "device_get_status" -> {
-                    sb.append(formatDeviceStatusResult(r.resultJson))
-                }
-                "network_get_status" -> {
-                    sb.append(formatNetworkStatusResult(r.resultJson))
-                }
-                "location_get_current" -> {
-                    sb.append(formatLocationResult(r.resultJson))
-                }
-                "maps_navigate" -> {
-                    sb.append("🗺️ Opened maps for: ${t.arguments["destination"]}.")
-                }
-                "camera_launch" -> {
-                    sb.append("📷 Camera opened.")
-                }
-                "media_control" -> {
-                    sb.append("🎵 Media control dispatched: ${t.arguments["action"] ?: "play/pause"}.")
-                }
-                "phone_dial" -> {
-                    sb.append("📞 Opened dialer with ${t.arguments["recipient"]}.")
-                }
-                "phone_call" -> {
-                    sb.append("📞 Initiating call to ${t.arguments["recipient"]}.")
-                }
-                "call_log_search" -> {
-                    sb.append(formatCallLogResult(r.resultJson))
-                }
-                "note_create" -> {
-                    sb.append("📝 Note saved: \"${t.arguments["title"]}\".")
-                }
-                "notes_list" -> {
-                    sb.append(formatNotesListResult(r.resultJson))
-                }
-                "note_delete" -> {
-                    sb.append("🗑️ Note deleted.")
-                }
-                "clipboard_read" -> {
-                    sb.append(formatClipboardResult(r.resultJson))
-                }
-                "clipboard_copy" -> {
-                    sb.append("📋 Copied text to clipboard.")
-                }
-                "memory_save" -> {
-                    sb.append("💾 Saved to your personal memory: ${t.arguments["key"]} = \"${t.arguments["value"]}\".")
-                }
-                "memory_retrieve" -> {
-                    sb.append("Memory lookup: ${r.resultJson}")
-                }
-                "memory_delete" -> {
-                    sb.append("🗑️ Removed from memory: ${t.arguments["keyOrId"]}.")
-                }
-                "messages_draft" -> {
-                    sb.append("✉️ Draft prepared for ${t.arguments["recipient"]}:\n\"${t.arguments["body"]}\"")
-                }
-                "messages_send_sms" -> {
-                    sb.append("✅ Text message sent to ${t.arguments["recipient"]}.")
-                }
-                "messages_search" -> {
-                    sb.append("Found messages:\n${r.resultJson}")
-                }
-                "contacts_search" -> {
-                    sb.append(formatContactsResult(r.resultJson))
-                }
-                "contacts_resolve" -> {
-                    sb.append("Contact resolved: ${r.resultJson}")
-                }
-                "contacts_create" -> {
-                    sb.append("👤 Contact created: ${t.arguments["name"]} (${t.arguments["phoneNumber"]}).")
-                }
-                "notifications_read_summary" -> {
-                    sb.append("Notification summary:\n${r.resultJson}")
-                }
-                "notifications_dismiss" -> {
-                    sb.append("Notification dismissed.")
-                }
-                "browser_open_url" -> {
-                    sb.append("🌐 Opened browser URL: ${t.arguments["url"]}.")
-                }
-                "share_content" -> {
-                    sb.append("📤 Share sheet displayed.")
-                }
-                "files_browse_document" -> {
-                    sb.append("📁 Opened document picker.")
-                }
-                "files_export_note" -> {
-                    sb.append("📤 Exported note to share sheet.")
-                }
-                "browser_research_topic" -> {
-                    sb.append("🌐 Research findings for \"${t.arguments["query"]}\":\n${r.resultJson}")
-                }
-                else -> {
-                    sb.append("Executed ${t.toolName}: ${r.resultJson}")
-                }
-            }
+    fun startVoiceInput(onPartialText: (String) -> Unit, onFinalText: (String) -> Unit) {
+        if (_uiState.value.isListening) {
+            voiceManager.stopListening()
+            _uiState.value = _uiState.value.copy(interimVoiceTranscript = null)
+            return
         }
-        return sb.toString().trim()
+        voiceManager.startListening(
+            onPartialResult = { partial ->
+                _uiState.value = _uiState.value.copy(interimVoiceTranscript = partial)
+                onPartialText(partial)
+            },
+            onResult = { spokenText ->
+                _uiState.value = _uiState.value.copy(interimVoiceTranscript = null)
+                onFinalText(spokenText)
+            },
+            onError = { error ->
+                _uiState.value = _uiState.value.copy(
+                    interimVoiceTranscript = null,
+                    errorMessage = "Voice error: $error"
+                )
+            }
+        )
     }
 
-    private fun formatCalendarResult(jsonStr: String): String {
-        return try {
-            val json = org.json.JSONObject(jsonStr)
-            val events = json.optJSONArray("events")
-            if (events == null || events.length() == 0) {
-                return "No upcoming events found in this time window."
-            }
-            val sb = StringBuilder()
-            for (i in 0 until events.length()) {
-                val e = events.getJSONObject(i)
-                sb.append("• ${e.optString("title")} (${e.optString("startTime")})")
-                val loc = e.optString("location")
-                if (loc.isNotEmpty()) sb.append(" at $loc")
-                sb.append("\n")
-            }
-            sb.toString().trim()
-        } catch (_: Exception) {
-            jsonStr
-        }
-    }
-
-    private fun formatContactsResult(jsonStr: String): String {
-        return try {
-            val json = org.json.JSONObject(jsonStr)
-            val contacts = json.optJSONArray("contacts")
-            if (contacts == null || contacts.length() == 0) {
-                return "No matching contacts found on device."
-            }
-            val sb = StringBuilder("Contacts matching \"${json.optString("query")}\":\n")
-            for (i in 0 until contacts.length()) {
-                val c = contacts.getJSONObject(i)
-                sb.append("• ${c.optString("name")}: ${c.optString("phoneNumber")} (${c.optString("type", "Mobile")})\n")
-            }
-            sb.toString().trim()
-        } catch (_: Exception) {
-            jsonStr
-        }
-    }
-
-    private fun formatTimeResult(jsonStr: String): String {
-        return try {
-            val json = org.json.JSONObject(jsonStr)
-            "🕒 Current Time: ${json.optString("currentTime")}\n📅 ${json.optString("currentDate")} (${json.optString("timezoneId")})"
-        } catch (_: Exception) {
-            jsonStr
-        }
-    }
-
-    private fun formatAppListResult(jsonStr: String): String {
-        return try {
-            val json = org.json.JSONObject(jsonStr)
-            val apps = json.optJSONArray("apps") ?: return jsonStr
-            val sb = StringBuilder("Installed launchable apps (${apps.length()}):\n")
-            for (i in 0 until minOf(apps.length(), 15)) {
-                val a = apps.getJSONObject(i)
-                sb.append("• ${a.optString("appName")}\n")
-            }
-            if (apps.length() > 15) {
-                sb.append("... and ${apps.length() - 15} more.")
-            }
-            sb.toString().trim()
-        } catch (_: Exception) {
-            jsonStr
-        }
-    }
-
-    private fun formatDeviceStatusResult(jsonStr: String): String {
-        return try {
-            val json = org.json.JSONObject(jsonStr)
-            val charging = if (json.optBoolean("isCharging")) "⚡ Charging" else "Discharging"
-            "🔋 Battery: ${json.optInt("batteryPercent")}% ($charging)\n💾 Storage: ${json.optString("freeStorageGb")} GB free / ${json.optString("totalStorageGb")} GB total\n📱 Android ${json.optString("androidVersion")} (${json.optString("deviceModel")})"
-        } catch (_: Exception) {
-            jsonStr
-        }
-    }
-
-    private fun formatNetworkStatusResult(jsonStr: String): String {
-        return try {
-            val json = org.json.JSONObject(jsonStr)
-            val status = if (json.optBoolean("isOffline")) "Offline" else "Online (${json.optString("transport")})"
-            val metered = if (json.optBoolean("isMetered")) " [Metered]" else ""
-            "📶 Network: $status$metered"
-        } catch (_: Exception) {
-            jsonStr
-        }
-    }
-
-    private fun formatLocationResult(jsonStr: String): String {
-        return try {
-            val json = org.json.JSONObject(jsonStr)
-            if (json.has("latitude")) {
-                "📍 Location: ${json.optDouble("latitude")}, ${json.optDouble("longitude")} (Accuracy: ~${json.optDouble("accuracyMeters").toInt()}m)"
-            } else {
-                json.optString("message", "No recent location fix.")
-            }
-        } catch (_: Exception) {
-            jsonStr
-        }
-    }
-
-    private fun formatCallLogResult(jsonStr: String): String {
-        return try {
-            val json = org.json.JSONObject(jsonStr)
-            val calls = json.optJSONArray("calls") ?: return jsonStr
-            val sb = StringBuilder("Recent Calls:\n")
-            for (i in 0 until calls.length()) {
-                val c = calls.getJSONObject(i)
-                val name = c.optString("name").ifEmpty { c.optString("number") }
-                sb.append("• [${c.optString("type")}] $name (${c.optString("number")})\n")
-            }
-            sb.toString().trim()
-        } catch (_: Exception) {
-            jsonStr
-        }
-    }
-
-    private fun formatNotesListResult(jsonStr: String): String {
-        return try {
-            val json = org.json.JSONObject(jsonStr)
-            val notes = json.optJSONArray("notes") ?: return "No notes found."
-            if (notes.length() == 0) return "No notes saved yet."
-            val sb = StringBuilder("Your Saved Notes (${notes.length()}):\n")
-            for (i in 0 until notes.length()) {
-                val n = notes.getJSONObject(i)
-                sb.append("• ${n.optString("title")}: \"${n.optString("content")}\"\n")
-            }
-            sb.toString().trim()
-        } catch (_: Exception) {
-            jsonStr
-        }
-    }
-
-    private fun formatClipboardResult(jsonStr: String): String {
-        return try {
-            val json = org.json.JSONObject(jsonStr)
-            if (json.optBoolean("hasContent")) {
-                "📋 Clipboard: \"${json.optString("text")}\""
-            } else {
-                "📋 Clipboard is currently empty."
-            }
-        } catch (_: Exception) {
-            jsonStr
-        }
+    fun stopVoiceInput() {
+        voiceManager.stopListening()
+        _uiState.value = _uiState.value.copy(interimVoiceTranscript = null)
     }
 
     fun toggleVoiceInput() {
         if (_uiState.value.isListening) {
-            voiceManager.stopListening()
+            stopVoiceInput()
         } else {
             voiceManager.startListening(
+                onPartialResult = { partial ->
+                    _uiState.value = _uiState.value.copy(interimVoiceTranscript = partial)
+                },
                 onResult = { spokenText ->
+                    _uiState.value = _uiState.value.copy(interimVoiceTranscript = null)
                     sendMessage(spokenText)
                 },
                 onError = { error ->
-                    _uiState.value = _uiState.value.copy(statusBanner = "Voice error: $error")
+                    _uiState.value = _uiState.value.copy(
+                        interimVoiceTranscript = null,
+                        errorMessage = "Voice error: $error"
+                    )
                 }
             )
+        }
+    }
+
+    fun speakMessage(content: String) {
+        if (content.isNotBlank()) {
+            voiceManager.speak(content)
         }
     }
 
@@ -1033,6 +808,60 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         if (lastMsg != null) {
             voiceManager.speak(lastMsg.content)
         }
+    }
+
+    fun downloadModel() {
+        if (_uiState.value.isDownloadingModel) return
+        _uiState.value = _uiState.value.copy(
+            isDownloadingModel = true,
+            downloadProgress = 0.01f,
+            downloadStatusText = "Connecting to download server (557 MB)...",
+            errorMessage = null
+        )
+        viewModelScope.launch(Dispatchers.IO + coroutineExceptionHandler) {
+            val result = modelManager.downloadModel { downloaded, total ->
+                val ratio = if (total > 0) downloaded.toFloat() / total.toFloat() else 0f
+                val mbDownloaded = downloaded / (1024 * 1024)
+                val mbTotal = total / (1024 * 1024)
+                _uiState.value = _uiState.value.copy(
+                    downloadProgress = ratio,
+                    downloadStatusText = "$mbDownloaded MB / $mbTotal MB (${(ratio * 100).toInt()}%)"
+                )
+            }
+            withContext(Dispatchers.Main) {
+                if (result.isSuccess) {
+                    activeEngine = LiteRtLlmEngine(
+                        getApplication(),
+                        modelManager.modelFile.absolutePath,
+                        modelManager.activeRuntime.value,
+                        toolRegistry
+                    )
+                    _uiState.value = _uiState.value.copy(
+                        isDownloadingModel = false,
+                        isModelInstalled = true,
+                        downloadProgress = 1f,
+                        downloadStatusText = null,
+                        activeModelName = "Gemma 3 1B",
+                        snackbarMessage = "Gemma 3 1B model downloaded and verified! Local inference ready."
+                    )
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        isDownloadingModel = false,
+                        downloadProgress = 0f,
+                        downloadStatusText = null,
+                        errorMessage = "Download failed: ${result.exceptionOrNull()?.message ?: "Unknown error"}"
+                    )
+                }
+            }
+        }
+    }
+
+    fun clearSnackbarMessage() {
+        _uiState.value = _uiState.value.copy(snackbarMessage = null)
+    }
+
+    fun clearErrorMessage() {
+        _uiState.value = _uiState.value.copy(errorMessage = null)
     }
 
     fun startNewChat() {
@@ -1071,8 +900,15 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    private var lastDeletedConversation: Pair<ConversationSession, List<Message>>? = null
+
     fun deleteConversation(convId: String) {
         viewModelScope.launch(Dispatchers.IO + coroutineExceptionHandler) {
+            val session = db.getConversations().find { it.id == convId }
+            val msgs = db.getMessagesForConversation(convId)
+            if (session != null) {
+                lastDeletedConversation = Pair(session, msgs)
+            }
             db.deleteConversation(convId)
             val remaining = db.getConversations()
             val next = remaining.firstOrNull() ?: run {
@@ -1087,8 +923,30 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                     currentConversationId = next.id,
                     currentConversationTitle = next.title,
                     messages = messages,
-                    statusBanner = "Chat deleted."
+                    snackbarMessage = "Chat deleted."
                 )
+            }
+        }
+    }
+
+    fun undoDeleteConversation() {
+        val backup = lastDeletedConversation ?: return
+        viewModelScope.launch(Dispatchers.IO + coroutineExceptionHandler) {
+            db.insertOrUpdateConversation(backup.first)
+            for (m in backup.second) {
+                db.insertMessage(m, backup.first.id)
+            }
+            val remaining = db.getConversations()
+            val messages = db.getMessagesForConversation(backup.first.id)
+            withContext(Dispatchers.Main) {
+                _uiState.value = _uiState.value.copy(
+                    conversations = remaining,
+                    currentConversationId = backup.first.id,
+                    currentConversationTitle = backup.first.title,
+                    messages = messages,
+                    snackbarMessage = "Chat restored."
+                )
+                lastDeletedConversation = null
             }
         }
     }

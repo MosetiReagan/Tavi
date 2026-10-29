@@ -41,7 +41,8 @@ class LiteRtLmBackendEngine(
     private val context: Context,
     val modelPath: String? = null,
     private val preferGpu: Boolean = false,
-    private val cpuThreads: Int = 4
+    private val cpuThreads: Int = 4,
+    toolRegistry: ToolRegistry? = null
 ) : InferenceEngine, AutoCloseable {
 
     companion object {
@@ -54,7 +55,7 @@ class LiteRtLmBackendEngine(
     }
 
     private val fallbackEngine = DeterministicAssistantEngine()
-    private val toolRegistry by lazy { ToolRegistry(context) }
+    private val toolRegistry: ToolRegistry = toolRegistry ?: ToolRegistry(context)
     private val inferenceMutex = Mutex()
 
     @Volatile
@@ -286,7 +287,11 @@ class LiteRtLmBackendEngine(
                                 if (fullResponse.length >= MAX_RESPONSE_CHARS) {
                                     loopDetected = true
                                     val capped = fullResponse.toString()
-                                    try { genSession.cancelProcess() } catch (_: Exception) {}
+                                    try {
+                                        genSession.cancelProcess()
+                                    } catch (e: Exception) {
+                                        Log.w(TAG, "Failed cancelling LiteRT-LM process on length cap", e)
+                                    }
                                     if (continuation.isActive) continuation.resume(capped)
                                     return
                                 }
@@ -296,7 +301,11 @@ class LiteRtLmBackendEngine(
                                     val cleaned = LiteRtLlmEngine.cleanRepetitiveText(fullResponse.toString())
                                     fullResponse.clear()
                                     fullResponse.append(cleaned)
-                                    try { genSession.cancelProcess() } catch (_: Exception) {}
+                                    try {
+                                        genSession.cancelProcess()
+                                    } catch (e: Exception) {
+                                        Log.w(TAG, "Failed cancelling LiteRT-LM process on repetition loop", e)
+                                    }
                                     if (continuation.isActive) continuation.resume(cleaned)
                                     return
                                 }
@@ -338,7 +347,11 @@ class LiteRtLmBackendEngine(
                 }
             } finally {
                 if (genSession !== activeSession) {
-                    try { genSession.close() } catch (_: Exception) {}
+                    try {
+                        genSession.close()
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed closing generation session", e)
+                    }
                 }
             }
         }

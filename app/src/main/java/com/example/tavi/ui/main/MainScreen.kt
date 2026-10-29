@@ -1,6 +1,11 @@
 package com.example.tavi.ui.main
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -35,6 +40,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
@@ -50,7 +56,11 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.DownloadForOffline
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FlashlightOn
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Menu
@@ -75,6 +85,8 @@ import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -84,6 +96,10 @@ import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -94,6 +110,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -110,18 +127,23 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavKey
@@ -151,6 +173,10 @@ fun MainScreen(
     viewModel: MainScreenViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    val snackbarHostState = remember { SnackbarHostState() }
+
     var inputText by remember { mutableStateOf("") }
     var showClearConfirmDialog by remember { mutableStateOf(false) }
     var conversationToDelete by remember { mutableStateOf<com.example.tavi.model.ConversationSession?>(null) }
@@ -158,6 +184,33 @@ fun MainScreen(
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
+
+    val lastVisibleIndex by remember {
+        derivedStateOf {
+            listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+        }
+    }
+    val isAtBottom by remember {
+        derivedStateOf {
+            val totalItems = listState.layoutInfo.totalItemsCount
+            totalItems == 0 || lastVisibleIndex >= totalItems - 2
+        }
+    }
+
+    val recordAudioLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            viewModel.startVoiceInput(
+                onPartialText = { partial -> inputText = partial },
+                onFinalText = { final -> inputText = final }
+            )
+        } else {
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar("Microphone permission is required for voice input.")
+            }
+        }
+    }
 
     val sharedText by com.example.tavi.MainActivity.sharedIncomingText.collectAsStateWithLifecycle()
     LaunchedEffect(sharedText) {
@@ -167,10 +220,56 @@ fun MainScreen(
         }
     }
 
-    // Auto-scroll to bottom on new messages or streaming tokens
-    LaunchedEffect(uiState.messages.size, uiState.isStreaming) {
+    val triggerVoice by com.example.tavi.MainActivity.triggerAssistantVoice.collectAsStateWithLifecycle()
+    LaunchedEffect(triggerVoice) {
+        if (triggerVoice) {
+            com.example.tavi.MainActivity.triggerAssistantVoice.value = false
+            recordAudioLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
+    // Auto-scroll to bottom on new messages or streaming tokens (only when user is already at bottom or user sent message)
+    val lastMsgLength = uiState.messages.lastOrNull()?.content?.length ?: 0
+    LaunchedEffect(uiState.messages.size, lastMsgLength, uiState.isStreaming) {
         if (uiState.messages.isNotEmpty()) {
-            listState.animateScrollToItem(uiState.messages.lastIndex)
+            val isUserMsg = uiState.messages.lastOrNull()?.role == MessageRole.USER
+            if (isAtBottom || isUserMsg) {
+                listState.animateScrollToItem(uiState.messages.lastIndex)
+            }
+        }
+    }
+
+    // Listen for transient snackbar messages with Undo support
+    LaunchedEffect(uiState.snackbarMessage) {
+        uiState.snackbarMessage?.let { msg ->
+            if (msg == "Chat deleted.") {
+                val res = snackbarHostState.showSnackbar(
+                    message = msg,
+                    actionLabel = "Undo",
+                    duration = androidx.compose.material3.SnackbarDuration.Short
+                )
+                if (res == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                    viewModel.undoDeleteConversation()
+                }
+            } else {
+                snackbarHostState.showSnackbar(msg)
+            }
+            viewModel.clearSnackbarMessage()
+        }
+    }
+
+    // Listen for error messages with retry
+    LaunchedEffect(uiState.errorMessage) {
+        uiState.errorMessage?.let { err ->
+            val result = snackbarHostState.showSnackbar(
+                message = err,
+                actionLabel = if (!uiState.isModelInstalled) "Download" else "Dismiss",
+                duration = SnackbarDuration.Long
+            )
+            if (result == SnackbarResult.ActionPerformed && !uiState.isModelInstalled) {
+                viewModel.downloadModel()
+            }
+            viewModel.clearErrorMessage()
         }
     }
 
@@ -335,7 +434,7 @@ fun MainScreen(
                                         // Delete this specific chat safely
                                         IconButton(
                                             onClick = { conversationToDelete = conv },
-                                            modifier = Modifier.size(28.dp)
+                                            modifier = Modifier.size(40.dp)
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.DeleteOutline,
@@ -495,9 +594,9 @@ fun MainScreen(
                                     )
                                     Spacer(Modifier.width(4.dp))
                                     Text(
-                                        text = "Gemma 3 1B • On-Device",
+                                        text = "${uiState.activeModelName} • ${if (uiState.isModelInstalled) "On-Device" else "Setup Required"}",
                                         fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = if (uiState.isModelInstalled) MaterialTheme.colorScheme.onSurfaceVariant else WarningAmber
                                     )
                                 }
                             }
@@ -581,6 +680,9 @@ fun MainScreen(
                     )
                 }
             },
+            snackbarHost = {
+                SnackbarHost(hostState = snackbarHostState)
+            },
             bottomBar = {
             ModernInputDock(
                 inputText = inputText,
@@ -590,14 +692,32 @@ fun MainScreen(
                 onTextChanged = { inputText = it },
                 onSendClicked = {
                     if (inputText.isNotBlank() && !uiState.isStreaming) {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         viewModel.sendMessage(inputText)
                         inputText = ""
                     }
                 },
                 onQuickPromptClicked = { prompt ->
-                    viewModel.sendMessage(prompt)
+                    inputText = prompt
                 },
-                onVoiceToggle = { viewModel.toggleVoiceInput() }
+                onVoiceToggle = {
+                    if (uiState.isListening) {
+                        viewModel.stopVoiceInput()
+                    } else {
+                        val hasRecordPermission = ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.RECORD_AUDIO
+                        ) == PackageManager.PERMISSION_GRANTED
+                        if (hasRecordPermission) {
+                            viewModel.startVoiceInput(
+                                onPartialText = { partial -> inputText = partial },
+                                onFinalText = { final -> inputText = final }
+                            )
+                        } else {
+                            recordAudioLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        }
+                    }
+                }
             )
         }
     ) { innerPadding ->
@@ -609,11 +729,14 @@ fun MainScreen(
             val userHasMessages = uiState.messages.any { it.role == MessageRole.USER }
 
             if (!userHasMessages) {
-                // Polished Hero Empty State
+                // Polished Hero Empty State with First-Run Model Setup Card
                 HeroEmptyState(
+                    uiState = uiState,
                     onSuggestionClicked = { prompt ->
                         viewModel.sendMessage(prompt)
-                    }
+                    },
+                    onDownloadModelClicked = { viewModel.downloadModel() },
+                    onNavigateToSettings = { onItemClick(Settings) }
                 )
             } else {
                 LazyColumn(
@@ -625,7 +748,7 @@ fun MainScreen(
                     items(uiState.messages, key = { it.id }) { message ->
                         ModernMessageBubble(
                             message = message,
-                            onSpeak = { viewModel.speakLastMessage() }
+                            onSpeak = { viewModel.speakMessage(message.content) }
                         )
                     }
 
@@ -633,8 +756,14 @@ fun MainScreen(
                         item {
                             WorkflowReviewCard(
                                 workflow = workflow,
-                                onConfirm = { stepId -> viewModel.confirmWorkflowStep(stepId, true) },
-                                onCancelConfirm = { stepId -> viewModel.confirmWorkflowStep(stepId, false) },
+                                onConfirm = { stepId ->
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    viewModel.confirmWorkflowStep(stepId, true)
+                                },
+                                onCancelConfirm = { stepId ->
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    viewModel.confirmWorkflowStep(stepId, false)
+                                },
                                 onCancelWorkflow = { viewModel.cancelWorkflow() },
                                 onDismiss = { viewModel.dismissWorkflow() }
                             )
@@ -645,6 +774,31 @@ fun MainScreen(
                         item {
                             AssistantThinkingIndicator()
                         }
+                    }
+                }
+
+                // Scroll to Bottom Floating Action Button
+                if (!isAtBottom && uiState.messages.isNotEmpty()) {
+                    FloatingActionButton(
+                        onClick = {
+                            coroutineScope.launch {
+                                listState.animateScrollToItem(uiState.messages.lastIndex)
+                            }
+                        },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(bottom = 16.dp, end = 16.dp)
+                            .size(44.dp),
+                        shape = CircleShape,
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        elevation = FloatingActionButtonDefaults.elevation(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Scroll to bottom",
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
                 }
             }
@@ -813,7 +967,10 @@ private fun getGreeting(): String {
  */
 @Composable
 private fun HeroEmptyState(
-    onSuggestionClicked: (String) -> Unit
+    uiState: ChatUiState,
+    onSuggestionClicked: (String) -> Unit,
+    onDownloadModelClicked: () -> Unit,
+    onNavigateToSettings: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -856,8 +1013,13 @@ private fun HeroEmptyState(
 
         Spacer(Modifier.height(18.dp))
 
+        val greetingText = if (!uiState.userName.isNullOrBlank()) {
+            "${getGreeting()}, ${uiState.userName}"
+        } else {
+            getGreeting()
+        }
         Text(
-            text = "${getGreeting()}, Reagan",
+            text = greetingText,
             fontWeight = FontWeight.Bold,
             fontSize = 24.sp,
             letterSpacing = (-0.5).sp,
@@ -874,15 +1036,94 @@ private fun HeroEmptyState(
             textAlign = TextAlign.Center
         )
 
+        // First-Run Model Setup Card when weights are missing
+        if (!uiState.isModelInstalled) {
+            Spacer(Modifier.height(18.dp))
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.DownloadForOffline,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "On-Device AI Setup Required",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Text(
+                                text = "Gemma 3 1B IT • 557 MB (Int4 Quantized)",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = "To run 100% offline with zero cloud telemetry, download the quantized Gemma model once. No account or API key needed.",
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Spacer(Modifier.height(14.dp))
+                    if (uiState.isDownloadingModel) {
+                        LinearProgressIndicator(
+                            progress = { uiState.downloadProgress },
+                            modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = uiState.downloadStatusText ?: "Downloading model weights...",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Button(
+                                onClick = onDownloadModelClicked,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Download (557 MB)", fontSize = 12.sp)
+                            }
+                            OutlinedButton(
+                                onClick = onNavigateToSettings,
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Options", fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         Spacer(Modifier.height(24.dp))
 
         // Quick Category Chips
         val quickChips = listOf(
-            "📅 Today's Agenda",
-            "💬 Draft SMS",
-            "🧠 What do you remember?",
-            "🔋 Battery & WiFi",
-            "💡 Flashlight"
+            "📅 Today's Agenda" to "What's on my agenda today?",
+            "💬 Draft SMS" to "Draft a message to Dennis saying: Are we still meeting?",
+            "🧠 What do you remember?" to "What do you remember about me?",
+            "🔋 Battery & WiFi" to "Check device battery and WiFi status",
+            "💡 Flashlight" to "Turn on the flashlight"
         )
         Row(
             modifier = Modifier
@@ -890,9 +1131,9 @@ private fun HeroEmptyState(
                 .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            quickChips.forEach { chip ->
+            quickChips.forEach { (chipLabel, chipPrompt) ->
                 Surface(
-                    onClick = { onSuggestionClicked(chip) },
+                    onClick = { onSuggestionClicked(chipPrompt) },
                     shape = RoundedCornerShape(20.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     border = androidx.compose.foundation.BorderStroke(
@@ -901,7 +1142,7 @@ private fun HeroEmptyState(
                     )
                 ) {
                     Text(
-                        text = chip,
+                        text = chipLabel,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -988,7 +1229,11 @@ fun ModernMessageBubble(
 ) {
     val isUser = message.role == MessageRole.USER
     val clipboardManager = LocalClipboardManager.current
+    val haptic = LocalHapticFeedback.current
     var copiedRecently by remember { mutableStateOf(false) }
+    val timeStr = remember(message.timestamp) {
+        SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.timestamp))
+    }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -1044,18 +1289,38 @@ fun ModernMessageBubble(
             color = if (isUser) BrandViolet else MaterialTheme.colorScheme.surfaceVariant,
             border = if (!isUser) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null,
             shadowElevation = if (isUser) 1.dp else 0.dp,
-            modifier = if (isUser) {
-                Modifier.widthIn(min = 40.dp, max = 310.dp)
-            } else {
-                Modifier.fillMaxWidth(0.96f)
-            }
+            modifier = Modifier
+                .animateContentSize()
+                .then(
+                    if (isUser) {
+                        Modifier.widthIn(min = 40.dp, max = 310.dp)
+                    } else {
+                        Modifier.fillMaxWidth(0.96f)
+                    }
+                )
         ) {
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                 if (message.content.isNotEmpty()) {
-                    FormattedMessageText(
-                        rawText = message.content,
-                        isUser = isUser
-                    )
+                    if (isUser) {
+                        FormattedMessageText(
+                            rawText = message.content,
+                            isUser = true
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = timeStr,
+                            fontSize = 10.sp,
+                            color = Color.White.copy(alpha = 0.7f),
+                            modifier = Modifier.align(Alignment.End)
+                        )
+                    } else {
+                        SelectionContainer {
+                            FormattedMessageText(
+                                rawText = message.content,
+                                isUser = false
+                            )
+                        }
+                    }
                 }
 
                 // Streaming 3-dot animation
@@ -1079,38 +1344,50 @@ fun ModernMessageBubble(
                     Spacer(Modifier.height(8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Copy Button
-                        IconButton(
-                            onClick = {
-                                clipboardManager.setText(AnnotatedString(message.content))
-                                copiedRecently = true
-                            },
-                            modifier = Modifier.size(26.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (copiedRecently) Icons.Default.Check else Icons.Default.ContentCopy,
-                                contentDescription = "Copy message",
-                                modifier = Modifier.size(14.dp),
-                                tint = if (copiedRecently) SuccessGreen else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                            )
-                        }
+                        Text(
+                            text = timeStr,
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
 
-                        Spacer(Modifier.width(6.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            // Copy Button
+                            IconButton(
+                                onClick = {
+                                    clipboardManager.setText(AnnotatedString(message.content))
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    copiedRecently = true
+                                },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (copiedRecently) Icons.Default.Check else Icons.Default.ContentCopy,
+                                    contentDescription = "Copy message",
+                                    modifier = Modifier.size(16.dp),
+                                    tint = if (copiedRecently) SuccessGreen else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                            }
 
-                        // Speak Aloud Button
-                        IconButton(
-                            onClick = onSpeak,
-                            modifier = Modifier.size(26.dp)
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.VolumeUp,
-                                contentDescription = "Read aloud",
-                                modifier = Modifier.size(15.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                            )
+                            Spacer(Modifier.width(4.dp))
+
+                            // Speak Aloud Button
+                            IconButton(
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onSpeak()
+                                },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.VolumeUp,
+                                    contentDescription = "Read aloud",
+                                    modifier = Modifier.size(17.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                            }
                         }
                     }
                 }
@@ -1120,7 +1397,7 @@ fun ModernMessageBubble(
 }
 
 /**
- * Text renderer supporting bold text, bullet points, and clean typography.
+ * Enhanced text renderer supporting code blocks, inline code, bold, italics, headers, and bullet points.
  */
 @Composable
 private fun FormattedMessageText(
@@ -1128,58 +1405,128 @@ private fun FormattedMessageText(
     isUser: Boolean
 ) {
     val textColor = if (isUser) Color.White else MaterialTheme.colorScheme.onSurface
-    val bulletColor = if (isUser) Color.White.copy(alpha = 0.8f) else BrandPrimary
+    val codeBg = if (isUser) Color.Black.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surface
 
-    val formatted = remember(rawText) {
-        buildAnnotatedString {
-            val parts = rawText.split("\n")
-            parts.forEachIndexed { idx, line ->
-                val trimmed = line.trimStart()
-                if (trimmed.startsWith("•") || trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
-                    // Bullet point
-                    append("  •  ")
-                    val content = trimmed.removePrefix("•").removePrefix("- ").removePrefix("* ").trim()
-                    appendMarkdownFormatted(content, textColor)
-                } else if (trimmed.startsWith("### ")) {
-                    // Subheader
+    Column {
+        val lines = rawText.split("\n")
+        var inCodeBlock = false
+        val codeBlockLines = mutableListOf<String>()
+
+        for (line in lines) {
+            val trimmed = line.trim()
+            if (trimmed.startsWith("```")) {
+                if (inCodeBlock) {
+                    // Close code block
+                    val fullCode = codeBlockLines.joinToString("\n")
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = codeBg,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = fullCode,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 12.sp,
+                            lineHeight = 17.sp,
+                            color = if (isUser) Color.White else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(10.dp)
+                        )
+                    }
+                    codeBlockLines.clear()
+                    inCodeBlock = false
+                } else {
+                    inCodeBlock = true
+                }
+                continue
+            }
+
+            if (inCodeBlock) {
+                codeBlockLines.add(line)
+                continue
+            }
+
+            // Normal markdown line rendering
+            val annotated = buildAnnotatedString {
+                val lineTrim = line.trimStart()
+                if (lineTrim.startsWith("### ")) {
                     pushStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = 16.sp))
-                    append(trimmed.removePrefix("### ").trim())
+                    append(lineTrim.removePrefix("### ").trim())
                     pop()
+                } else if (lineTrim.startsWith("## ")) {
+                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = 17.sp))
+                    append(lineTrim.removePrefix("## ").trim())
+                    pop()
+                } else if (lineTrim.startsWith("# ")) {
+                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = 18.sp))
+                    append(lineTrim.removePrefix("# ").trim())
+                    pop()
+                } else if (lineTrim.startsWith("• ") || lineTrim.startsWith("- ") || lineTrim.startsWith("* ")) {
+                    append("  •  ")
+                    val content = lineTrim.removePrefix("• ").removePrefix("- ").removePrefix("* ").trim()
+                    appendMarkdownFormatted(content, textColor)
                 } else {
                     appendMarkdownFormatted(line, textColor)
                 }
-                if (idx < parts.size - 1) {
-                    append("\n")
-                }
+            }
+
+            Text(
+                text = annotated,
+                fontSize = 15.sp,
+                lineHeight = 22.sp,
+                color = textColor
+            )
+        }
+
+        if (inCodeBlock && codeBlockLines.isNotEmpty()) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = codeBg,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+            ) {
+                Text(
+                    text = codeBlockLines.joinToString("\n"),
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 12.sp,
+                    color = if (isUser) Color.White else MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(10.dp)
+                )
             }
         }
     }
-
-    Text(
-        text = formatted,
-        fontSize = 15.sp,
-        lineHeight = 22.sp,
-        color = textColor
-    )
 }
 
 private fun AnnotatedString.Builder.appendMarkdownFormatted(text: String, defaultColor: Color) {
-    // Simple regex matching **bold**
-    val regex = Regex("\\*\\*(.*?)\\*\\*")
-    var lastIndex = 0
+    var cursor = 0
+    // Combined regex for **bold**, *italic*, and `inline code`
+    val regex = Regex("(\\*\\*([^*]+)\\*\\*)|(\\*([^*]+)\\*)|(`([^`]+)`)")
     val matches = regex.findAll(text)
 
     for (match in matches) {
-        if (match.range.first > lastIndex) {
-            append(text.substring(lastIndex, match.range.first))
+        if (match.range.first > cursor) {
+            append(text.substring(cursor, match.range.first))
         }
-        pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-        append(match.groupValues[1])
-        pop()
-        lastIndex = match.range.last + 1
+        when {
+            match.groupValues[2].isNotEmpty() -> { // Bold
+                pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+                append(match.groupValues[2])
+                pop()
+            }
+            match.groupValues[4].isNotEmpty() -> { // Italic
+                pushStyle(SpanStyle(fontStyle = FontStyle.Italic))
+                append(match.groupValues[4])
+                pop()
+            }
+            match.groupValues[6].isNotEmpty() -> { // Inline code
+                pushStyle(SpanStyle(fontFamily = FontFamily.Monospace, background = Color.Black.copy(alpha = 0.1f)))
+                append(" ${match.groupValues[6]} ")
+                pop()
+            }
+        }
+        cursor = match.range.last + 1
     }
-    if (lastIndex < text.length) {
-        append(text.substring(lastIndex))
+    if (cursor < text.length) {
+        append(text.substring(cursor))
     }
 }
 
@@ -1262,6 +1609,7 @@ fun BouncingDotsIndicator() {
 fun ToolActionBadge(call: ToolCall, result: ToolResult?) {
     val isSuccess = result?.isSuccess == true
     val requiresConfirm = result?.requiresUserConfirmation == true
+    var isExpanded by remember { mutableStateOf(false) }
 
     val (icon, label, accentColor) = when {
         call.toolName.startsWith("calendar") -> Triple(Icons.Default.CalendarMonth, "Calendar", Color(0xFF3B82F6))
@@ -1275,6 +1623,7 @@ fun ToolActionBadge(call: ToolCall, result: ToolResult?) {
     }
 
     Surface(
+        onClick = { isExpanded = !isExpanded },
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surface,
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -1282,72 +1631,134 @@ fun ToolActionBadge(call: ToolCall, result: ToolResult?) {
             .fillMaxWidth()
             .padding(vertical = 3.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(30.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(accentColor.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = accentColor,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-            Spacer(Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = label,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = call.toolName,
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            Spacer(Modifier.width(6.dp))
-
-            // Status Pill
-            if (requiresConfirm) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = WarningAmber.copy(alpha = 0.15f),
-                    border = androidx.compose.foundation.BorderStroke(0.8.dp, WarningAmber.copy(alpha = 0.4f))
+                Box(
+                    modifier = Modifier
+                        .size(30.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(accentColor.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = label,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = call.toolName,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Spacer(Modifier.width(6.dp))
+
+                // Status Pill
+                if (requiresConfirm) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = WarningAmber.copy(alpha = 0.15f),
+                        border = androidx.compose.foundation.BorderStroke(0.8.dp, WarningAmber.copy(alpha = 0.4f))
                     ) {
-                        Icon(Icons.Default.Warning, contentDescription = null, tint = WarningAmber, modifier = Modifier.size(11.dp))
-                        Spacer(Modifier.width(3.dp))
-                        Text("Confirmation", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = WarningAmber)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                        ) {
+                            Icon(Icons.Default.Warning, contentDescription = null, tint = WarningAmber, modifier = Modifier.size(11.dp))
+                            Spacer(Modifier.width(3.dp))
+                            Text("Confirmation", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = WarningAmber)
+                        }
+                    }
+                } else if (isSuccess) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = SuccessGreen.copy(alpha = 0.15f),
+                        border = androidx.compose.foundation.BorderStroke(0.8.dp, SuccessGreen.copy(alpha = 0.4f))
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                        ) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = SuccessGreen, modifier = Modifier.size(11.dp))
+                            Spacer(Modifier.width(3.dp))
+                            Text("Verified", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = SuccessGreen)
+                        }
                     }
                 }
-            } else if (isSuccess) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = SuccessGreen.copy(alpha = 0.15f),
-                    border = androidx.compose.foundation.BorderStroke(0.8.dp, SuccessGreen.copy(alpha = 0.4f))
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
-                    ) {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = SuccessGreen, modifier = Modifier.size(11.dp))
-                        Spacer(Modifier.width(3.dp))
-                        Text("Verified", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = SuccessGreen)
+
+                Spacer(Modifier.width(4.dp))
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = if (isExpanded) "Collapse details" else "Expand details",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+
+            // Expandable details (Parameters and Execution Result JSON)
+            AnimatedVisibility(visible = isExpanded) {
+                Column(modifier = Modifier.padding(top = 8.dp)) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    Spacer(Modifier.height(6.dp))
+                    if (call.arguments.isNotEmpty()) {
+                        Text(
+                            text = "Tool Parameters:",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                            shape = RoundedCornerShape(6.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = call.arguments.entries.joinToString("\n") { (k, v) -> "$k: $v" },
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(6.dp)
+                            )
+                        }
+                    }
+                    if (result != null) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = "Execution Result:",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                            shape = RoundedCornerShape(6.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = if (result.isSuccess) result.resultJson else (result.errorMessage ?: "Failed"),
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 10.sp,
+                                color = if (result.isSuccess) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(6.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -1479,7 +1890,7 @@ fun ModernInputDock(
                 IconButton(
                     onClick = onVoiceToggle,
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(44.dp)
                         .scale(micScale)
                         .clip(CircleShape)
                         .background(
@@ -1491,7 +1902,7 @@ fun ModernInputDock(
                         imageVector = if (isListening) Icons.Default.MicOff else Icons.Default.Mic,
                         contentDescription = "Voice Input",
                         tint = if (isListening) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
 
@@ -1537,7 +1948,7 @@ fun ModernInputDock(
                     onClick = onSendClicked,
                     enabled = canSend || isStreaming,
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(44.dp)
                         .clip(CircleShape)
                         .background(
                             if (canSend) BrandPrimaryVariant
@@ -1547,7 +1958,7 @@ fun ModernInputDock(
                 ) {
                     if (isStreaming) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
+                            modifier = Modifier.size(18.dp),
                             strokeWidth = 2.dp,
                             color = BrandPrimary
                         )
@@ -1556,7 +1967,7 @@ fun ModernInputDock(
                             imageVector = Icons.Default.ArrowUpward,
                             contentDescription = "Send",
                             tint = if (canSend) Color.White else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
@@ -1575,13 +1986,13 @@ fun WorkflowReviewCard(
     modifier: Modifier = Modifier
 ) {
     val stateColor = when (workflow.state) {
-        WorkflowState.COMPLETED -> Color(0xFF2E7D32)
+        WorkflowState.COMPLETED -> SuccessGreen
         WorkflowState.EXECUTING, WorkflowState.VERIFYING -> BrandPrimary
-        WorkflowState.AWAITING_CONFIRMATION -> Color(0xFFE65100)
+        WorkflowState.AWAITING_CONFIRMATION -> WarningAmber
         WorkflowState.AWAITING_USER_INPUT -> BrandAccent
-        WorkflowState.PARTIALLY_COMPLETED -> Color(0xFFF57C00)
+        WorkflowState.PARTIALLY_COMPLETED -> WarningAmber
         WorkflowState.FAILED -> MaterialTheme.colorScheme.error
-        WorkflowState.CANCELLED -> Color.Gray
+        WorkflowState.CANCELLED -> MaterialTheme.colorScheme.onSurfaceVariant
         WorkflowState.PLANNING -> BrandPrimary
     }
 
@@ -1598,9 +2009,9 @@ fun WorkflowReviewCard(
     }
 
     val planSourceText = when (workflow.planSource) {
-        PlanSource.DETERMINISTIC -> "Deterministic Fast-Path"
-        PlanSource.GEMMA_ON_DEVICE -> "Gemma 3 1B On-Device Plan"
-        PlanSource.USER_ROUTINE -> "Configured Routine"
+        PlanSource.DETERMINISTIC -> "Fast-Path Rule"
+        PlanSource.GEMMA_ON_DEVICE -> "On-Device AI Plan"
+        PlanSource.USER_ROUTINE -> "Automated Routine"
     }
 
     Card(
@@ -1783,24 +2194,37 @@ fun WorkflowReviewCard(
             if (workflow.state == WorkflowState.AWAITING_CONFIRMATION && workflow.pendingConfirmationStepId != null) {
                 val step = workflow.steps.find { it.id == workflow.pendingConfirmationStepId }
                 Surface(
-                    color = Color(0xFFE65100).copy(alpha = 0.12f),
+                    color = WarningAmber.copy(alpha = 0.12f),
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Security, contentDescription = null, tint = WarningAmber, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = "Action Confirmation Required",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = WarningAmber
+                            )
+                        }
+                        Spacer(Modifier.height(6.dp))
                         Text(
-                            text = "Consequential Action Authorization",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            color = Color(0xFFE65100)
+                            text = "Please verify the details below before proceeding:",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = "Approval is strictly scoped to this action:\nAction: ${step?.title ?: "Action"}\nParameters: ${step?.arguments}",
-                            fontSize = 12.sp,
-                            lineHeight = 17.sp,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                        step?.arguments?.filter { !it.key.startsWith("__") }?.forEach { (key, value) ->
+                            val cleanKey = key.replace("_", " ").replaceFirstChar { it.uppercase() }
+                            Text(
+                                text = "• $cleanKey: $value",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                         Spacer(Modifier.height(10.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -1815,9 +2239,9 @@ fun WorkflowReviewCard(
                             Spacer(Modifier.width(8.dp))
                             Button(
                                 onClick = { onConfirm(workflow.pendingConfirmationStepId) },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+                                colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen)
                             ) {
-                                Text("Confirm & Execute", fontSize = 12.sp)
+                                Text("Confirm & Proceed", fontSize = 12.sp)
                             }
                         }
                     }

@@ -79,28 +79,41 @@ def export_to_litert(merged_dir: str, output_file: str, quantization: str):
 
     os.makedirs(os.path.dirname(os.path.abspath(output_file)), exist_ok=True)
 
-    # Check for ai-edge-torch
+    # 1. Primary: Use official litert_torch export pipeline
     try:
-        import ai_edge_torch
-        import ai_edge_torch.generative.quantize.quant_recipes as quant_recipes
-        from ai_edge_torch.generative.utilities import converter
+        from litert_torch.generative.export_hf.export import export as litert_export
+        logger.info("Detected litert_torch runtime. Exporting to LiteRT-LM format...")
 
-        logger.info("Detected ai-edge-torch runtime. Converting model...")
-        
-        # Configure quantization recipe
-        recipe = quant_recipes.full_int4_weight_only() if quantization == "int4" else None
+        recipe_name = "dynamic_wi4_afp32" if quantization == "int4" else ("dynamic_wi8_afp32" if quantization == "int8" else None)
+        out_dir = os.path.dirname(os.path.abspath(output_file))
+        tmp_export_dir = os.path.join(out_dir, "litert_export_tmp")
+        os.makedirs(tmp_export_dir, exist_ok=True)
 
-        # Execute LiteRT conversion
-        converter.convert_hf_to_litert(
-            checkpoint_path=merged_dir,
-            output_path=output_file,
-            quantize_recipe=recipe
+        litert_export(
+            model=merged_dir,
+            output_dir=tmp_export_dir,
+            bundle_litert_lm=True,
+            externalize_embedder=True,
+            experimental_lightweight_conversion=True,
+            quantization_recipe=recipe_name,
+            cache_length=1024,
+            prefill_lengths=[128]
         )
-        logger.info(f"Successfully generated LiteRT model: {output_file}")
-        return
+
+        # Move generated bundle to final target
+        candidate_bundle = os.path.join(tmp_export_dir, "model.litertlm")
+        if os.path.exists(candidate_bundle):
+            shutil.move(candidate_bundle, output_file)
+            shutil.rmtree(tmp_export_dir, ignore_errors=True)
+            logger.info(f"Successfully generated LiteRT-LM bundle: {output_file}")
+            return
+        else:
+            logger.warning(f"model.litertlm not found in {tmp_export_dir}. Contents: {os.listdir(tmp_export_dir)}")
 
     except ImportError:
-        logger.warning("ai_edge_torch not found in current environment.")
+        logger.warning("litert_torch not found in current environment.")
+    except Exception as e:
+        logger.error(f"litert_torch export encountered error: {e}", exc_info=True)
 
     # Fallback to MediaPipe Tasks GenAI CLI tool if present
     mediapipe_converter = shutil.which("mediapipe_genai_converter") or shutil.which("model_converter")

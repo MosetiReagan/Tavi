@@ -174,6 +174,9 @@ object ContextBudgetManager {
         return sb.toString()
     }
 
+    var lastPrunedMessageCount: Int = 0
+        private set
+
     /**
      * Selects recent turns from history that fit within the token budget.
      * Preserves complete conversational pairs and ensures older turns are pruned cleanly.
@@ -183,6 +186,7 @@ object ContextBudgetManager {
         currentPrompt: String,
         maxTokens: Int
     ): List<Message> {
+        lastPrunedMessageCount = 0
         if (history.isEmpty()) return emptyList()
 
         var currentTokens = estimateTokens(currentPrompt)
@@ -193,7 +197,8 @@ object ContextBudgetManager {
             val msg = history[i]
             val msgTokens = estimateTokens(msg.content) + (msg.toolResults?.sumOf { estimateTokens(it.resultJson) } ?: 0)
             if (currentTokens + msgTokens > maxTokens && selected.isNotEmpty()) {
-                Log.d(TAG, "Context budget reached ($currentTokens tokens). Pruned ${i + 1} older messages.")
+                lastPrunedMessageCount = i + 1
+                Log.d(TAG, "Context budget reached ($currentTokens tokens). Pruned $lastPrunedMessageCount older messages.")
                 break
             }
             selected.add(0, msg)

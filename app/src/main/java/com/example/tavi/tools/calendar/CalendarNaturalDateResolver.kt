@@ -91,7 +91,9 @@ object CalendarNaturalDateResolver {
                         }
                         val parsed = sdf.parse(input.trim())
                         if (parsed != null) return parsed.time
-                    } catch (_: Exception) {}
+                    } catch (e: Exception) {
+                        // Candidate format mismatch; proceed to next pattern in fallback sequence
+                    }
                 }
             }
         }

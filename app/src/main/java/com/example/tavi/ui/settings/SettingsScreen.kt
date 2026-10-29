@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,8 +25,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
+import com.example.tavi.theme.SuccessGreen
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDownload
@@ -90,7 +92,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val db = remember { TaviDatabase.getInstance(context) }
-    val modelManager = remember { ModelManager(context) }
+    val modelManager = remember { ModelManager.getInstance(context) }
     val scope = rememberCoroutineScope()
 
     var models by remember { mutableStateOf(modelManager.getAvailableModels()) }
@@ -110,6 +112,8 @@ fun SettingsScreen(
     var showDownloadDialog by remember { mutableStateOf(false) }
     var downloadUrlInput by remember { mutableStateOf(ModelManager.DEFAULT_MODEL_DOWNLOAD_URL) }
     var showDeleteModelConfirm by remember { mutableStateOf(false) }
+    var showClearHistoryConfirm by remember { mutableStateOf(false) }
+    var memoryToDelete by remember { mutableStateOf<MemoryEntry?>(null) }
     var memories by remember { mutableStateOf<List<MemoryEntry>>(emptyList()) }
     var auditLogs by remember { mutableStateOf<List<AuditLogEntry>>(emptyList()) }
     var showAuditDialog by remember { mutableStateOf(false) }
@@ -205,7 +209,7 @@ fun SettingsScreen(
                 title = { Text("Settings & Privacy", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -273,7 +277,7 @@ fun SettingsScreen(
                                 shape = RoundedCornerShape(4.dp)
                             ) {
                                 Text(
-                                    text = if (modelInfo.isInstalled) "Installed • ${modelInfo.formattedSize}" else "Weights Missing",
+                                    text = if (modelInfo.isInstalled) "Installed • ${modelInfo.formattedSize}" else "Model Not Downloaded",
                                     fontSize = 11.sp,
                                     color = if (modelInfo.isInstalled) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -282,14 +286,14 @@ fun SettingsScreen(
                         }
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "Active Runtime: ${activeRuntime.displayName}. Operates 100% locally on-device.",
+                            text = "Current Engine: ${activeRuntime.displayName} • 100% on-device",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(Modifier.height(10.dp))
 
                         Text(
-                            text = "Inference Engine Backend",
+                            text = "AI Engine",
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.primary
@@ -308,7 +312,7 @@ fun SettingsScreen(
                                 modifier = Modifier.weight(1f),
                                 colors = if (isLiteRt) ButtonDefaults.buttonColors() else ButtonDefaults.outlinedButtonColors()
                             ) {
-                                Text("LiteRT-LM\n(Modern)", fontSize = 11.sp)
+                                Text("Fastest\n(LiteRT-LM)", fontSize = 11.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                             }
 
                             val isMediaPipe = activeRuntime == InferenceRuntime.MEDIAPIPE
@@ -320,7 +324,7 @@ fun SettingsScreen(
                                 modifier = Modifier.weight(1f),
                                 colors = if (isMediaPipe) ButtonDefaults.buttonColors() else ButtonDefaults.outlinedButtonColors()
                             ) {
-                                Text("MediaPipe\n(Rollback)", fontSize = 11.sp)
+                                Text("Compatibility\n(MediaPipe)", fontSize = 11.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                             }
 
                             val isDeterministic = activeRuntime == InferenceRuntime.DETERMINISTIC_ONLY
@@ -332,9 +336,19 @@ fun SettingsScreen(
                                 modifier = Modifier.weight(1f),
                                 colors = if (isDeterministic) ButtonDefaults.buttonColors() else ButtonDefaults.outlinedButtonColors()
                             ) {
-                                Text("Rules Only\n(No LLM)", fontSize = 11.sp)
+                                Text("Rules Only\n(No AI)", fontSize = 11.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                             }
                         }
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = when (activeRuntime) {
+                                InferenceRuntime.LITERTLM -> "✨ Recommended: Google AI Edge LiteRT-LM. Fastest TTFT and lowest memory usage."
+                                InferenceRuntime.MEDIAPIPE -> "🛡️ Compatibility: MediaPipe GenAI fallback engine with GPU/CPU support."
+                                InferenceRuntime.DETERMINISTIC_ONLY -> "⚡ Rules Only: Pure regex intent routing with zero neural memory usage."
+                            },
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                         Spacer(Modifier.height(12.dp))
 
                         if (modelInfo.isInstalled) {
@@ -342,7 +356,7 @@ fun SettingsScreen(
                                 Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))
                                 Text(
-                                    text = "Ready for genuine inference. Path: ${modelInfo.filePath}",
+                                    text = "Model installed and verified on this device (${modelInfo.formattedSize})",
                                     fontSize = 11.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -555,11 +569,7 @@ fun SettingsScreen(
                                 )
                             }
                             IconButton(onClick = {
-                                scope.launch(Dispatchers.IO) {
-                                    com.example.tavi.memory.PersistentMemoryManager.deleteMemory(context, mem.id)
-                                    db.deleteMemory(mem.id)
-                                    refreshData()
-                                }
+                                memoryToDelete = mem
                             }) {
                                 Icon(Icons.Default.Delete, contentDescription = "Delete Memory", tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f))
                             }
@@ -714,11 +724,7 @@ fun SettingsScreen(
 
                             Button(
                                 onClick = {
-                                    scope.launch(Dispatchers.IO) {
-                                        db.clearMessages()
-                                        db.clearAuditLogs()
-                                        refreshData()
-                                    }
+                                    showClearHistoryConfirm = true
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                                 modifier = Modifier.weight(1f)
@@ -825,7 +831,7 @@ fun SettingsScreen(
             AlertDialog(
                 onDismissRequest = { showDownloadSuccessDialog = false },
                 title = { Text("Model Downloaded Successfully") },
-                text = { Text("Gemma 3 1B instruction-tuned model weights downloaded and verified. Sandboxed local on-device inference is active.") },
+                text = { Text("Gemma 3 1B model downloaded and verified. 100% private, on-device assistant is ready.") },
                 confirmButton = {
                     TextButton(onClick = { showDownloadSuccessDialog = false }) {
                         Text("OK")
@@ -839,7 +845,7 @@ fun SettingsScreen(
             AlertDialog(
                 onDismissRequest = { showImportSuccessDialog = false },
                 title = { Text("Model Ready") },
-                text = { Text("Gemma 3 1B instruction-tuned model weights installed and verified. On-device MediaPipe GenAI inference is now active!") },
+                text = { Text("Gemma 3 1B instruction-tuned model weights installed and verified. On-device ${activeRuntime.displayName} inference is now active!") },
                 confirmButton = {
                     TextButton(onClick = { showImportSuccessDialog = false }) {
                         Text("Start Using Tavi")
@@ -853,7 +859,7 @@ fun SettingsScreen(
             AlertDialog(
                 onDismissRequest = { showDeleteModelConfirm = false },
                 title = { Text("Delete Model Weights?") },
-                text = { Text("This will remove the 1.1 GB Gemma model weights from sandboxed storage. Tavi will return to its deterministic action fallback until re-imported.") },
+                text = { Text("This will remove the ${modelInfo.formattedSize} Gemma model weights from sandboxed storage. Tavi will return to its rule-based fallback until weights are re-acquired.") },
                 confirmButton = {
                     TextButton(onClick = {
                         modelManager.deleteModel(ModelManager.MODEL_GEMMA_3_1B)
@@ -865,6 +871,58 @@ fun SettingsScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { showDeleteModelConfirm = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        // Clear History Confirmation Dialog
+        if (showClearHistoryConfirm) {
+            AlertDialog(
+                onDismissRequest = { showClearHistoryConfirm = false },
+                title = { Text("Clear All History?") },
+                text = { Text("This will permanently delete all conversation messages and audit logs from your device SQLite database. This action cannot be undone.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        scope.launch(Dispatchers.IO) {
+                            db.clearMessages()
+                            db.clearAuditLogs()
+                            refreshData()
+                        }
+                        showClearHistoryConfirm = false
+                    }) {
+                        Text("Clear All", color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showClearHistoryConfirm = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        // Delete Memory Confirmation Dialog
+        memoryToDelete?.let { mem ->
+            AlertDialog(
+                onDismissRequest = { memoryToDelete = null },
+                title = { Text("Delete Memory?") },
+                text = { Text("Remove \"${mem.key}\" (\"${mem.value}\") from your remembered personal profile?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        scope.launch(Dispatchers.IO) {
+                            com.example.tavi.memory.PersistentMemoryManager.deleteMemory(context, mem.id)
+                            db.deleteMemory(mem.id)
+                            refreshData()
+                        }
+                        memoryToDelete = null
+                    }) {
+                        Text("Delete", color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { memoryToDelete = null }) {
                         Text("Cancel")
                     }
                 }
@@ -949,13 +1007,13 @@ fun PermissionRow(
         }
         if (isGranted) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.Check, contentDescription = null, tint = SuccessGreen, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(4.dp))
-                Text("Granted", fontSize = 12.sp, color = Color(0xFF2E7D32))
+                Text("Granted", fontSize = 12.sp, color = SuccessGreen, fontWeight = FontWeight.SemiBold)
             }
         } else {
-            Button(onClick = onRequest, modifier = Modifier.height(34.dp)) {
-                Text("Grant", fontSize = 11.sp)
+            Button(onClick = onRequest, modifier = Modifier.heightIn(min = 44.dp)) {
+                Text("Grant", fontSize = 12.sp)
             }
         }
     }

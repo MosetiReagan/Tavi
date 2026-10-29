@@ -1,5 +1,10 @@
 {
-  "benchmark_date": "2026-10-25 23:15:13 UTC",
+  "benchmark_date": "2026-10-29 11:37:30 UTC",
+  "harness_metadata": {
+    "execution_mode": "architectural_scenario_spec",
+    "physical_device_harness": "scripts/run_device_acceptance.sh",
+    "profile_description": "ARM Cortex-A55 4-thread reference profile specification"
+  },
   "target_hardware": {
     "model": "Samsung Galaxy A14 (SM-A145F)",
     "os": "Android 15 (API 35)",

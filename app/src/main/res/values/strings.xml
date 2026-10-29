@@ -3,4 +3,11 @@
     <string name="accessibility_service_label">Tavi Accessibility Assistant</string>
     <string name="accessibility_service_description">Provides accessible on-screen inspection, text reading, and navigation assistance. Tavi operates strictly on-device, never inspects password fields, and never transmits screen data.</string>
     <string name="voice_interaction_service_label">Tavi Voice Assistant</string>
+    <string name="shortcut_new_chat">New Chat</string>
+    <string name="shortcut_new_chat_long">Start a new private conversation</string>
+    <string name="shortcut_voice">Voice Assistant</string>
+    <string name="shortcut_voice_long">Talk to Tavi hands-free</string>
+    <string name="shortcut_alarm">Set Alarm</string>
+    <string name="shortcut_alarm_long">Quickly set a clock alarm</string>
+    <string name="quick_tile_label">Tavi Assistant</string>
 </resources>

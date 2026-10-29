@@ -30,7 +30,8 @@ import java.security.MessageDigest
 class LiteRtLlmEngine(
     private val context: Context,
     val modelPath: String? = null,
-    initialRuntime: InferenceRuntime = InferenceRuntime.LITERTLM
+    initialRuntime: InferenceRuntime = InferenceRuntime.LITERTLM,
+    toolRegistry: ToolRegistry? = null
 ) : InferenceEngine, AutoCloseable {
 
     companion object {
@@ -118,7 +119,7 @@ class LiteRtLlmEngine(
     }
 
     private val deterministicEngine = DeterministicAssistantEngine()
-    private val toolRegistry by lazy { ToolRegistry(context) }
+    private val toolRegistry: ToolRegistry = toolRegistry ?: ToolRegistry(context)
 
     @Volatile
     var activeRuntime: InferenceRuntime = initialRuntime
@@ -139,12 +140,12 @@ class LiteRtLlmEngine(
         when (runtime) {
             InferenceRuntime.LITERTLM -> {
                 if (litertLmBackend == null) {
-                    litertLmBackend = LiteRtLmBackendEngine(context, modelPath)
+                    litertLmBackend = LiteRtLmBackendEngine(context, modelPath, toolRegistry = toolRegistry)
                 }
             }
             InferenceRuntime.MEDIAPIPE -> {
                 if (mediaPipeBackend == null) {
-                    mediaPipeBackend = MediaPipeGenAiBackendEngine(context, modelPath)
+                    mediaPipeBackend = MediaPipeGenAiBackendEngine(context, modelPath, toolRegistry = toolRegistry)
                 }
             }
             InferenceRuntime.DETERMINISTIC_ONLY -> Unit

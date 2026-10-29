@@ -380,11 +380,13 @@ class ReminderCreateTool : AssistantTool {
             )
         }
 
+        val reminderId = java.util.UUID.randomUUID().toString()
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(context, ReminderReceiver::class.java).apply {
             putExtra("title", title)
+            putExtra("reminderId", reminderId)
         }
-        val reqCode = (triggerMillis % 100000).toInt()
+        val reqCode = (reminderId.hashCode() and 0x7FFFFFFF) % 1000000
         val pendingIntent = PendingIntent.getBroadcast(
             context,
             reqCode,
@@ -393,19 +395,28 @@ class ReminderCreateTool : AssistantTool {
         )
 
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-                // If exact alarm permission not granted, schedule inexact window
-                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
-            } else {
+            val hasExactAlarm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                alarmManager.canScheduleExactAlarms()
+            } else true
+
+            if (hasExactAlarm) {
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
+            } else {
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
             }
+
+            // Persist reminder in local database so user can view/cancel it
+            TaviDatabase.getInstance(context).insertReminder(reminderId, title, triggerMillis)
 
             val resultObj = JSONObject().apply {
                 put("verified", true)
+                put("reminderId", reminderId)
                 put("title", title)
+                put("exactTiming", hasExactAlarm)
                 put("triggerTime", CalendarNaturalDateResolver.formatDateTime(triggerMillis))
                 put("triggerEpoch", triggerMillis)
                 put("status", "REMINDER_SCHEDULED")
+                put("timingNote", if (hasExactAlarm) "Exact delivery scheduled." else "Inexact delivery window scheduled (Exact alarm permission not granted).")
             }
 
             return ToolResult(
@@ -423,6 +434,166 @@ class ReminderCreateTool : AssistantTool {
                 isSuccess = false,
                 state = ToolExecutionState.ERROR,
                 errorMessage = "Failed to schedule reminder alarm: ${e.message}"
+            )
+        }
+    }
+}
+
+class ReminderListTool : AssistantTool {
+    override val name: String = "reminder_list"
+    override val category: ToolCategory = ToolCategory.NOTES
+    override val riskLevel: ToolRiskLevel = ToolRiskLevel.LOW
+    override val description: String = "Lists all upcoming active reminders scheduled on device."
+    override val parametersSchema: String = """
+        {
+          "type": "object",
+          "properties": {}
+        }
+    """.trimIndent()
+    override val requiredPermissions: List<String> = emptyList()
+    override val requiresConfirmation: Boolean = false
+
+    override suspend fun execute(
+        toolCallId: String,
+        arguments: Map<String, Any?>,
+        context: Context
+    ): ToolResult {
+        return try {
+            val db = TaviDatabase.getInstance(context)
+            val reminders = db.getActiveReminders()
+            val arr = JSONArray()
+            for (r in reminders) {
+                val epoch = r["triggerTime"] as Long
+                arr.put(
+                    JSONObject().apply {
+                        put("id", r["id"])
+                        put("title", r["title"])
+                        put("triggerTime", CalendarNaturalDateResolver.formatDateTime(epoch))
+                        put("epoch", epoch)
+                    }
+                )
+            }
+            ToolResult(
+                toolCallId = toolCallId,
+                toolName = name,
+                resultJson = JSONObject().apply {
+                    put("count", reminders.size)
+                    put("reminders", arr)
+                }.toString(),
+                isSuccess = true,
+                state = ToolExecutionState.SUCCESS
+            )
+        } catch (e: Exception) {
+            ToolResult(
+                toolCallId = toolCallId,
+                toolName = name,
+                resultJson = "{}",
+                isSuccess = false,
+                state = ToolExecutionState.ERROR,
+                errorMessage = "Failed to list reminders: ${e.message}"
+            )
+        }
+    }
+}
+
+class ReminderCancelTool : AssistantTool {
+    override val name: String = "reminder_cancel"
+    override val category: ToolCategory = ToolCategory.NOTES
+    override val riskLevel: ToolRiskLevel = ToolRiskLevel.MEDIUM
+    override val description: String = "Cancels or deletes a scheduled reminder by title or ID."
+    override val parametersSchema: String = """
+        {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "The title or ID of the reminder to cancel"
+            }
+          },
+          "required": ["query"]
+        }
+    """.trimIndent()
+    override val requiredPermissions: List<String> = emptyList()
+    override val requiresConfirmation: Boolean = false
+
+    override suspend fun execute(
+        toolCallId: String,
+        arguments: Map<String, Any?>,
+        context: Context
+    ): ToolResult {
+        val query = arguments["query"]?.toString()?.trim() ?: ""
+        if (query.isEmpty()) {
+            return ToolResult(
+                toolCallId = toolCallId,
+                toolName = name,
+                resultJson = "{}",
+                isSuccess = false,
+                state = ToolExecutionState.ERROR,
+                errorMessage = "Query parameter required to identify reminder."
+            )
+        }
+
+        return try {
+            val db = TaviDatabase.getInstance(context)
+            val all = db.getActiveReminders()
+            val match = all.firstOrNull {
+                (it["id"] as? String)?.equals(query, ignoreCase = true) == true ||
+                (it["title"] as? String)?.contains(query, ignoreCase = true) == true
+            }
+
+            if (match == null) {
+                return ToolResult(
+                    toolCallId = toolCallId,
+                    toolName = name,
+                    resultJson = "{}",
+                    isSuccess = false,
+                    state = ToolExecutionState.NOT_FOUND,
+                    errorMessage = "No active reminder found matching '$query'."
+                )
+            }
+
+            val id = match["id"] as String
+            val title = match["title"] as String
+
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val intent = Intent(context, ReminderReceiver::class.java).apply {
+                putExtra("title", title)
+                putExtra("reminderId", id)
+            }
+            val reqCode = (id.hashCode() and 0x7FFFFFFF) % 1000000
+            val pendingIntent = PendingIntent.getBroadcast(
+                context,
+                reqCode,
+                intent,
+                PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+            )
+            if (pendingIntent != null) {
+                alarmManager.cancel(pendingIntent)
+                pendingIntent.cancel()
+            }
+
+            db.deleteReminder(id)
+
+            ToolResult(
+                toolCallId = toolCallId,
+                toolName = name,
+                resultJson = JSONObject().apply {
+                    put("cancelled", true)
+                    put("id", id)
+                    put("title", title)
+                    put("status", "REMINDER_CANCELLED")
+                }.toString(),
+                isSuccess = true,
+                state = ToolExecutionState.SUCCESS
+            )
+        } catch (e: Exception) {
+            ToolResult(
+                toolCallId = toolCallId,
+                toolName = name,
+                resultJson = "{}",
+                isSuccess = false,
+                state = ToolExecutionState.ERROR,
+                errorMessage = "Failed to cancel reminder: ${e.message}"
             )
         }
     }

@@ -161,3 +161,91 @@ class SettingsOpenTool : AssistantTool {
         }
     }
 }
+
+class DeviceToggleFlashlightTool : AssistantTool {
+    override val name: String = "device_toggle_flashlight"
+    override val category: ToolCategory = ToolCategory.DEVICE
+    override val riskLevel: ToolRiskLevel = ToolRiskLevel.LOW
+    override val description: String = "Turns the device flashlight/torch on or off."
+    override val parametersSchema: String = """
+        {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "True to turn on the flashlight, false to turn it off"
+            }
+          },
+          "required": ["enabled"]
+        }
+    """.trimIndent()
+    override val requiredPermissions: List<String> = emptyList()
+    override val requiresConfirmation: Boolean = false
+
+    override suspend fun execute(
+        toolCallId: String,
+        arguments: Map<String, Any?>,
+        context: Context
+    ): ToolResult {
+        val enabled = when (val raw = arguments["enabled"]) {
+            is Boolean -> raw
+            is String -> raw.equals("true", ignoreCase = true) || raw.equals("on", ignoreCase = true)
+            else -> true
+        }
+
+        return try {
+            val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as? android.hardware.camera2.CameraManager
+            if (cameraManager == null) {
+                return ToolResult(
+                    toolCallId = toolCallId,
+                    toolName = name,
+                    resultJson = "{}",
+                    isSuccess = false,
+                    state = ToolExecutionState.ERROR,
+                    errorMessage = "CameraManager service unavailable on this device."
+                )
+            }
+
+            val cameraId = cameraManager.cameraIdList.firstOrNull { id ->
+                val chars = cameraManager.getCameraCharacteristics(id)
+                chars.get(android.hardware.camera2.CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
+            } ?: cameraManager.cameraIdList.firstOrNull()
+
+            if (cameraId == null) {
+                return ToolResult(
+                    toolCallId = toolCallId,
+                    toolName = name,
+                    resultJson = "{}",
+                    isSuccess = false,
+                    state = ToolExecutionState.ERROR,
+                    errorMessage = "No camera with flashlight/torch hardware found on this device."
+                )
+            }
+
+            cameraManager.setTorchMode(cameraId, enabled)
+
+            val resultObj = JSONObject().apply {
+                put("enabled", enabled)
+                put("status", if (enabled) "FLASHLIGHT_ON" else "FLASHLIGHT_OFF")
+                put("message", if (enabled) "Flashlight turned on." else "Flashlight turned off.")
+            }
+
+            ToolResult(
+                toolCallId = toolCallId,
+                toolName = name,
+                resultJson = resultObj.toString(),
+                isSuccess = true,
+                state = ToolExecutionState.SUCCESS
+            )
+        } catch (e: Exception) {
+            ToolResult(
+                toolCallId = toolCallId,
+                toolName = name,
+                resultJson = "{}",
+                isSuccess = false,
+                state = ToolExecutionState.ERROR,
+                errorMessage = "Failed to toggle flashlight: ${e.message}"
+            )
+        }
+    }
+}
