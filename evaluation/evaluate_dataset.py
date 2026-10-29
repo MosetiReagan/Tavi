@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPEC — see measured results in benchmarks/
 """
 Tavi Assistant Static Dataset Validator (NOT AN LLM BENCHMARK)
 This script performs static schema and regex verification against evaluation/dataset_v1.json.

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPEC — see measured results in benchmarks/
 """
 Tavi — Conversational Context & Memory Benchmark Suite
 Evaluates multi-turn context retention, reference resolution, delayed recall,

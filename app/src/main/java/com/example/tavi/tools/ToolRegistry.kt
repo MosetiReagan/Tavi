@@ -156,6 +156,7 @@ class ToolRegistry(private val context: Context) {
         register(UsageStatsTool())
         register(AccessibilityReadScreenTool())
         register(AccessibilityPerformActionTool())
+        register(com.example.tavi.tools.agent.ScreenAgentRunTool())
 
         // Research
         register(BrowserResearchTool())

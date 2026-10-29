@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPEC — see measured results in benchmarks/
 """
 Tavi — Phase 6: Longitudinal Personalization Benchmark (112 Scenarios)
 Evaluates real-world usefulness, personalization quality, and sustained-use stability across 12 vectors:

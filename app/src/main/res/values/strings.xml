@@ -71,4 +71,36 @@
     <string name="capabilities_search_placeholder">Search tools or actions (e.g. flashlight, sms, alarm)…</string>
     <string name="capabilities_tab_catalog">Tool Catalog</string>
     <string name="capabilities_tab_permissions">Permissions &amp; Roles</string>
+
+    <!-- Gemma 4 & Thinking Strings -->
+    <string name="chat_thinking_process">Thought Process</string>
+    <string name="chat_thinking_toggle_show">Show thinking</string>
+    <string name="chat_thinking_toggle_hide">Hide thinking</string>
+    <string name="runtime_gemma4_e2b">Gemma 4 E2B\n(Recommended)</string>
+    <string name="runtime_gemma3_1b">Gemma 3 1B\n(Low memory)</string>
+    <string name="runtime_rules_only">Rules Only\n(No AI)</string>
+    <string name="model_download_warning">Gemma 4 E2B weights are ~2.58 GB. Cold initialization on CPU budget devices may take ~45 seconds.</string>
+    <string name="model_download_e2b_button">Download Gemma 4 E2B (2.58 GB)</string>
+    <string name="model_download_31b_button">Download Gemma 3 1B (1.1 GB)</string>
+
+    <!-- Continuous Voice Loop Strings -->
+    <string name="voice_handsfree_title">Continuous Hands-Free Mode</string>
+    <string name="voice_handsfree_desc">Automatically reopen the microphone for follow-up questions after assistant speaks</string>
+    <string name="voice_handsfree_active">Hands-free: ON</string>
+    <string name="voice_followup_window">Follow-up Window (%d s)</string>
+    <string name="voice_listening_followup">Listening for follow-up…</string>
+    <string name="voice_barge_in_title">Barge-in (interrupt speech by talking)</string>
+    <string name="voice_barge_in_desc">Stop speech output immediately when you start talking</string>
+    <string name="voice_followup_dismiss">Dismiss follow-up</string>
+    <string name="voice_confirm_prompt">Do you want me to %1$s? Say yes or no.</string>
+    <string name="voice_confirm_cancelled">Action cancelled.</string>
+    <string name="voice_confirm_clarify">Please say yes to proceed, or no to cancel.</string>
+
+    <!-- Screen Agent Mode Strings -->
+    <string name="agent_mode_title">Screen Agent Mode</string>
+    <string name="agent_mode_desc">Operate third-party apps by reading accessibility UI trees. Hard-limited to 12 steps, permission-gated, and kill-switch protected.</string>
+    <string name="agent_mode_kill_switch">Stop Agent</string>
+    <string name="agent_step_running">Agent step %1$d of %2$d…</string>
+    <string name="agent_step_verified">Step verified</string>
+    <string name="agent_step_failed">Step failed to verify</string>
 </resources>

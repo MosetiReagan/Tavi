@@ -24,8 +24,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material3.CircularProgressIndicator
@@ -85,7 +87,10 @@ fun ModernInputDock(
     onTextChanged: (String) -> Unit,
     onSendClicked: () -> Unit,
     onQuickPromptClicked: (String) -> Unit,
-    onVoiceToggle: () -> Unit
+    onVoiceToggle: () -> Unit,
+    isAwaitingFollowup: Boolean = false,
+    followupRemainingSeconds: Int = 0,
+    onDismissFollowup: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -95,6 +100,63 @@ fun ModernInputDock(
             .imePadding()
             .padding(horizontal = 14.dp, vertical = 8.dp)
     ) {
+        // Follow-up listening pill
+        AnimatedVisibility(visible = isAwaitingFollowup && followupRemainingSeconds > 0) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = BrandPrimary.copy(alpha = 0.15f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, BrandPrimary.copy(alpha = 0.3f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        val infiniteTransition = rememberInfiniteTransition(label = "followupPulse")
+                        val pulseAlpha by infiniteTransition.animateFloat(
+                            initialValue = 0.4f,
+                            targetValue = 1f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(600, easing = FastOutSlowInEasing),
+                                repeatMode = RepeatMode.Reverse
+                            ),
+                            label = "pulseAlpha"
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(BrandPrimary.copy(alpha = pulseAlpha))
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = "Listening for follow-up… (${followupRemainingSeconds}s)",
+                            color = BrandPrimary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    IconButton(
+                        onClick = onDismissFollowup,
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Dismiss follow-up",
+                            tint = BrandPrimary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+        }
+
         // Status banner if present
         AnimatedVisibility(visible = !statusBanner.isNullOrBlank()) {
             statusBanner?.let { banner ->

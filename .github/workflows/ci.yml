@@ -31,7 +31,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run Android Lint (Debug)
-        run: ./gradlew lintDebug --stacktrace
+        run: ./gradlew lintDebug --no-configuration-cache --stacktrace
 
       - name: Run JVM Unit Tests
         run: ./gradlew testDebugUnitTest --stacktrace

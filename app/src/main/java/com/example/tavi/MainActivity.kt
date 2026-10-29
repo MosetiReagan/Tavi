@@ -40,6 +40,7 @@ class MainActivity : ComponentActivity() {
 
     // 1. Assistant invocation (Long-press power / Corner swipe / Voice interaction)
     if (intent.getBooleanExtra("EXTRA_FROM_ASSISTANT_INVOCATION", false) ||
+        intent.getBooleanExtra(com.example.tavi.roles.assistant.TaviVoiceInteractionSession.EXTRA_START_HANDSFREE, false) ||
         intent.action == Intent.ACTION_ASSIST ||
         intent.action == Intent.ACTION_VOICE_COMMAND ||
         intent.action == "com.example.tavi.shortcut.VOICE"

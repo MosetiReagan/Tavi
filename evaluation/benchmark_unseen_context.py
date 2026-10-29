@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPEC — see measured results in benchmarks/
 """
 Tavi — Phase 3A: Unseen Conversational Context Benchmark Suite
 50 independent evaluation cases across 10 categories, testing:

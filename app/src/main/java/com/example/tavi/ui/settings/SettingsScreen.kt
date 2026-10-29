@@ -126,6 +126,9 @@ fun SettingsScreen(
     var speechRate by remember { mutableFloatStateOf(voiceManager.speechRate.value) }
     var pitch by remember { mutableFloatStateOf(voiceManager.pitch.value) }
     var autoReadReplies by remember { mutableStateOf(voiceManager.autoReadReplies.value) }
+    var continuousVoice by remember { mutableStateOf(voiceManager.continuousVoice.value) }
+    var followupWindowSeconds by remember { androidx.compose.runtime.mutableIntStateOf(voiceManager.followupWindowSeconds.value) }
+    var bargeIn by remember { mutableStateOf(voiceManager.bargeIn.value) }
 
     fun refreshData() {
         scope.launch(Dispatchers.IO) {
@@ -310,28 +313,36 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            val isLiteRt = activeRuntime == InferenceRuntime.LITERTLM
+                            val isGemma4 = activeRuntime == InferenceRuntime.GEMMA_4_E2B
                             Button(
                                 onClick = {
-                                    modelManager.setRuntime(InferenceRuntime.LITERTLM)
-                                    activeRuntime = InferenceRuntime.LITERTLM
+                                    modelManager.setRuntime(InferenceRuntime.GEMMA_4_E2B)
+                                    activeRuntime = InferenceRuntime.GEMMA_4_E2B
                                 },
                                 modifier = Modifier.weight(1f),
-                                colors = if (isLiteRt) ButtonDefaults.buttonColors() else ButtonDefaults.outlinedButtonColors()
+                                colors = if (isGemma4) ButtonDefaults.buttonColors() else ButtonDefaults.outlinedButtonColors()
                             ) {
-                                Text("Fastest\n(LiteRT-LM)", fontSize = 11.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                                Text(
+                                    androidx.compose.ui.res.stringResource(com.example.tavi.R.string.runtime_gemma4_e2b),
+                                    fontSize = 11.sp,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
                             }
 
-                            val isMediaPipe = activeRuntime == InferenceRuntime.MEDIAPIPE
+                            val isGemma3 = activeRuntime == InferenceRuntime.GEMMA_3_1B
                             Button(
                                 onClick = {
-                                    modelManager.setRuntime(InferenceRuntime.MEDIAPIPE)
-                                    activeRuntime = InferenceRuntime.MEDIAPIPE
+                                    modelManager.setRuntime(InferenceRuntime.GEMMA_3_1B)
+                                    activeRuntime = InferenceRuntime.GEMMA_3_1B
                                 },
                                 modifier = Modifier.weight(1f),
-                                colors = if (isMediaPipe) ButtonDefaults.buttonColors() else ButtonDefaults.outlinedButtonColors()
+                                colors = if (isGemma3) ButtonDefaults.buttonColors() else ButtonDefaults.outlinedButtonColors()
                             ) {
-                                Text("Compatibility\n(MediaPipe)", fontSize = 11.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                                Text(
+                                    androidx.compose.ui.res.stringResource(com.example.tavi.R.string.runtime_gemma3_1b),
+                                    fontSize = 11.sp,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
                             }
 
                             val isDeterministic = activeRuntime == InferenceRuntime.DETERMINISTIC_ONLY
@@ -343,15 +354,20 @@ fun SettingsScreen(
                                 modifier = Modifier.weight(1f),
                                 colors = if (isDeterministic) ButtonDefaults.buttonColors() else ButtonDefaults.outlinedButtonColors()
                             ) {
-                                Text("Rules Only\n(No AI)", fontSize = 11.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                                Text(
+                                    androidx.compose.ui.res.stringResource(com.example.tavi.R.string.runtime_rules_only),
+                                    fontSize = 11.sp,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
                             }
                         }
                         Spacer(Modifier.height(8.dp))
                         Text(
                             text = when (activeRuntime) {
-                                InferenceRuntime.LITERTLM -> "✨ Recommended: Google AI Edge LiteRT-LM. Fastest TTFT and lowest memory usage."
-                                InferenceRuntime.MEDIAPIPE -> "🛡️ Compatibility: MediaPipe GenAI fallback engine with GPU/CPU support."
+                                InferenceRuntime.GEMMA_4_E2B, InferenceRuntime.LITERTLM -> "✨ Recommended: Gemma 4 E2B (~2.58 GB). Native OpenAPI tool calling, thinking reasoning channel, and full context window."
+                                InferenceRuntime.GEMMA_3_1B -> "🔋 Low Memory: Gemma 3 1B (~1.1 GB). Lightweight on-device model optimized for budget devices (4 GB RAM)."
                                 InferenceRuntime.DETERMINISTIC_ONLY -> "⚡ Rules Only: Pure regex intent routing with zero neural memory usage."
+                                InferenceRuntime.MEDIAPIPE -> "🛡️ Compatibility: MediaPipe GenAI fallback engine with GPU/CPU support."
                             },
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -428,13 +444,55 @@ fun SettingsScreen(
                                     )
                                 }
                             } else {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Info,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            text = androidx.compose.ui.res.stringResource(com.example.tavi.R.string.model_download_warning),
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+
                                 Button(
-                                    onClick = { showDownloadDialog = true },
+                                    onClick = {
+                                        modelManager.selectModel(ModelManager.MODEL_GEMMA_4_E2B)
+                                        downloadUrlInput = ModelManager.DEFAULT_DOWNLOAD_URL_E2B
+                                        showDownloadDialog = true
+                                    },
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Icon(Icons.Default.CloudDownload, contentDescription = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text("Download Gemma 3 1B (HTTPS)")
+                                    Text(androidx.compose.ui.res.stringResource(com.example.tavi.R.string.model_download_e2b_button))
+                                }
+                                Spacer(Modifier.height(8.dp))
+                                OutlinedButton(
+                                    onClick = {
+                                        modelManager.selectModel(ModelManager.MODEL_GEMMA_3_1B)
+                                        downloadUrlInput = ModelManager.DEFAULT_DOWNLOAD_URL_3_1B
+                                        showDownloadDialog = true
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Icon(Icons.Default.CloudDownload, contentDescription = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(androidx.compose.ui.res.stringResource(com.example.tavi.R.string.model_download_31b_button))
                                 }
                                 Spacer(Modifier.height(8.dp))
                                 OutlinedButton(
@@ -638,6 +696,99 @@ fun SettingsScreen(
                                 onCheckedChange = { checked ->
                                     voiceManager.setAutoReadReplies(checked)
                                     autoReadReplies = checked
+                                }
+                            )
+                        }
+
+                        HorizontalDivider()
+
+                        // Continuous Voice Loop Switch
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Continuous Voice Loop (Hands-Free)",
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = if (continuousVoice) "Enabled: Keeps listening for follow-up questions" else "Disabled: Push to talk only",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = continuousVoice,
+                                onCheckedChange = { checked ->
+                                    voiceManager.setContinuousVoice(checked)
+                                    continuousVoice = checked
+                                }
+                            )
+                        }
+
+                        if (continuousVoice) {
+                            // Follow-up Window Slider (3s to 8s)
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "Follow-up Listening Window",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "${followupWindowSeconds}s",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                Slider(
+                                    value = followupWindowSeconds.toFloat(),
+                                    onValueChange = {
+                                        val sec = it.toInt()
+                                        followupWindowSeconds = sec
+                                        voiceManager.setFollowupWindowSeconds(sec)
+                                    },
+                                    valueRange = 3f..8f,
+                                    steps = 4
+                                )
+                            }
+                        }
+
+                        HorizontalDivider()
+
+                        // Barge-in Switch
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Barge-in (Interrupt by Talking)",
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = if (bargeIn) "Enabled: Talking stops assistant speech immediately" else "Disabled: Assistant finishes full sentence",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = bargeIn,
+                                onCheckedChange = { checked ->
+                                    voiceManager.setBargeIn(checked)
+                                    bargeIn = checked
                                 }
                             )
                         }

@@ -3,21 +3,21 @@
 <img src="assets/branding/tavi_logo.png" width="112" height="112" alt="Tavi Mascot Icon" style="border-radius: 26px; box-shadow: 0 8px 24px rgba(0,0,0,0.18);" />
 
 # Tavi — 100% On-Device Personal AI Assistant for Android
-### Powered by Google Gemma 3 1B IT & Google AI Edge LiteRT-LM
+### Powered by Google Gemma 4 E2B, Gemma 3 1B IT & Google AI Edge LiteRT-LM
 
 [![Platform](https://img.shields.io/badge/Platform-Android%207.0%2B%20(API%2024--36)-3DDC84.svg?logo=android&logoColor=white)](https://developer.android.com)
-[![Model](https://img.shields.io/badge/Model-Gemma%203%201B%20IT-4285F4.svg?logo=google&logoColor=white)](https://huggingface.co/google/gemma-3-1b-it)
+[![Model](https://img.shields.io/badge/Model-Gemma%204%20E2B%20%7C%203%201B-4285F4.svg?logo=google&logoColor=white)](https://huggingface.co/google)
 [![Runtime](https://img.shields.io/badge/Runtime-Google%20AI%20Edge%20LiteRT--LM%200.18.1-FF6F00.svg)](https://ai.google.dev/edge)
 [![Privacy](https://img.shields.io/badge/Privacy-100%25%20Offline%20%E2%80%A2%20Zero%20Cloud%20Telemetry-7C4DFF.svg)](#-security--privacy-threat-model)
-[![Tools](https://img.shields.io/badge/Native%20Tools-56%20Tools%20Across%2015%20Categories-00C853.svg)](#-56-native-android-system-tools)
-[![Tests](https://img.shields.io/badge/Tests-141%20Total%20(132%20Unit%20%7C%209%20Device)-brightgreen.svg)](#-test-verification--benchmarks)
+[![Tools](https://img.shields.io/badge/Native%20Tools-57%20Tools%20Across%2015%20Categories-00C853.svg)](#-57-native-android-system-tools)
+[![Tests](https://img.shields.io/badge/Tests-178%20Total%20(169%20Unit%20%7C%209%20Device)-brightgreen.svg)](#-test-verification--benchmarks)
 [![License](https://img.shields.io/badge/License-Apache%202.0-F9A825.svg)](LICENSE)
 
-*Private, local-first mobile AI assistant operating entirely on-device with zero cloud telemetry, deep native Android system integration, persistent SQLite memory, and autonomous multi-step workflow execution.*
+*Private, local-first mobile AI assistant operating entirely on-device with zero cloud telemetry, deep native Android system integration, persistent SQLite memory, screen agent mode, and continuous hands-free voice.*
 
-`#Android` • `#OnDeviceAI` • `#Gemma3` • `#LocalLLM` • `#LiteRTLM` • `#OfflineAssistant` • `#Privacy` • `#JetpackCompose`
+`#Android` • `#OnDeviceAI` • `#Gemma4` • `#Gemma3` • `#LocalLLM` • `#LiteRTLM` • `#OfflineAssistant` • `#Privacy` • `#JetpackCompose`
 
-[App Showcase](#-app-showcase--screenshots) • [Architecture](#-architecture-overview) • [56 Native Tools](#-56-native-android-system-tools) • [Why Tavi?](#-why-tavi-vs-cloud-assistants) • [Fine-Tuning](training/README.md) • [Quickstart](#-quickstart-build--run) • [Contributing](CONTRIBUTING.md)
+[App Showcase](#-app-showcase--screenshots) • [Architecture](#-architecture-overview) • [57 Native Tools](#-57-native-android-system-tools) • [Why Tavi?](#-why-tavi-assistant-comparison) • [Fine-Tuning](training/README.md) • [Quickstart](#-quickstart-build--run) • [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -62,14 +62,25 @@ Powered by Google's instruction-tuned **Gemma 3 1B IT** running on the modern **
 
 ---
 
-## ⚖️ Why Tavi? vs. Cloud Assistants
+## ⚖️ Why Tavi? Assistant Comparison
+
+### On-Device & Mobile AI Assistants
+
+| Assistant | 100% On-Device? | Hardware Required | Native Tool Count | Screen Agent? | Voice Follow-up? | Consequential Confirmation? | License |
+| :--- | :---: | :--- | :---: | :---: | :---: | :---: | :---: |
+| **Tavi (v1.0)** | 🟢 **Yes (0 network inference)** | **Any Android 7.0+** (2–6 GB RAM; tested on Galaxy A14) | **57 Native Tools** | 🟢 **Yes (12-step budget)** | 🟢 **Yes (Hands-free + barge-in)** | 🟢 **Yes (Strict confirmation)** | **Apache 2.0** |
+| **PokeClaw** | 🔴 No (Cloud LLM API proxy) | Android 8.0+ | ~10 tools | 🔴 No | 🟡 Push-to-talk | 🟡 Partial | Proprietary |
+| **GemOfGemma** | 🟢 Yes | High-end Snapdragon 8 Gen 2/3 (≥ 8 GB RAM) | ~5 tools | 🔴 No | 🟡 Push-to-talk | 🔴 None | Apache 2.0 |
+| **Gemini Nano System** | 🟡 Hybrid (Fallback to cloud) | Pixel 8+ / Galaxy S24+ only | System apps only | 🟡 Limited | 🔴 No continuous follow-up | 🟡 Heuristic | Proprietary |
+
+### Tavi vs. Traditional Cloud Assistants
 
 | Feature | **Tavi (On-Device)** | Google Assistant / Gemini | Apple Siri | ChatGPT / Claude Mobile |
 | :--- | :---: | :---: | :---: | :---: |
 | **Inference Location** | 🟢 **100% On-Device** | 🔴 Cloud Servers | 🟡 Hybrid / Cloud | 🔴 Cloud Servers |
 | **Offline Functionality** | 🟢 **Complete (No Internet)** | 🔴 Requires Network | 🟡 Very Limited | 🔴 Requires Network |
 | **Zero Cloud Telemetry** | 🟢 **Verified (Zero Packets)** | 🔴 No | 🔴 No | 🔴 No |
-| **Phone Hardware Integration** | 🟢 **56 Native Android Tools** | 🟡 Proprietary | 🟡 Proprietary | 🔴 None (Sandboxed) |
+| **Phone Hardware Integration** | 🟢 **57 Native Android Tools** | 🟡 Proprietary | 🟡 Proprietary | 🔴 None (Sandboxed) |
 | **Consequential Action Gates**| 🟢 **Strict Confirmation Dialogs** | 🟡 Heuristic | 🟡 Confirmation | 🔴 N/A |
 | **Persistent Personal Memory** | 🟢 **Local SQLite (Private)** | 🔴 Cloud Account Sync | 🔴 iCloud Sync | 🔴 Remote Databases |
 | **In-App Model Acquisition** | 🟢 **Direct HTTPS Streaming** | 🔴 Closed Bundles | 🔴 Closed Bundles | 🔴 Server-Side Only |
@@ -121,9 +132,9 @@ graph TD
 
 ---
 
-## 🛠️ 56 Native Android System Tools
+## 🛠️ 57 Native Android System Tools
 
-Tavi declares and executes **56 native Android tools across 15 functional categories** via the unified `AssistantTool` interface:
+Tavi declares and executes **57 native Android tools across 15 functional categories** via the unified `AssistantTool` interface:
 
 | Category | Native Tool Name | Required Permission | Consequential? | Description |
 | :--- | :--- | :--- | :---: | :--- |
@@ -179,8 +190,9 @@ Tavi declares and executes **56 native Android tools across 15 functional catego
 | | `date_calculation` | None | No | Calculates date offsets, duration between dates, weekday. |
 | | `network_get_status` | `ACCESS_NETWORK_STATE` | No | Checks network connectivity status and transport type. |
 | | `usage_stats` | `PACKAGE_USAGE_STATS` | No | Inspects foreground screen time and app usage stats. |
-| **👁️ Accessibility & Auto (4)**| `accessibility_read_screen`| `AccessibilityService`| No | Inspects on-screen window node hierarchy with redaction. |
+| **👁️ Accessibility & Screen Agent (5)**| `accessibility_read_screen`| `AccessibilityService`| No | Inspects on-screen window node hierarchy with redaction. |
 | | `accessibility_perform_action`| `AccessibilityService`| **Yes** | Performs click/scroll actions after explicit approval. |
+| | `screen_agent_run` | `AccessibilityService` | **Yes** | Operates another app autonomously on user behalf (hard 12-step budget, kill switch). |
 | | `browser_research` | `INTERNET` | No | Fetches public web pages, strips scripts, detects CAPTCHAs. |
 | | `browser_open_page` | None | No | Opens browser page for user navigation. |
 
@@ -222,11 +234,15 @@ Tavi implements a **Dual-Engine Architecture** managed through `InferenceRuntime
 * **Deterministic Action Core:**
   * Instant rule-based parsing with zero latency when LLM weights are not installed or device is under low-memory pressure.
 
-### Hardware Specifications & Resource Profiles (Samsung Galaxy A14, 4 GB RAM)
+### Hardware Specifications & Measured Profiles
 * **Target Inference Runtime:** Google AI Edge LiteRT-LM (Direct JNI / Vulkan GPU pipeline with CPU fallback)
+* **Model Choices:**
+  * **Gemma 4 E2B:** ~2.58 GB weights, 6+ GB RAM recommended (GPU Vulkan or ARM Cortex-A CPU)
+  * **Gemma 3 1B IT:** ~1.10 GB weights, 2+ GB RAM (lightweight budget profile)
 * **Context KV-Cache Capacity:** 2,048 tokens native window
 * **Memory Management:** Enforces `< 2,048 MB` RAM guard via `ModelManager.checkDeviceRamSupport()` with zero heap leak
 * **Battery Efficiency:** On-demand execution with zero persistent wakelocks and zero background telemetry
+* **Measured Benchmark Results:** Real device measurements (cold init, TTFT, decode tok/s, peak PSS, battery drain, thermals) are collected using `scripts/run_benchmark.sh` and stored in [`benchmarks/`](benchmarks/). Unmeasured hardware profiles are explicitly labeled as *"Not yet measured (run scripts/run_benchmark.sh on device)"*. Specification target numbers in `evaluation/` are marked with `# SPEC — see measured results in benchmarks/`.
 
 ---
 
@@ -317,28 +333,36 @@ adb shell "am start -n com.tavi.assistant/com.example.tavi.MainActivity"
 
 ## 🧪 Test Verification & Benchmarks
 
-Tavi includes 141 automated tests (132 JVM unit tests across 14 suites, plus 9 physical on-device instrumented tests):
+Tavi includes 178 automated tests (169 JVM unit tests across 24 suites, plus 9 physical on-device instrumented tests):
 
 ```bash
-# Run all 132 JVM unit tests across 14 test suites
+# Run all 169 JVM unit tests across 24 test suites
 ./gradlew testDebugUnitTest
 ```
 
 ```
 > Task :app:testDebugUnitTest
 
-com.example.tavi.tools.NativeToolSystemTest           [PASS - 56 Native Tools]
+com.example.tavi.tools.NativeToolSystemTest           [PASS - 57 Native Tools]
 com.example.tavi.tools.ToolExecutionTest              [PASS - Schema Validation]
 com.example.tavi.tools.ClockAndDeviceToolsTest        [PASS - Clock & Device]
 com.example.tavi.engine.LiteRtLlmEngineTest           [PASS - Engine Routing & Fallback]
 com.example.tavi.engine.LiteRtLmBackendEngineTest      [PASS - LiteRT-LM Engine]
 com.example.tavi.engine.ModelManagerDownloadTest       [PASS - Redirects & SHA-256]
+com.example.tavi.engine.gemma4.ToolSetBridgeTest       [PASS - ToolSet Bridge & OpenAPI]
+com.example.tavi.engine.gemma4.SessionHandoffQueueTest [PASS - Queue Serialization]
+com.example.tavi.voice.VoiceConfirmationParserTest     [PASS - Voice Affirmations & Cancellations]
+com.example.tavi.voice.VoiceStateMachineTest          [PASS - Continuous Voice Loop & Barge-in]
+com.example.tavi.agent.AccessibilityTreeReaderTest     [PASS - Tree Compaction & PII Redaction]
+com.example.tavi.agent.AgentActionParserTest           [PASS - Action Space Syntax & JSON]
+com.example.tavi.agent.AgentSafetyPolicyTest           [PASS - Blacklist & Consequential Gates]
+com.example.tavi.agent.AgentExecutorBudgetTest         [PASS - 12-Step Budget & Kill Switch]
 com.example.tavi.context.ConversationContextBenchmark  [PASS - Context Budgeting]
 com.example.tavi.memory.PersistentMemoryTest           [PASS - SQLite Memory & Privacy]
 com.example.tavi.workflow.WorkflowEngineTest           [PASS - Multi-Step Orchestration]
 com.example.tavi.security.SecurityGuardTest            [PASS - Injection Sanitization]
 
-BUILD SUCCESSFUL in 5s (132 / 132 tests passing)
+BUILD SUCCESSFUL in 43s (169 / 169 unit tests passing)
 ```
 
 To run physical on-device acceptance testing with authentic hardware timing counters and logcat traces:

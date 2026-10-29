@@ -1,5 +1,5 @@
 {
-  "benchmark_date": "2026-10-29 11:37:30 UTC",
+  "benchmark_date": "2026-10-29 16:41:29 UTC",
   "harness_metadata": {
     "execution_mode": "architectural_scenario_spec",
     "physical_device_harness": "scripts/run_device_acceptance.sh",
@@ -19,10 +19,11 @@
   "runtimes": {
     "LiteRT-LM (0.18.1)": {
       "backend": "CPU (4 threads)",
-      "init_latency_ms": 342,
-      "ttft_ms": 118,
-      "throughput_tokens_per_sec": 14.8,
-      "peak_ram_mb": 1780,
+      "is_spec_target": true,
+      "spec_target_init_latency_ms": 342,
+      "spec_target_ttft_ms": 118,
+      "spec_target_throughput_tokens_per_sec": 14.8,
+      "spec_target_peak_ram_mb": 1780,
       "tool_proposal_precision": 0.98,
       "repetition_recovery_rate": 1.0,
       "rollback_supported": true,
@@ -30,10 +31,11 @@
     },
     "MediaPipe Tasks GenAI (0.10.27)": {
       "backend": "CPU (Fallback)",
-      "init_latency_ms": 520,
-      "ttft_ms": 175,
-      "throughput_tokens_per_sec": 11.2,
-      "peak_ram_mb": 1940,
+      "is_spec_target": true,
+      "spec_target_init_latency_ms": 520,
+      "spec_target_ttft_ms": 175,
+      "spec_target_throughput_tokens_per_sec": 11.2,
+      "spec_target_peak_ram_mb": 1940,
       "tool_proposal_precision": 0.96,
       "repetition_recovery_rate": 0.98,
       "rollback_supported": true,
@@ -41,10 +43,10 @@
     }
   },
   "comparison_summary": {
-    "init_latency_delta": "-34.2% (LiteRT-LM initializes 178ms faster)",
-    "ttft_delta": "-32.6% (LiteRT-LM time-to-first-token is 57ms lower)",
-    "throughput_gain": "+32.1% (14.8 tokens/sec vs 11.2 tokens/sec)",
-    "ram_savings_mb": "160 MB reduction in working set RAM",
+    "init_latency_delta": "-34.2% (SPEC: LiteRT-LM target 178ms faster)",
+    "ttft_delta": "-32.6% (SPEC: LiteRT-LM target TTFT 57ms lower)",
+    "throughput_gain": "+32.1% (SPEC: 14.8 vs 11.2 tokens/sec)",
+    "ram_savings_mb": "160 MB reduction in working set RAM target",
     "interchangeable_rollback": "Verified (MediaPipe preserved via InferenceEngine interface)"
   },
   "scenario_results": [

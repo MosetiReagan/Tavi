@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPEC — see measured results in benchmarks/
 """
 Tavi — Phase 5: Independent Adversarial Persistent Memory Benchmark (152 Scenarios)
 Comprehensive independent validation suite evaluating 14 adversarial vectors:

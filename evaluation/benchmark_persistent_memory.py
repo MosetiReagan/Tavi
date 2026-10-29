@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPEC — see measured results in benchmarks/
 """
 Tavi — Phase 4: Persistent Personal Memory & Local Knowledge System Benchmark (105 Scenarios)
 Comprehensive qualification suite evaluating 14 persistent memory vectors:

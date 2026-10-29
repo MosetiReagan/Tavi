@@ -178,6 +178,64 @@ fun ModernMessageBubble(
                             modifier = Modifier.align(Alignment.End)
                         )
                     } else {
+                        if (!message.thinkingContent.isNullOrBlank()) {
+                            var isThinkingExpanded by remember { mutableStateOf(false) }
+                            Surface(
+                                onClick = { isThinkingExpanded = !isThinkingExpanded },
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                                border = androidx.compose.foundation.BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant),
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Default.AutoAwesome,
+                                                contentDescription = null,
+                                                tint = BrandPrimary,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Spacer(Modifier.width(6.dp))
+                                            Text(
+                                                text = androidx.compose.ui.res.stringResource(com.example.tavi.R.string.chat_thinking_process),
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Icon(
+                                            imageVector = if (isThinkingExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                            contentDescription = if (isThinkingExpanded) {
+                                                androidx.compose.ui.res.stringResource(com.example.tavi.R.string.chat_thinking_toggle_hide)
+                                            } else {
+                                                androidx.compose.ui.res.stringResource(com.example.tavi.R.string.chat_thinking_toggle_show)
+                                            },
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                    AnimatedVisibility(visible = isThinkingExpanded) {
+                                        Column(modifier = Modifier.padding(top = 6.dp)) {
+                                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                            Spacer(Modifier.height(6.dp))
+                                            Text(
+                                                text = message.thinkingContent.trim(),
+                                                fontSize = 11.sp,
+                                                fontFamily = FontFamily.Monospace,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                                                lineHeight = 15.sp
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         SelectionContainer {
                             FormattedMessageText(
                                 rawText = message.content,

@@ -1,19 +1,27 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
--->
+<?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <!-- Include user preferences and application settings -->
+        <include domain="sharedpref" path="." />
+
+        <!-- Strictly exclude private on-device SQLite memory and conversation history from remote cloud backups -->
+        <exclude domain="database" path="tavi.db" />
+        <exclude domain="database" path="tavi.db-wal" />
+        <exclude domain="database" path="tavi.db-shm" />
+        <exclude domain="database" path="tavi_local.db" />
+
+        <!-- Strictly exclude large multi-gigabyte re-downloadable neural model weights -->
+        <exclude domain="file" path="models/" />
+        <exclude domain="file" path="litertlm/" />
+        <exclude domain="root" path="files/models" />
     </cloud-backup>
-    <!--
+
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <!-- Allow direct encrypted local device-to-device transfers if explicitly initiated by user -->
+        <include domain="sharedpref" path="." />
+        <include domain="database" path="tavi.db" />
+        <!-- Still exclude bulky model weights which can be re-downloaded -->
+        <exclude domain="file" path="models/" />
+        <exclude domain="file" path="litertlm/" />
     </device-transfer>
-    -->
 </data-extraction-rules>

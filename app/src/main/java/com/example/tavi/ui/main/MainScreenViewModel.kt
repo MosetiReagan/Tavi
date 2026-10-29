@@ -42,6 +42,8 @@ data class ChatUiState(
     val isStreaming: Boolean = false,
     val isListening: Boolean = false,
     val isSpeaking: Boolean = false,
+    val isAwaitingFollowup: Boolean = false,
+    val followupRemainingSeconds: Int = 0,
     val pendingConfirmation: ConfirmationRequest? = null,
     val activeWorkflow: WorkflowPlan? = null,
     val isOffline: Boolean = false,
@@ -242,13 +244,17 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
 
     private fun observeVoiceState() {
         viewModelScope.launch {
-            voiceManager.isListening.collect { listening ->
-                _uiState.value = _uiState.value.copy(isListening = listening)
+            voiceManager.sessionMode.collect { mode ->
+                _uiState.value = _uiState.value.copy(
+                    isListening = (mode == com.example.tavi.voice.VoiceSessionMode.LISTENING),
+                    isSpeaking = (mode == com.example.tavi.voice.VoiceSessionMode.SPEAKING),
+                    isAwaitingFollowup = (mode == com.example.tavi.voice.VoiceSessionMode.AWAITING_FOLLOWUP)
+                )
             }
         }
         viewModelScope.launch {
-            voiceManager.isSpeaking.collect { speaking ->
-                _uiState.value = _uiState.value.copy(isSpeaking = speaking)
+            voiceManager.followupRemainingSeconds.collect { sec ->
+                _uiState.value = _uiState.value.copy(followupRemainingSeconds = sec)
             }
         }
     }
@@ -670,6 +676,10 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                     isStreaming = false,
                     pendingConfirmation = pendingConfirmationReq
                 )
+                if (voiceManager.autoReadReplies.value || voiceManager.continuousVoice.value) {
+                    val promptText = "Do you want me to ${pendingConfirmationReq.title}? Say yes or no."
+                    voiceManager.speak(promptText)
+                }
             }
             return
         }
@@ -760,6 +770,34 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    fun handleSpokenInput(spokenText: String, onFinalText: ((String) -> Unit)? = null) {
+        val pending = _uiState.value.pendingConfirmation
+        if (pending != null) {
+            when (com.example.tavi.voice.VoiceConfirmationParser.parse(spokenText)) {
+                com.example.tavi.voice.VoiceConfirmationDecision.AFFIRMATIVE -> {
+                    confirmPendingAction(true)
+                }
+                com.example.tavi.voice.VoiceConfirmationDecision.NEGATIVE -> {
+                    confirmPendingAction(false)
+                    voiceManager.speak("Action cancelled.")
+                }
+                com.example.tavi.voice.VoiceConfirmationDecision.AMBIGUOUS -> {
+                    voiceManager.speak("Please say yes to proceed, or no to cancel.")
+                }
+            }
+        } else {
+            if (onFinalText != null) {
+                onFinalText(spokenText)
+            } else {
+                sendMessage(spokenText)
+            }
+        }
+    }
+
+    fun dismissFollowup() {
+        voiceManager.dismissFollowup()
+    }
+
     fun startVoiceInput(onPartialText: (String) -> Unit, onFinalText: (String) -> Unit) {
         if (_uiState.value.isListening) {
             voiceManager.stopListening()
@@ -773,7 +811,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
             },
             onResult = { spokenText ->
                 _uiState.value = _uiState.value.copy(interimVoiceTranscript = null)
-                onFinalText(spokenText)
+                handleSpokenInput(spokenText, onFinalText)
             },
             onError = { error ->
                 _uiState.value = _uiState.value.copy(
@@ -799,7 +837,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                 },
                 onResult = { spokenText ->
                     _uiState.value = _uiState.value.copy(interimVoiceTranscript = null)
-                    sendMessage(spokenText)
+                    handleSpokenInput(spokenText)
                 },
                 onError = { error ->
                     _uiState.value = _uiState.value.copy(

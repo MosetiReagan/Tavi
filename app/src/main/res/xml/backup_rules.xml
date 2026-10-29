@@ -1,13 +1,16 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
--->
+<?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <!-- Include user preferences and application settings -->
+    <include domain="sharedpref" path="." />
+
+    <!-- Strictly exclude private on-device SQLite memory and conversation history from remote backups -->
+    <exclude domain="database" path="tavi.db" />
+    <exclude domain="database" path="tavi.db-wal" />
+    <exclude domain="database" path="tavi.db-shm" />
+    <exclude domain="database" path="tavi_local.db" />
+
+    <!-- Strictly exclude large multi-gigabyte re-downloadable neural model weights -->
+    <exclude domain="file" path="models/" />
+    <exclude domain="file" path="litertlm/" />
+    <exclude domain="root" path="files/models" />
 </full-backup-content>

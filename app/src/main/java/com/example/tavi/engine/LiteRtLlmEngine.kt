@@ -4,42 +4,42 @@ import android.content.Context
 import android.os.SystemClock
 import android.util.Log
 import com.example.tavi.context.ContextBudgetManager
-import com.example.tavi.context.ConversationLedger
 import com.example.tavi.model.Message
 import com.example.tavi.model.MessageRole
 import com.example.tavi.model.ToolCall
 import com.example.tavi.tools.ToolRegistry
 import com.example.tavi.workflow.WorkflowPlan
 import com.example.tavi.workflow.WorkflowPlanner
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
 import java.security.MessageDigest
 
 /**
- * Primary on-device LLM Inference Engine for Gemma 3 1B instruction-tuned model.
+ * Primary on-device LLM Inference Engine for Tavi.
  *
  * Implements an interchangeable backend architecture supporting:
- * - [InferenceRuntime.LITERTLM]: Google's modern LiteRT-LM runtime (Default).
+ * - [InferenceRuntime.GEMMA_4_E2B]: Google's modern Gemma 4 E2B LiteRT-LM runtime (Default).
+ * - [InferenceRuntime.GEMMA_3_1B]: Low-RAM Gemma 3 1B LiteRT-LM runtime (Budget phones).
  * - [InferenceRuntime.MEDIAPIPE]: Legacy MediaPipe Tasks GenAI runtime (Rollback option).
  * - [InferenceRuntime.DETERMINISTIC_ONLY]: Pure deterministic rules-only operation.
  *
- * Provides transparent fallback to [DeterministicAssistantEngine] when weights are missing.
+ * Guaranteed fallback chain:
+ * Gemma 4 E2B -> Gemma 3 1B (if weights present) -> DeterministicAssistantEngine.
+ * Never leaves the user in an unresponsive state.
  */
 class LiteRtLlmEngine(
     private val context: Context,
     val modelPath: String? = null,
-    initialRuntime: InferenceRuntime = InferenceRuntime.LITERTLM,
+    initialRuntime: InferenceRuntime = InferenceRuntime.GEMMA_4_E2B,
     toolRegistry: ToolRegistry? = null
 ) : InferenceEngine, AutoCloseable {
 
     companion object {
         private const val TAG = "LiteRtLlmEngine"
-        const val MODEL_IDENTIFIER = "gemma-3-1b-it"
-        const val RUNTIME_VERSION = "LiteRT-LM 0.18.1 (MediaPipe 0.10.27 Rollback Available)"
-        private const val MAX_TOKENS = 2048
-        private const val MAX_RESPONSE_CHARS = 1600
+        const val MODEL_IDENTIFIER = "gemma-4-e2b"
+        const val RUNTIME_VERSION = "LiteRT-LM 0.18.1 (Gemma 4 E2B + Gemma 3 1B)"
+        private const val MAX_TOKENS = 4096
+        private const val MAX_RESPONSE_CHARS = 4000
         private const val MIN_MODEL_BYTES = 100L * 1024 * 1024
 
         private val CONVERSATIONAL_GREETINGS = setOf(
@@ -112,7 +112,7 @@ class LiteRtLlmEngine(
             history: List<Message>,
             currentPrompt: String,
             systemInstruction: String,
-            maxHistoryMessages: Int
+            maxHistoryMessages: Int = 10
         ): String {
             return ContextBudgetManager.buildGemma3Prompt(history, currentPrompt, systemInstruction)
         }
@@ -124,6 +124,9 @@ class LiteRtLlmEngine(
     @Volatile
     var activeRuntime: InferenceRuntime = initialRuntime
         private set
+
+    @Volatile
+    private var gemma4Backend: Gemma4BackendEngine? = null
 
     @Volatile
     private var litertLmBackend: LiteRtLmBackendEngine? = null
@@ -138,7 +141,12 @@ class LiteRtLlmEngine(
     @Synchronized
     private fun initActiveBackend(runtime: InferenceRuntime) {
         when (runtime) {
-            InferenceRuntime.LITERTLM -> {
+            InferenceRuntime.GEMMA_4_E2B, InferenceRuntime.LITERTLM -> {
+                if (gemma4Backend == null) {
+                    gemma4Backend = Gemma4BackendEngine(context, modelPath, toolRegistry = toolRegistry)
+                }
+            }
+            InferenceRuntime.GEMMA_3_1B -> {
                 if (litertLmBackend == null) {
                     litertLmBackend = LiteRtLmBackendEngine(context, modelPath, toolRegistry = toolRegistry)
                 }
@@ -159,7 +167,8 @@ class LiteRtLlmEngine(
 
         // Unload old engine to free memory
         when (activeRuntime) {
-            InferenceRuntime.LITERTLM -> litertLmBackend?.unloadModel()
+            InferenceRuntime.GEMMA_4_E2B, InferenceRuntime.LITERTLM -> gemma4Backend?.unloadModel()
+            InferenceRuntime.GEMMA_3_1B -> litertLmBackend?.unloadModel()
             InferenceRuntime.MEDIAPIPE -> mediaPipeBackend?.unloadModel()
             InferenceRuntime.DETERMINISTIC_ONLY -> Unit
         }
@@ -170,7 +179,8 @@ class LiteRtLlmEngine(
 
     override val name: String
         get() = when (activeRuntime) {
-            InferenceRuntime.LITERTLM -> litertLmBackend?.name ?: "Gemma 3 1B (LiteRT-LM)"
+            InferenceRuntime.GEMMA_4_E2B, InferenceRuntime.LITERTLM -> gemma4Backend?.name ?: "Gemma 4 E2B (LiteRT-LM)"
+            InferenceRuntime.GEMMA_3_1B -> litertLmBackend?.name ?: "Gemma 3 1B (LiteRT-LM)"
             InferenceRuntime.MEDIAPIPE -> mediaPipeBackend?.name ?: "Gemma 3 1B (MediaPipe Rollback)"
             InferenceRuntime.DETERMINISTIC_ONLY -> deterministicEngine.name
         }
@@ -179,14 +189,16 @@ class LiteRtLlmEngine(
 
     override val isLoaded: Boolean
         get() = when (activeRuntime) {
-            InferenceRuntime.LITERTLM -> litertLmBackend?.isLoaded ?: deterministicEngine.isLoaded
+            InferenceRuntime.GEMMA_4_E2B, InferenceRuntime.LITERTLM -> gemma4Backend?.isLoaded ?: deterministicEngine.isLoaded
+            InferenceRuntime.GEMMA_3_1B -> litertLmBackend?.isLoaded ?: deterministicEngine.isLoaded
             InferenceRuntime.MEDIAPIPE -> mediaPipeBackend?.isLoaded ?: deterministicEngine.isLoaded
             InferenceRuntime.DETERMINISTIC_ONLY -> deterministicEngine.isLoaded
         }
 
     val isGenuineInferenceActive: Boolean
         get() = when (activeRuntime) {
-            InferenceRuntime.LITERTLM -> litertLmBackend?.isGenuineInferenceActive == true
+            InferenceRuntime.GEMMA_4_E2B, InferenceRuntime.LITERTLM -> gemma4Backend?.isGenuineInferenceActive == true
+            InferenceRuntime.GEMMA_3_1B -> litertLmBackend?.isGenuineInferenceActive == true
             InferenceRuntime.MEDIAPIPE -> mediaPipeBackend?.isGenuineInferenceActive == true
             InferenceRuntime.DETERMINISTIC_ONLY -> false
         }
@@ -197,8 +209,25 @@ class LiteRtLlmEngine(
     @Synchronized
     fun loadModel(): Result<Unit> {
         return when (activeRuntime) {
-            InferenceRuntime.LITERTLM -> {
-                initActiveBackend(InferenceRuntime.LITERTLM)
+            InferenceRuntime.GEMMA_4_E2B, InferenceRuntime.LITERTLM -> {
+                initActiveBackend(activeRuntime)
+                val primaryResult = gemma4Backend?.loadModel()
+                if (primaryResult?.isSuccess == true) {
+                    primaryResult
+                } else {
+                    // Fallback to 3-1B if present
+                    initActiveBackend(InferenceRuntime.GEMMA_3_1B)
+                    val fallback31B = litertLmBackend?.loadModel()
+                    if (fallback31B?.isSuccess == true) {
+                        Log.i(TAG, "Gemma 4 E2B load failed; fallback to Gemma 3 1B succeeded")
+                        fallback31B
+                    } else {
+                        primaryResult ?: Result.failure(IllegalStateException("No inference backend available"))
+                    }
+                }
+            }
+            InferenceRuntime.GEMMA_3_1B -> {
+                initActiveBackend(InferenceRuntime.GEMMA_3_1B)
                 litertLmBackend?.loadModel() ?: Result.failure(IllegalStateException("LiteRT-LM backend uninitialized"))
             }
             InferenceRuntime.MEDIAPIPE -> {
@@ -211,14 +240,17 @@ class LiteRtLlmEngine(
 
     @Synchronized
     fun unloadModel() {
+        gemma4Backend?.unloadModel()
         litertLmBackend?.unloadModel()
         mediaPipeBackend?.unloadModel()
     }
 
     override fun close() {
         unloadModel()
+        gemma4Backend?.close()
         litertLmBackend?.close()
         mediaPipeBackend?.close()
+        gemma4Backend = null
         litertLmBackend = null
         mediaPipeBackend = null
     }
@@ -228,9 +260,39 @@ class LiteRtLlmEngine(
         conversationHistory: List<Message>,
         onToken: (String) -> Unit
     ): String {
+        if (hasModelWeights) {
+            val loadRes = loadModel()
+            if (loadRes.isFailure) {
+                val err = "⚠️ Model failed to initialize from '${modelPath}': ${loadRes.exceptionOrNull()?.message}"
+                onToken(err)
+                return err
+            }
+        }
+
         return when (activeRuntime) {
-            InferenceRuntime.LITERTLM -> {
-                initActiveBackend(InferenceRuntime.LITERTLM)
+            InferenceRuntime.GEMMA_4_E2B, InferenceRuntime.LITERTLM -> {
+                initActiveBackend(activeRuntime)
+                val g4 = gemma4Backend
+                if (g4 != null && (g4.isGenuineInferenceActive || g4.hasModelWeights)) {
+                    val resp = g4.generateResponse(prompt, conversationHistory, onToken)
+                    if (!resp.startsWith("⚠️ Gemma 4 E2B failed to initialize")) {
+                        return resp
+                    }
+                }
+                // Fallback to 3-1B
+                initActiveBackend(InferenceRuntime.GEMMA_3_1B)
+                val g3 = litertLmBackend
+                if (g3 != null && (g3.isGenuineInferenceActive || g3.hasModelWeights)) {
+                    val resp = g3.generateResponse(prompt, conversationHistory, onToken)
+                    if (!resp.startsWith("⚠️ Gemma 3 1B failed to initialize")) {
+                        return resp
+                    }
+                }
+                // Fallback to deterministic
+                deterministicEngine.generateResponse(prompt, conversationHistory, onToken)
+            }
+            InferenceRuntime.GEMMA_3_1B -> {
+                initActiveBackend(InferenceRuntime.GEMMA_3_1B)
                 litertLmBackend?.generateResponse(prompt, conversationHistory, onToken)
                     ?: deterministicEngine.generateResponse(prompt, conversationHistory, onToken)
             }
@@ -249,9 +311,33 @@ class LiteRtLlmEngine(
         userQuery: String,
         conversationHistory: List<Message>
     ): List<ToolCall> {
+        if (hasModelWeights) {
+            val loadRes = loadModel()
+            if (loadRes.isFailure) {
+                return emptyList()
+            }
+        }
+
         return when (activeRuntime) {
-            InferenceRuntime.LITERTLM -> {
-                initActiveBackend(InferenceRuntime.LITERTLM)
+            InferenceRuntime.GEMMA_4_E2B, InferenceRuntime.LITERTLM -> {
+                initActiveBackend(activeRuntime)
+                val g4 = gemma4Backend
+                if (g4 != null && (g4.isGenuineInferenceActive || g4.hasModelWeights)) {
+                    val calls = g4.proposeToolCalls(userQuery, conversationHistory)
+                    if (calls.isNotEmpty()) return calls
+                }
+                // Fallback to 3-1B
+                initActiveBackend(InferenceRuntime.GEMMA_3_1B)
+                val g3 = litertLmBackend
+                if (g3 != null && (g3.isGenuineInferenceActive || g3.hasModelWeights)) {
+                    val calls = g3.proposeToolCalls(userQuery, conversationHistory)
+                    if (calls.isNotEmpty()) return calls
+                }
+                // Fallback to deterministic rules
+                deterministicEngine.proposeToolCalls(userQuery, conversationHistory)
+            }
+            InferenceRuntime.GEMMA_3_1B -> {
+                initActiveBackend(InferenceRuntime.GEMMA_3_1B)
                 litertLmBackend?.proposeToolCalls(userQuery, conversationHistory) ?: emptyList()
             }
             InferenceRuntime.MEDIAPIPE -> {
@@ -269,8 +355,12 @@ class LiteRtLlmEngine(
         planner: WorkflowPlanner
     ): WorkflowPlan? {
         return when (activeRuntime) {
-            InferenceRuntime.LITERTLM -> {
-                initActiveBackend(InferenceRuntime.LITERTLM)
+            InferenceRuntime.GEMMA_4_E2B, InferenceRuntime.LITERTLM -> {
+                initActiveBackend(InferenceRuntime.GEMMA_3_1B)
+                litertLmBackend?.planWorkflowWithGemma(userQuery, planner)
+            }
+            InferenceRuntime.GEMMA_3_1B -> {
+                initActiveBackend(InferenceRuntime.GEMMA_3_1B)
                 litertLmBackend?.planWorkflowWithGemma(userQuery, planner)
             }
             InferenceRuntime.MEDIAPIPE -> {
@@ -287,23 +377,20 @@ class LiteRtLlmEngine(
         resultJson: String
     ): String {
         return when (activeRuntime) {
-            InferenceRuntime.LITERTLM -> {
-                initActiveBackend(InferenceRuntime.LITERTLM)
+            InferenceRuntime.GEMMA_4_E2B, InferenceRuntime.LITERTLM -> {
+                initActiveBackend(InferenceRuntime.GEMMA_3_1B)
                 val synthesized = litertLmBackend?.synthesizeToolResultWithGemma(userQuery, toolName, resultJson)
-                if (!synthesized.isNullOrBlank()) {
-                    synthesized
-                } else {
-                    "Action executed ($toolName): $resultJson"
-                }
+                if (!synthesized.isNullOrBlank()) synthesized else "Action executed ($toolName): $resultJson"
+            }
+            InferenceRuntime.GEMMA_3_1B -> {
+                initActiveBackend(InferenceRuntime.GEMMA_3_1B)
+                val synthesized = litertLmBackend?.synthesizeToolResultWithGemma(userQuery, toolName, resultJson)
+                if (!synthesized.isNullOrBlank()) synthesized else "Action executed ($toolName): $resultJson"
             }
             InferenceRuntime.MEDIAPIPE -> {
                 initActiveBackend(InferenceRuntime.MEDIAPIPE)
                 val synthesized = mediaPipeBackend?.synthesizeToolResultWithGemma(userQuery, toolName, resultJson)
-                if (!synthesized.isNullOrBlank()) {
-                    synthesized
-                } else {
-                    "Action executed ($toolName): $resultJson"
-                }
+                if (!synthesized.isNullOrBlank()) synthesized else "Action executed ($toolName): $resultJson"
             }
             InferenceRuntime.DETERMINISTIC_ONLY -> "Action executed ($toolName): $resultJson"
         }
@@ -314,7 +401,7 @@ class LiteRtLlmEngine(
         conversationHistory: List<Message>,
         systemPrompt: String? = null
     ): String {
-        val defaultSystem = "You are Tavi, a helpful and concise on-device AI assistant for Android. Your name is Tavi. You are not any contact or person mentioned in previous messages. Always respond politely and concisely as Tavi."
+        val defaultSystem = "You are Tavi, an honest and concise on-device AI assistant for Android. Always respond politely and concisely as Tavi."
         val effectiveSystem = if (!systemPrompt.isNullOrBlank()) systemPrompt.trim() else defaultSystem
         val memories = try { com.example.tavi.memory.PersistentMemoryManager.retrieveRelevantMemories(context, userPrompt) } catch (_: Exception) { emptyList() }
         val episodes = try { com.example.tavi.memory.PersistentMemoryManager.retrieveRelevantEpisodes(context, userPrompt) } catch (_: Exception) { emptyList() }
@@ -337,7 +424,7 @@ class LiteRtLlmEngine(
             append("INSTRUCTIONS:\n")
             append("- If a tool call is required to fulfill the user request, output ONLY a ```tool_call JSON block.\n")
             append("- Do not include markdown preamble before or after the ```tool_call block.\n")
-            append("- If no tool is needed (e.g. conversational questions or greetings), respond directly with conversational text without any tool block.\n\n")
+            append("- If no tool is needed, respond directly with conversational text without any tool block.\n\n")
             append("EXAMPLES:\n")
             append("User: Find Dennis in my contacts\n")
             append("Assistant: ```tool_call\n{\"tool\": \"contacts_search\", \"arguments\": {\"name\": \"Dennis\"}}\n```\n\n")
@@ -411,7 +498,8 @@ class LiteRtLlmEngine(
 
     override fun getEngineDiagnostics(): Map<String, Any> {
         val baseDiagnostics = when (activeRuntime) {
-            InferenceRuntime.LITERTLM -> litertLmBackend?.getEngineDiagnostics()
+            InferenceRuntime.GEMMA_4_E2B, InferenceRuntime.LITERTLM -> gemma4Backend?.getEngineDiagnostics()
+            InferenceRuntime.GEMMA_3_1B -> litertLmBackend?.getEngineDiagnostics()
             InferenceRuntime.MEDIAPIPE -> mediaPipeBackend?.getEngineDiagnostics()
             InferenceRuntime.DETERMINISTIC_ONLY -> deterministicEngine.getEngineDiagnostics()
         } ?: emptyMap()
@@ -420,20 +508,28 @@ class LiteRtLlmEngine(
         val fileExists = targetFile?.exists() == true
         val fileSizeBytes = if (fileExists && targetFile != null) targetFile.length() else 0L
 
+        val effectiveModelId = when {
+            modelPath?.contains("e2b") == true || modelPath?.contains("gemma-4") == true -> "gemma-4-e2b"
+            modelPath?.endsWith(".task") == true || modelPath?.contains("gemma-3") == true || modelPath?.contains("gemma_model") == true -> "gemma-3-1b-it"
+            activeRuntime == InferenceRuntime.GEMMA_4_E2B -> "gemma-4-e2b"
+            else -> "gemma-3-1b-it"
+        }
+
         val mutableDiag = HashMap(baseDiagnostics)
         mutableDiag["activeRuntime"] = activeRuntime.name
         mutableDiag["runtimeDisplayName"] = activeRuntime.displayName
         mutableDiag["engineName"] = name
-        mutableDiag["modelIdentifier"] = MODEL_IDENTIFIER
+        mutableDiag["modelIdentifier"] = effectiveModelId
         mutableDiag["hasWeights"] = fileExists
         mutableDiag["weightsSizeBytes"] = fileSizeBytes
         mutableDiag["isGenuineInferenceActive"] = isGenuineInferenceActive
         mutableDiag["fallbackActive"] = !isGenuineInferenceActive
 
-        // Ensure runtime string accurately reports LiteRT-LM or MediaPipe
         if (!mutableDiag.containsKey("runtime")) {
             mutableDiag["runtime"] = when (activeRuntime) {
+                InferenceRuntime.GEMMA_4_E2B -> "LiteRT-LM 0.18.1 (Gemma 4 E2B)"
                 InferenceRuntime.LITERTLM -> LiteRtLmBackendEngine.RUNTIME_VERSION
+                InferenceRuntime.GEMMA_3_1B -> LiteRtLmBackendEngine.RUNTIME_VERSION
                 InferenceRuntime.MEDIAPIPE -> MediaPipeGenAiBackendEngine.RUNTIME_VERSION
                 InferenceRuntime.DETERMINISTIC_ONLY -> "Native Deterministic Engine"
             }

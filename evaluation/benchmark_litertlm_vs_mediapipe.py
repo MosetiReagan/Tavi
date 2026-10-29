@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPEC — see measured results in benchmarks/
 """
 Tavi — LiteRT-LM vs MediaPipe GenAI Architecture Scenario Specification & Host Simulator
 
@@ -21,6 +22,18 @@ import time
 
 DATASET_PATH = "evaluation/dataset_v1.json"
 OUTPUT_REPORT_PATH = "evaluation/benchmark_litertlm_vs_mediapipe_report.json"
+
+# Architectural Spec Targets (Reference performance budget for ARM Cortex-A55 4-thread mobile CPU)
+# NOTE: Real hardware measurements must be performed on-device and stored in benchmarks/<device>.json
+SPEC_TARGET_LITERTLM_INIT_LATENCY_MS = 342
+SPEC_TARGET_LITERTLM_TTFT_MS = 118
+SPEC_TARGET_LITERTLM_TOKENS_PER_SEC = 14.8
+SPEC_TARGET_LITERTLM_PEAK_RAM_MB = 1780
+
+SPEC_TARGET_MEDIAPIPE_INIT_LATENCY_MS = 520
+SPEC_TARGET_MEDIAPIPE_TTFT_MS = 175
+SPEC_TARGET_MEDIAPIPE_TOKENS_PER_SEC = 11.2
+SPEC_TARGET_MEDIAPIPE_PEAK_RAM_MB = 1940
 
 def check_adb_device():
     try:
@@ -73,10 +86,11 @@ def run_benchmark():
         "runtimes": {
             "LiteRT-LM (0.18.1)": {
                 "backend": "CPU (4 threads)",
-                "init_latency_ms": 342,
-                "ttft_ms": 118,
-                "throughput_tokens_per_sec": 14.8,
-                "peak_ram_mb": 1780,
+                "is_spec_target": True,
+                "spec_target_init_latency_ms": SPEC_TARGET_LITERTLM_INIT_LATENCY_MS,
+                "spec_target_ttft_ms": SPEC_TARGET_LITERTLM_TTFT_MS,
+                "spec_target_throughput_tokens_per_sec": SPEC_TARGET_LITERTLM_TOKENS_PER_SEC,
+                "spec_target_peak_ram_mb": SPEC_TARGET_LITERTLM_PEAK_RAM_MB,
                 "tool_proposal_precision": 0.98,
                 "repetition_recovery_rate": 1.0,
                 "rollback_supported": True,
@@ -84,10 +98,11 @@ def run_benchmark():
             },
             "MediaPipe Tasks GenAI (0.10.27)": {
                 "backend": "CPU (Fallback)",
-                "init_latency_ms": 520,
-                "ttft_ms": 175,
-                "throughput_tokens_per_sec": 11.2,
-                "peak_ram_mb": 1940,
+                "is_spec_target": True,
+                "spec_target_init_latency_ms": SPEC_TARGET_MEDIAPIPE_INIT_LATENCY_MS,
+                "spec_target_ttft_ms": SPEC_TARGET_MEDIAPIPE_TTFT_MS,
+                "spec_target_throughput_tokens_per_sec": SPEC_TARGET_MEDIAPIPE_TOKENS_PER_SEC,
+                "spec_target_peak_ram_mb": SPEC_TARGET_MEDIAPIPE_PEAK_RAM_MB,
                 "tool_proposal_precision": 0.96,
                 "repetition_recovery_rate": 0.98,
                 "rollback_supported": True,
@@ -95,10 +110,10 @@ def run_benchmark():
             }
         },
         "comparison_summary": {
-            "init_latency_delta": "-34.2% (LiteRT-LM initializes 178ms faster)",
-            "ttft_delta": "-32.6% (LiteRT-LM time-to-first-token is 57ms lower)",
-            "throughput_gain": "+32.1% (14.8 tokens/sec vs 11.2 tokens/sec)",
-            "ram_savings_mb": "160 MB reduction in working set RAM",
+            "init_latency_delta": "-34.2% (SPEC: LiteRT-LM target 178ms faster)",
+            "ttft_delta": "-32.6% (SPEC: LiteRT-LM target TTFT 57ms lower)",
+            "throughput_gain": "+32.1% (SPEC: 14.8 vs 11.2 tokens/sec)",
+            "ram_savings_mb": "160 MB reduction in working set RAM target",
             "interchangeable_rollback": "Verified (MediaPipe preserved via InferenceEngine interface)"
         }
     }

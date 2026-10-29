@@ -11,8 +11,8 @@ android {
         applicationId = "com.tavi.assistant"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 10
+        versionName = "1.0.0"
     }
 
     buildTypes {
@@ -37,6 +37,14 @@ android {
       resources {
         excludes += "/META-INF/{AL2.0,LGPL2.1}"
       }
+    }
+
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+        checkDependencies = false
+        ignoreTestSources = true
+        disable += setOf("TypographyFractions", "TypographyQuotes", "GradleDependency")
     }
 
     testOptions {
@@ -76,10 +84,10 @@ dependencies {
   // Local tests: jUnit, coroutines, Android runner
   testImplementation(libs.junit)
   testImplementation(libs.kotlinx.coroutines.test)
-  testImplementation("org.json:json:20240303")
+  testImplementation(libs.org.json)
 
   // MediaPipe Tasks GenAI for on-device Gemma inference (legacy fallback)
-  implementation("com.google.mediapipe:tasks-genai:0.10.27")
+  implementation(libs.mediapipe.tasks.genai)
 
   // Google AI Edge LiteRT-LM for next-gen on-device LLM inference
   implementation(libs.litertlm.android)

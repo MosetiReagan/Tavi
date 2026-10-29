@@ -112,7 +112,8 @@ data class Message(
     val timestamp: Long = System.currentTimeMillis(),
     val toolCalls: List<ToolCall> = emptyList(),
     val toolResults: List<ToolResult> = emptyList(),
-    val isStreaming: Boolean = false
+    val isStreaming: Boolean = false,
+    val thinkingContent: String? = null
 )
 
 data class MemoryEntry(

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPEC — see measured results in benchmarks/
 """
 Tavi — Phase 3B: Real-World Conversational Reliability Benchmark (100 Scenarios)
 Comprehensive qualification suite evaluating 10 real-world assistant usage categories:

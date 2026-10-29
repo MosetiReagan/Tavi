@@ -722,7 +722,10 @@ fun MainScreen(
                             recordAudioLauncher.launch(Manifest.permission.RECORD_AUDIO)
                         }
                     }
-                }
+                },
+                isAwaitingFollowup = uiState.isAwaitingFollowup,
+                followupRemainingSeconds = uiState.followupRemainingSeconds,
+                onDismissFollowup = { viewModel.dismissFollowup() }
             )
         }
     ) { innerPadding ->

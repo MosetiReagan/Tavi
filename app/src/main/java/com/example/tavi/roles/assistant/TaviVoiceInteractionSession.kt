@@ -16,10 +16,11 @@ class TaviVoiceInteractionSession(context: Context) : VoiceInteractionSession(co
         super.onShow(args, showFlags)
         Log.d(TAG, "Voice interaction session shown with flags: $showFlags")
 
-        // Launch MainActivity with assistant prompt intent if needed
+        // Launch MainActivity with assistant prompt intent in continuous hands-free mode
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra("EXTRA_FROM_ASSISTANT_INVOCATION", true)
+            putExtra(EXTRA_START_HANDSFREE, true)
         }
         context.startActivity(intent)
         hide()
@@ -41,5 +42,6 @@ class TaviVoiceInteractionSession(context: Context) : VoiceInteractionSession(co
 
     companion object {
         private const val TAG = "TaviVoiceSession"
+        const val EXTRA_START_HANDSFREE = "com.example.tavi.extra.START_HANDSFREE"
     }
 }

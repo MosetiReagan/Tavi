@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPEC — see measured results in benchmarks/
 """
 Tavi Gemma On-Device Evaluation Scenario Specification & Host Validator
 Evaluates benchmark scenarios in evaluation/dataset_v1.json.
