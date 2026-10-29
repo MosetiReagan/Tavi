@@ -38,7 +38,7 @@ enum class EngineLoadingPhase(val userDisplay: String) {
     VERIFYING_STORAGE("Verifying model bundle integrity…"),
     ALLOCATING_BACKEND("Initializing GPU/NPU acceleration…"),
     FALLING_BACK_CPU("Configuring multi-threaded CPU backend…"),
-    COMPILING_TOOL_SCHEMAS("Compiling 53 native OpenAPI tool schemas…"),
+    COMPILING_TOOL_SCHEMAS("Compiling 57 native OpenAPI tool schemas…"),
     READY("Gemma 4 E2B Engine Ready"),
     ERROR("Model initialization failed")
 }

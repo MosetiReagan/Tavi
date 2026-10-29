@@ -13,7 +13,7 @@ import org.json.JSONObject
 import java.util.UUID
 
 /**
- * Adapts Tavi's runtime [ToolRegistry] (53 native tools) into Google AI Edge
+ * Adapts Tavi's runtime [ToolRegistry] (57 native tools) into Google AI Edge
  * LiteRT-LM's native tool-calling interface ([OpenApiTool] / [ToolProvider]).
  *
  * Guarantees that:
