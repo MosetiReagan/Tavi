@@ -284,8 +284,8 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
                 put("role", msg.role.name)
                 put("content", msg.content)
                 put("timestamp", msg.timestamp)
-                put("tool_calls_json", JSONArray().toString())
-                put("tool_results_json", JSONArray().toString())
+                put("tool_calls_json", MessageToolCodec.encodeCalls(msg.toolCalls))
+                put("tool_results_json", MessageToolCodec.encodeResults(msg.toolResults))
             }
             writableDatabase.insertWithOnConflict("messages", null, values, SQLiteDatabase.CONFLICT_REPLACE)
 
@@ -324,7 +324,9 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
                     val content = c.getString(contentIdx)
                     val time = c.getLong(timeIdx)
                     val role = try { MessageRole.valueOf(roleStr) } catch (_: Exception) { MessageRole.USER }
-                    list.add(Message(id = id, conversationId = conv, role = role, content = content, timestamp = time))
+                    list.add(Message(id = id, conversationId = conv, role = role, content = content, timestamp = time,
+                        toolCalls = MessageToolCodec.decodeCalls(c.getString(c.getColumnIndexOrThrow("tool_calls_json"))),
+                        toolResults = MessageToolCodec.decodeResults(c.getString(c.getColumnIndexOrThrow("tool_results_json")))))
                 }
             }
         } catch (e: Exception) {
@@ -350,7 +352,9 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
                     val content = c.getString(contentIdx)
                     val time = c.getLong(timeIdx)
                     val role = try { MessageRole.valueOf(roleStr) } catch (_: Exception) { MessageRole.USER }
-                    list.add(Message(id = id, conversationId = conv, role = role, content = content, timestamp = time))
+                    list.add(Message(id = id, conversationId = conv, role = role, content = content, timestamp = time,
+                        toolCalls = MessageToolCodec.decodeCalls(c.getString(c.getColumnIndexOrThrow("tool_calls_json"))),
+                        toolResults = MessageToolCodec.decodeResults(c.getString(c.getColumnIndexOrThrow("tool_results_json")))))
                 }
             }
         } catch (e: Exception) {

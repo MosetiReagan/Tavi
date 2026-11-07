@@ -458,7 +458,7 @@ class Gemma4BackendEngine(
                 samplerConfig = SamplerConfig(topK = 20, topP = 0.9, temperature = 0.1, seed = 0)
             )
             conv = targetEngine.createConversation(config)
-            val responseMsg = conv.sendMessage(userQuery)
+            val responseMsg = conv.sendMessage(formatGemma4Prompt(userQuery, conversationHistory))
 
             val sdkCalls = responseMsg.toolCalls
             if (sdkCalls != null && sdkCalls.isNotEmpty()) {
@@ -484,7 +484,9 @@ class Gemma4BackendEngine(
         return ContextBudgetManager.buildGemma3Prompt(
             cleanHistory,
             currentPrompt,
-            "You are Tavi, an honest and capable on-device AI assistant running locally on Android. Answer concisely, helpfully, and truthfully."
+            "You are Tavi, an honest and capable on-device AI assistant running locally on Android. Answer concisely, helpfully, and truthfully.",
+            persistentMemories = com.example.tavi.memory.PersistentMemoryManager.retrieveRelevantMemories(context, currentPrompt),
+            episodicMemories = com.example.tavi.memory.PersistentMemoryManager.retrieveRelevantEpisodes(context, currentPrompt)
         )
     }
 
