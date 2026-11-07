@@ -68,6 +68,7 @@ import com.example.tavi.tools.messages.PhoneDialTool
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ensureActive
 
 class ToolRegistry(private val context: Context) {
 
@@ -181,6 +182,7 @@ class ToolRegistry(private val context: Context) {
      * and tamper-evident local audit logging.
      */
     suspend fun executeToolCall(toolCall: ToolCall, userConfirmed: Boolean = false): ToolResult {
+        kotlinx.coroutines.currentCoroutineContext().ensureActive()
         val tool = tools[toolCall.toolName]
             ?: return ToolResult(
                 toolCallId = toolCall.id,

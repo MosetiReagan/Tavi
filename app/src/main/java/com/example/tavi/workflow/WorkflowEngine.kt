@@ -10,6 +10,7 @@ import com.example.tavi.model.ToolRiskLevel
 import com.example.tavi.security.SecurityGuard
 import com.example.tavi.tools.PermissionCoordinator
 import com.example.tavi.tools.ToolRegistry
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -31,7 +32,10 @@ import org.json.JSONObject
 class WorkflowEngine(
     private val context: Context,
     private val toolRegistry: ToolRegistry = ToolRegistry.getInstance(context),
-    private val db: TaviDatabase = TaviDatabase.getInstance(context)
+    private val db: TaviDatabase? = null,
+    private val persist: ((WorkflowPlan) -> Unit)? = null,
+    private val execute: (suspend (ToolCall, Boolean) -> ToolResult)? = null,
+    private val verify: ((WorkflowStep, ToolResult) -> StepVerificationResult)? = null
 ) {
 
     companion object {
@@ -46,229 +50,105 @@ class WorkflowEngine(
      */
     suspend fun executePlan(
         initialPlan: WorkflowPlan,
+        authorizedStepId: String? = null,
         onPlanUpdated: (suspend (WorkflowPlan) -> Unit)? = null
     ): WorkflowPlan = withContext(Dispatchers.IO) {
+        if (initialPlan.state in setOf(WorkflowState.CANCELLED, WorkflowState.COMPLETED)) return@withContext initialPlan
+        if (initialPlan.state == WorkflowState.AWAITING_USER_INPUT) {
+            notifyUpdate(initialPlan, onPlanUpdated)
+            return@withContext initialPlan
+        }
         var plan = initialPlan.copy(state = WorkflowState.EXECUTING, updatedAt = System.currentTimeMillis())
-        notifyUpdate(plan, onPlanUpdated)
-
-        val timeoutResult = withTimeoutOrNull(MAX_WORKFLOW_TIMEOUT_MS) {
-            val executedSteps = plan.steps.toMutableList()
-
-            for (i in plan.currentStepIndex until executedSteps.size.coerceAtMost(MAX_STEPS_LIMIT)) {
-                var step = executedSteps[i]
-
-                // Duplicate-Action Prevention: Never re-execute verified or completed steps
-                if (step.status == StepExecutionStatus.VERIFIED || step.status == StepExecutionStatus.COMPLETED_UNVERIFIED) {
+        if (plan.steps.size > MAX_STEPS_LIMIT || plan.steps.isEmpty()) {
+            plan = plan.copy(state = WorkflowState.FAILED, error = "A task must have 1–$MAX_STEPS_LIMIT steps.")
+            notifyUpdate(plan, onPlanUpdated)
+            return@withContext plan
+        }
+        val steps = plan.steps.toMutableList()
+        suspend fun update() {
+            plan = plan.copy(steps = steps.toList(), updatedAt = System.currentTimeMillis())
+            notifyUpdate(plan, onPlanUpdated)
+        }
+        val outcome = withTimeoutOrNull(MAX_WORKFLOW_TIMEOUT_MS) {
+            for (i in plan.currentStepIndex until steps.size) {
+                var step = steps[i]
+                if (step.status in setOf(StepExecutionStatus.VERIFIED, StepExecutionStatus.COMPLETED_UNVERIFIED, StepExecutionStatus.SKIPPED)) continue
+                plan = plan.copy(currentStepIndex = i)
+                if (step.dependsOnStepIds.any { id -> steps.none { it.id == id && it.status in setOf(StepExecutionStatus.VERIFIED, StepExecutionStatus.COMPLETED_UNVERIFIED) } }) {
+                    steps[i] = step.copy(status = StepExecutionStatus.SKIPPED)
+                    update()
                     continue
                 }
-
-                plan = plan.copy(currentStepIndex = i, steps = executedSteps, updatedAt = System.currentTimeMillis())
-                notifyUpdate(plan, onPlanUpdated)
-
-                // 1. Resolve Dynamic Parameter Bindings from upstream steps
-                val resolvedArgs = resolveDynamicBindings(step, executedSteps)
-                step = step.copy(arguments = resolvedArgs)
-
-                // 2. Permission Pre-Check
-                val permRequired = step.requiredPermission
-                if (!permRequired.isNullOrBlank() && !hasPermission(permRequired)) {
-                    step = step.copy(
-                        status = StepExecutionStatus.FAILED,
-                        errorMessage = "Permission required: $permRequired. Please enable in Android Settings."
-                    )
-                    executedSteps[i] = step
-                    plan = plan.copy(
-                        state = WorkflowState.FAILED,
-                        steps = executedSteps,
-                        error = "Step '${step.title}' failed: Permission denied for $permRequired",
-                        executionSummary = buildSummary(executedSteps),
-                        updatedAt = System.currentTimeMillis()
-                    )
-                    notifyUpdate(plan, onPlanUpdated)
+                val args = resolveDynamicBindings(step, steps)
+                step = step.copy(arguments = args)
+                steps[i] = step
+                val missing = step.dynamicBindings.firstOrNull { args[it.targetArg]?.toString().isNullOrBlank() }
+                if (missing != null) {
+                    plan = plan.copy(state = WorkflowState.AWAITING_USER_INPUT,
+                        missingInputParam = missing.targetArg,
+                        missingInputPrompt = "Please provide ${missing.targetArg} for ${step.title}.")
+                    update()
                     return@withTimeoutOrNull plan
                 }
-
-                // 3. Consequential Action Scoped Confirmation
-                val isConsequential = step.riskLevel == ToolRiskLevel.HIGH_CONSEQUENTIAL ||
-                        SecurityGuard.requiresUserConfirmation(step.toolName)
-
-                if (isConsequential && step.status != StepExecutionStatus.AWAITING_CONFIRMATION) {
-                    step = step.copy(status = StepExecutionStatus.AWAITING_CONFIRMATION)
-                    executedSteps[i] = step
-                    plan = plan.copy(
-                        state = WorkflowState.AWAITING_CONFIRMATION,
-                        currentStepIndex = i,
-                        steps = executedSteps,
-                        pendingConfirmationStepId = step.id,
-                        updatedAt = System.currentTimeMillis()
-                    )
-                    notifyUpdate(plan, onPlanUpdated)
-                    // Halt execution and wait for user's explicit confirmation
+                val consequential = toolRegistry.getTool(step.toolName)?.requiresConfirmation == true ||
+                    SecurityGuard.requiresUserConfirmation(step.toolName) || step.riskLevel == ToolRiskLevel.HIGH_CONSEQUENTIAL
+                if (consequential && authorizedStepId != step.id) {
+                    steps[i] = step.copy(status = StepExecutionStatus.AWAITING_CONFIRMATION)
+                    plan = plan.copy(state = WorkflowState.AWAITING_CONFIRMATION, pendingConfirmationStepId = step.id)
+                    update()
                     return@withTimeoutOrNull plan
                 }
-
-                // 4. Execute Native Step
-                step = step.copy(status = StepExecutionStatus.EXECUTING)
-                executedSteps[i] = step
-                plan = plan.copy(steps = executedSteps, updatedAt = System.currentTimeMillis())
-                notifyUpdate(plan, onPlanUpdated)
-
-                val toolCall = ToolCall(toolName = step.toolName, arguments = step.arguments)
-                val toolResult = executeToolWithRetry(toolCall, step.maxRetries)
-
-                if (!toolResult.isSuccess) {
-                    step = step.copy(
-                        status = StepExecutionStatus.FAILED,
-                        result = toolResult,
-                        errorMessage = toolResult.errorMessage ?: "Execution failed"
-                    )
-                    executedSteps[i] = step
-
-                    // Handle dependent steps: mark downstream as SKIPPED
-                    for (d in i + 1 until executedSteps.size) {
-                        if (executedSteps[d].dependsOnStepIds.contains(step.id)) {
-                            executedSteps[d] = executedSteps[d].copy(status = StepExecutionStatus.SKIPPED)
-                        }
-                    }
-
-                    plan = plan.copy(
-                        state = WorkflowState.PARTIALLY_COMPLETED,
-                        steps = executedSteps,
-                        error = "Step '${step.title}' failed: ${toolResult.errorMessage}",
-                        executionSummary = buildSummary(executedSteps),
-                        updatedAt = System.currentTimeMillis()
-                    )
-                    notifyUpdate(plan, onPlanUpdated)
+                steps[i] = step.copy(status = StepExecutionStatus.EXECUTING)
+                update()
+                val call = ToolCall(id = step.idempotencyKey, toolName = step.toolName, arguments = args)
+                val result = withTimeoutOrNull(MAX_STEP_TIMEOUT_MS) {
+                    executeToolWithRetry(call, step.maxRetries, consequential && authorizedStepId == step.id)
+                } ?: ToolResult(call.id, call.toolName, "{}", false,
+                    errorMessage = "Step timed out. Inspect the destination before retrying a write.")
+                val verification = verify?.invoke(step, result) ?: WorkflowStepVerifier.verifyStep(context, step, result)
+                val status = when {
+                    !result.isSuccess || verification.status == StepVerificationStatus.FAILED -> StepExecutionStatus.FAILED
+                    verification.status == StepVerificationStatus.UNVERIFIED -> StepExecutionStatus.COMPLETED_UNVERIFIED
+                    else -> StepExecutionStatus.VERIFIED
+                }
+                steps[i] = step.copy(result = result, status = status, verificationStatus = verification.status,
+                    verificationDetail = verification.detail, errorMessage = result.errorMessage,
+                    executedAt = System.currentTimeMillis())
+                plan = plan.copy(pendingConfirmationStepId = null)
+                if (status == StepExecutionStatus.FAILED) {
+                    for (j in i + 1 until steps.size) steps[j] = steps[j].copy(status = StepExecutionStatus.SKIPPED)
+                    plan = plan.copy(state = WorkflowState.PARTIALLY_COMPLETED, error = result.errorMessage ?: verification.detail,
+                        executionSummary = buildSummary(steps))
+                    update()
                     return@withTimeoutOrNull plan
                 }
-
-                // 5. Mandatory Post-Execution State Verification
-                step = step.copy(status = StepExecutionStatus.VERIFYING, result = toolResult)
-                executedSteps[i] = step
-                plan = plan.copy(steps = executedSteps, updatedAt = System.currentTimeMillis())
-                notifyUpdate(plan, onPlanUpdated)
-
-                val verification = WorkflowStepVerifier.verifyStep(context, step, toolResult)
-                step = step.copy(
-                    status = if (verification.status == StepVerificationStatus.VERIFIED || verification.status == StepVerificationStatus.NOT_APPLICABLE) {
-                        StepExecutionStatus.VERIFIED
-                    } else if (verification.status == StepVerificationStatus.UNVERIFIED) {
-                        StepExecutionStatus.COMPLETED_UNVERIFIED
-                    } else {
-                        StepExecutionStatus.FAILED
-                    },
-                    verificationStatus = verification.status,
-                    verificationDetail = verification.detail,
-                    executedAt = System.currentTimeMillis()
-                )
-                executedSteps[i] = step
-                plan = plan.copy(steps = executedSteps, updatedAt = System.currentTimeMillis())
-                notifyUpdate(plan, onPlanUpdated)
+                update()
             }
-
-            // Workflow Completed Successfully
-            val summary = buildSummary(executedSteps)
-            plan = plan.copy(
-                state = if (executedSteps.all { it.status == StepExecutionStatus.VERIFIED || it.status == StepExecutionStatus.COMPLETED_UNVERIFIED }) {
-                    WorkflowState.COMPLETED
-                } else {
-                    WorkflowState.PARTIALLY_COMPLETED
-                },
-                steps = executedSteps,
-                completedAt = System.currentTimeMillis(),
-                executionSummary = summary,
-                updatedAt = System.currentTimeMillis()
-            )
-            notifyUpdate(plan, onPlanUpdated)
+            plan = plan.copy(state = if (steps.all { it.status in setOf(StepExecutionStatus.VERIFIED, StepExecutionStatus.COMPLETED_UNVERIFIED) })
+                WorkflowState.COMPLETED else WorkflowState.PARTIALLY_COMPLETED,
+                completedAt = System.currentTimeMillis(), executionSummary = buildSummary(steps))
+            update()
             plan
         }
-
-        if (timeoutResult == null) {
-            plan = plan.copy(
-                state = WorkflowState.FAILED,
-                error = "Workflow timed out after ${MAX_WORKFLOW_TIMEOUT_MS / 1000}s",
-                updatedAt = System.currentTimeMillis()
-            )
-            notifyUpdate(plan, onPlanUpdated)
+        if (outcome == null) {
+            plan = plan.copy(state = WorkflowState.FAILED, error = "Task timed out; inspect any unfinished action before retrying.",
+                executionSummary = buildSummary(steps))
+            update()
         }
-
-        return@withContext plan
+        plan
     }
 
-    /**
-     * Resumes a workflow that was paused in [WorkflowState.AWAITING_CONFIRMATION].
-     * Scoped specifically to [stepId] and its validated arguments.
-     */
+    /** Approval exists only for the current step of this conversation, never in persisted arguments. */
     suspend fun confirmStep(
         currentPlan: WorkflowPlan,
         stepId: String,
         confirmed: Boolean,
         onPlanUpdated: (suspend (WorkflowPlan) -> Unit)? = null
-    ): WorkflowPlan = withContext(Dispatchers.IO) {
-        if (currentPlan.pendingConfirmationStepId != stepId) {
-            Log.w(TAG, "Confirmation step ID mismatch: expected ${currentPlan.pendingConfirmationStepId}, got $stepId")
-            return@withContext currentPlan
-        }
-
-        val stepIndex = currentPlan.steps.indexOfFirst { it.id == stepId }
-        if (stepIndex == -1) return@withContext currentPlan
-
-        val steps = currentPlan.steps.toMutableList()
-        var step = steps[stepIndex]
-
-        if (!confirmed) {
-            step = step.copy(status = StepExecutionStatus.CANCELLED, errorMessage = "Action cancelled by user")
-            steps[stepIndex] = step
-
-            for (d in stepIndex + 1 until steps.size) {
-                if (steps[d].dependsOnStepIds.contains(stepId)) {
-                    steps[d] = steps[d].copy(status = StepExecutionStatus.SKIPPED)
-                }
-            }
-
-            val cancelledPlan = currentPlan.copy(
-                state = WorkflowState.CANCELLED,
-                steps = steps,
-                pendingConfirmationStepId = null,
-                executionSummary = buildSummary(steps),
-                updatedAt = System.currentTimeMillis()
-            )
-            notifyUpdate(cancelledPlan, onPlanUpdated)
-            return@withContext cancelledPlan
-        }
-
-        // Confirmed: Execute consequential step with explicit user authorization
-        val toolCall = ToolCall(toolName = step.toolName, arguments = step.arguments)
-        val toolResult = toolRegistry.executeToolCall(toolCall, userConfirmed = true)
-
-        val verification = WorkflowStepVerifier.verifyStep(context, step, toolResult)
-        val confirmedStatus = when {
-            !toolResult.isSuccess -> StepExecutionStatus.FAILED
-            verification.status == StepVerificationStatus.VERIFIED ||
-                verification.status == StepVerificationStatus.NOT_APPLICABLE -> StepExecutionStatus.VERIFIED
-            verification.status == StepVerificationStatus.UNVERIFIED -> StepExecutionStatus.COMPLETED_UNVERIFIED
-            else -> StepExecutionStatus.FAILED
-        }
-        step = step.copy(
-            result = toolResult,
-            status = confirmedStatus,
-            verificationStatus = verification.status,
-            verificationDetail = verification.detail,
-            executedAt = System.currentTimeMillis()
-        )
-        steps[stepIndex] = step
-
-        val resumedPlan = currentPlan.copy(
-            state = WorkflowState.EXECUTING,
-            currentStepIndex = stepIndex + 1,
-            steps = steps,
-            pendingConfirmationStepId = null,
-            updatedAt = System.currentTimeMillis()
-        )
-        notifyUpdate(resumedPlan, onPlanUpdated)
-
-        // Continue workflow execution for remaining steps
-        executePlan(resumedPlan, onPlanUpdated)
+    ): WorkflowPlan {
+        if (currentPlan.state != WorkflowState.AWAITING_CONFIRMATION || currentPlan.pendingConfirmationStepId != stepId) return currentPlan
+        if (currentPlan.steps.getOrNull(currentPlan.currentStepIndex)?.id != stepId) return currentPlan
+        if (!confirmed) return cancelWorkflow(currentPlan, onPlanUpdated)
+        return executePlan(currentPlan, authorizedStepId = stepId, onPlanUpdated = onPlanUpdated)
     }
 
     /**
@@ -284,17 +164,8 @@ class WorkflowEngine(
         val currentIdx = currentPlan.currentStepIndex.coerceIn(0, steps.lastIndex.coerceAtLeast(0))
 
         if (steps.isNotEmpty()) {
-            var updatedAny = false
-            for (i in steps.indices) {
-                if (steps[i].arguments.containsKey(paramName)) {
-                    steps[i] = steps[i].copy(arguments = steps[i].arguments + (paramName to inputValue))
-                    updatedAny = true
-                }
-            }
-            if (!updatedAny) {
-                val step = steps[currentIdx]
-                steps[currentIdx] = step.copy(arguments = step.arguments + (paramName to inputValue))
-            }
+            val step = steps[currentIdx]
+            steps[currentIdx] = step.copy(arguments = step.arguments + (paramName to inputValue))
         }
 
         val updatedPlan = currentPlan.copy(
@@ -305,7 +176,7 @@ class WorkflowEngine(
             updatedAt = System.currentTimeMillis()
         )
         notifyUpdate(updatedPlan, onPlanUpdated)
-        executePlan(updatedPlan, onPlanUpdated)
+        executePlan(updatedPlan, onPlanUpdated = onPlanUpdated)
     }
 
     /**
@@ -316,7 +187,7 @@ class WorkflowEngine(
         onPlanUpdated: (suspend (WorkflowPlan) -> Unit)? = null
     ): WorkflowPlan = withContext(Dispatchers.IO) {
         val steps = currentPlan.steps.map {
-            if (it.status == StepExecutionStatus.PENDING || it.status == StepExecutionStatus.AWAITING_CONFIRMATION) {
+            if (it.status in setOf(StepExecutionStatus.PENDING, StepExecutionStatus.EXECUTING, StepExecutionStatus.VERIFYING, StepExecutionStatus.AWAITING_CONFIRMATION)) {
                 it.copy(status = StepExecutionStatus.CANCELLED)
             } else it
         }
@@ -377,14 +248,15 @@ class WorkflowEngine(
         }
     }
 
-    private suspend fun executeToolWithRetry(toolCall: ToolCall, maxRetries: Int): ToolResult {
+    private suspend fun executeToolWithRetry(toolCall: ToolCall, maxRetries: Int, userConfirmed: Boolean): ToolResult {
         var attempts = 0
         var lastResult: ToolResult? = null
 
-        while (attempts <= maxRetries) {
+        val retries = if (com.example.tavi.tools.NativeToolPolicy.isReadOnly(toolCall.toolName)) maxRetries.coerceIn(0, 2) else 0
+        while (attempts <= retries) {
             attempts++
-            lastResult = toolRegistry.executeToolCall(toolCall, userConfirmed = false)
-            if (lastResult.isSuccess || attempts > maxRetries) {
+            lastResult = execute?.invoke(toolCall, userConfirmed) ?: toolRegistry.executeToolCall(toolCall, userConfirmed)
+            if (lastResult.isSuccess || attempts > retries) {
                 break
             }
             // Delay before bounded retry
@@ -438,12 +310,7 @@ class WorkflowEngine(
     }
 
     private suspend fun notifyUpdate(plan: WorkflowPlan, onPlanUpdated: (suspend (WorkflowPlan) -> Unit)?) {
-        try {
-            // Persist plan state to local SQLite database
-            db.saveWorkflow(plan)
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to persist workflow: ${e.message}")
-        }
+        if (persist != null) persist.invoke(plan) else (db ?: TaviDatabase.getInstance(context)).saveWorkflow(plan)
         onPlanUpdated?.invoke(plan)
     }
 }

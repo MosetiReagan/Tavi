@@ -35,7 +35,7 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     companion object {
         const val DATABASE_NAME = "tavi_local.db"
-        const val DATABASE_VERSION = 5
+        const val DATABASE_VERSION = 6
 
         @Volatile
         private var INSTANCE: TaviDatabase? = null
@@ -164,6 +164,12 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
                     summary_text TEXT
                 )
             """.trimIndent())
+
+            db.rawQuery("PRAGMA table_info(workflows)", null).use { columns ->
+                var exists = false
+                while (columns.moveToNext()) if (columns.getString(columns.getColumnIndexOrThrow("name")) == "conversation_id") exists = true
+                if (!exists) db.execSQL("ALTER TABLE workflows ADD COLUMN conversation_id TEXT NOT NULL DEFAULT 'default'")
+            }
 
             db.execSQL("""
                 CREATE TABLE IF NOT EXISTS persistent_memories (
@@ -989,28 +995,27 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
     }
 
     fun saveWorkflow(plan: WorkflowPlan) {
-        try {
-            val stepsJson = serializeSteps(plan.steps)
-            val values = ContentValues().apply {
-                put("id", plan.id)
-                put("title", plan.title)
-                put("user_query", plan.userQuery)
-                put("state", plan.state.name)
-                put("plan_source", plan.planSource.name)
-                put("current_step_index", plan.currentStepIndex)
-                put("steps_json", stepsJson)
-                put("created_at", plan.createdAt)
-                put("updated_at", plan.updatedAt)
-                put("completed_at", plan.completedAt)
-                put("error", plan.error)
-                put("missing_input_prompt", plan.missingInputPrompt)
-                put("missing_input_param", plan.missingInputParam)
-                put("pending_confirmation_step_id", plan.pendingConfirmationStepId)
-                put("summary_text", plan.executionSummary?.humanReadableText)
-            }
-            writableDatabase.insertWithOnConflict("workflows", null, values, SQLiteDatabase.CONFLICT_REPLACE)
-        } catch (e: Exception) {
-            android.util.Log.e("TaviDatabase", "Error saving workflow", e)
+        val stepsJson = serializeSteps(plan.steps)
+        val values = ContentValues().apply {
+            put("id", plan.id)
+            put("conversation_id", plan.conversationId)
+            put("title", plan.title)
+            put("user_query", plan.userQuery)
+            put("state", plan.state.name)
+            put("plan_source", plan.planSource.name)
+            put("current_step_index", plan.currentStepIndex)
+            put("steps_json", stepsJson)
+            put("created_at", plan.createdAt)
+            put("updated_at", plan.updatedAt)
+            put("completed_at", plan.completedAt)
+            put("error", plan.error)
+            put("missing_input_prompt", plan.missingInputPrompt)
+            put("missing_input_param", plan.missingInputParam)
+            put("pending_confirmation_step_id", plan.pendingConfirmationStepId)
+            put("summary_text", plan.executionSummary?.humanReadableText)
+        }
+        check(writableDatabase.insertWithOnConflict("workflows", null, values, SQLiteDatabase.CONFLICT_REPLACE) != -1L) {
+            "Task could not be saved; execution stopped."
         }
     }
 
@@ -1027,7 +1032,7 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
         }
     }
 
-    fun getActiveWorkflow(): WorkflowPlan? {
+    fun getActiveWorkflow(conversationId: String = "default"): WorkflowPlan? {
         return try {
             val activeStates = arrayOf(
                 WorkflowState.PLANNING.name,
@@ -1040,8 +1045,8 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
             readableDatabase.query(
                 "workflows",
                 null,
-                "state IN ($placeholders)",
-                activeStates,
+                "state IN ($placeholders) AND conversation_id = ?",
+                activeStates + conversationId,
                 null,
                 null,
                 "updated_at DESC LIMIT 1"
@@ -1099,6 +1104,7 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
         return WorkflowPlan(
             id = id,
+            conversationId = c.getString(c.getColumnIndexOrThrow("conversation_id")),
             title = title,
             userQuery = query,
             state = state,
@@ -1190,7 +1196,7 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
                 val argsObj = obj.optJSONObject("arguments") ?: JSONObject()
                 val args = mutableMapOf<String, Any?>()
                 for (k in argsObj.keys()) {
-                    args[k] = if (argsObj.isNull(k)) null else argsObj.get(k)
+                    args[k] = MessageToolCodec.toMap(argsObj)[k]
                 }
 
                 val bindingsList = mutableListOf<DynamicBinding>()

@@ -100,13 +100,7 @@ class WorkflowPlanner(
                 title = "Draft Contextual SMS Reply",
                 toolName = "messages_draft",
                 arguments = mapOf("recipient" to "", "body" to "Thanks for your message, I'll get back to you shortly."),
-                dynamicBindings = listOf(
-                    DynamicBinding(
-                        targetArg = "recipient",
-                        fromStepId = step0.id,
-                        fromPropertyPath = "topSender"
-                    )
-                ),
+                dynamicBindings = listOf(DynamicBinding("recipient", step0.id, "explicitSmsRecipient")),
                 isReadOnly = true,
                 dependsOnStepIds = listOf(step0.id)
             )

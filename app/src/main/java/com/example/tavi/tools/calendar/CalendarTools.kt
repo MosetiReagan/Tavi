@@ -27,6 +27,7 @@ class CalendarListEventsTool : AssistantTool {
           "type": "object",
           "properties": {
             "startDate": {"type": "string", "description": "Natural date string for start of search window, e.g. 'today' or 'tomorrow'"},
+            "filterTime": {"type": "string", "description": "Day to search; limits results to that local calendar day"},
             "endDate": {"type": "string", "description": "Natural date string for end of search window, e.g. 'in 7 days'"},
             "query": {"type": "string", "description": "Optional search term to filter event titles or descriptions"}
           }
@@ -52,12 +53,18 @@ class CalendarListEventsTool : AssistantTool {
             )
         }
 
-        val startRaw = arguments["startDate"]?.toString() ?: "today"
+        val filterTime = arguments["filterTime"]?.toString()
+        val startRaw = arguments["startDate"]?.toString() ?: filterTime ?: "today"
         val endRaw = arguments["endDate"]?.toString() ?: "in 7 days"
         val query = arguments["query"]?.toString()?.trim()
 
-        val startMillis = CalendarNaturalDateResolver.resolveToEpochMillis(startRaw) ?: System.currentTimeMillis()
-        val endMillis = CalendarNaturalDateResolver.resolveToEpochMillis(endRaw) ?: (startMillis + (7 * 86400 * 1000L))
+        val startMillis = CalendarNaturalDateResolver.resolveToEpochMillis(startRaw)
+            ?: return ToolResult(toolCallId, name, "{}", false, errorMessage = "Unrecognized search start date.")
+        val endMillis = if (filterTime != null && arguments["endDate"] == null)
+            java.time.Instant.ofEpochMilli(startMillis).atZone(java.time.ZoneId.systemDefault()).plusDays(1).toInstant().toEpochMilli()
+        else CalendarNaturalDateResolver.resolveToEpochMillis(endRaw)
+            ?: return ToolResult(toolCallId, name, "{}", false, errorMessage = "Unrecognized search end date.")
+        if (endMillis <= startMillis) return ToolResult(toolCallId, name, "{}", false, errorMessage = "End date must follow start date.")
 
         val eventsArray = JSONArray()
         val projection = arrayOf(

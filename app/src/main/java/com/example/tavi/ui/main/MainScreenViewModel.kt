@@ -24,6 +24,10 @@ import com.example.tavi.workflow.WorkflowPlan
 import com.example.tavi.workflow.WorkflowPlanner
 import com.example.tavi.workflow.WorkflowState
 import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -68,6 +72,8 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
     val workflowPlanner = WorkflowPlanner(application, toolRegistry)
     val workflowEngine = WorkflowEngine(application, toolRegistry, db)
 
+    private var taskJob: Job? = null
+
     private var activeEngine: InferenceEngine = LiteRtLlmEngine(
         application,
         modelManager.modelFile.let { if (it.exists() && it.length() > 0) it.absolutePath else null },
@@ -90,7 +96,6 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
     init {
         checkModelInstallation()
         loadPersistedMessages()
-        loadPersistedWorkflow()
         observeNetworkAndModel()
         observeVoiceState()
         observeDownloadProgress()
@@ -160,19 +165,13 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    private fun loadPersistedWorkflow() {
-        viewModelScope.launch(Dispatchers.IO + coroutineExceptionHandler) {
-            try {
-                val active = db.getActiveWorkflow()
-                if (active != null) {
-                    withContext(Dispatchers.Main) {
-                        _uiState.value = _uiState.value.copy(activeWorkflow = active)
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("MainScreenViewModel", "Failed to load persisted workflow", e)
-            }
-        }
+    private fun restoreWorkflow(conversationId: String): WorkflowPlan? {
+        val plan = db.getActiveWorkflow(conversationId) ?: return null
+        if (plan.state !in setOf(WorkflowState.EXECUTING, WorkflowState.VERIFYING, WorkflowState.PLANNING)) return plan
+        val interrupted = plan.copy(state = WorkflowState.FAILED,
+            error = "Task was interrupted. Inspect any dispatched action before starting a new task.")
+        db.saveWorkflow(interrupted)
+        return interrupted
     }
 
     private fun resolveActiveEngine(): InferenceEngine {
@@ -199,12 +198,14 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                     initial
                 }
                 val saved = db.getMessagesForConversation(activeConv.id)
+                val restoredWorkflow = restoreWorkflow(activeConv.id)
                 withContext(Dispatchers.Main) {
                     _uiState.value = _uiState.value.copy(
                         conversations = convs.ifEmpty { listOf(activeConv) },
                         currentConversationId = activeConv.id,
                         currentConversationTitle = activeConv.title,
-                        messages = saved
+                        messages = saved,
+                        activeWorkflow = restoredWorkflow
                     )
                 }
             } catch (e: Exception) {
@@ -270,6 +271,11 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         if (trimmed.isEmpty() || _uiState.value.isStreaming) return
 
         val currentConvId = _uiState.value.currentConversationId
+        val waiting = _uiState.value.activeWorkflow
+        if (waiting?.state == WorkflowState.AWAITING_CONFIRMATION) {
+            handleSpokenInput(trimmed)
+            return
+        }
 
         // Auto-update conversation title from initial message if default
         if (_uiState.value.currentConversationTitle == "New Chat" || _uiState.value.currentConversationTitle.isBlank()) {
@@ -295,7 +301,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
             val updatedMessages = _uiState.value.messages + userMsg
             _uiState.value = _uiState.value.copy(messages = updatedMessages, isStreaming = true)
 
-            viewModelScope.launch(Dispatchers.IO + coroutineExceptionHandler) {
+            taskJob = viewModelScope.launch(Dispatchers.IO + coroutineExceptionHandler) {
                 try {
                     db.insertMessage(userMsg, currentConvId)
                     val resumed = workflowEngine.provideMissingInput(currentWorkflow, trimmed) { updated ->
@@ -327,7 +333,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
             statusBanner = null
         )
 
-        viewModelScope.launch(Dispatchers.IO + coroutineExceptionHandler) {
+        taskJob = viewModelScope.launch(Dispatchers.IO + coroutineExceptionHandler) {
             try {
                 db.insertMessage(userMessage, currentConvId)
 
@@ -339,7 +345,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                 }
 
                 // 2. Multi-Step Workflow Planning (Deterministic fast-path or Gemma 3 1B)
-                val plannedWorkflow = workflowPlanner.planWorkflow(trimmed) ?: run {
+                val plannedWorkflow = (workflowPlanner.planWorkflow(trimmed) ?: run {
                     if (!workflowPlanner.shouldAttemptModelPlanning(trimmed)) {
                         null
                     } else {
@@ -348,7 +354,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                             engine.planWorkflowWithGemma(trimmed, workflowPlanner)
                         } else null
                     }
-                }
+                })?.copy(conversationId = currentConvId)
 
                 if (plannedWorkflow != null && plannedWorkflow.steps.isNotEmpty()) {
                     withContext(Dispatchers.Main) {
@@ -363,12 +369,15 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                 } else {
                     processAssistantTurn(userMessage, updatedMessages)
                 }
-            } catch (e: Throwable) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
                 val errorMsg = Message(
+                    conversationId = currentConvId,
                     role = MessageRole.ASSISTANT,
                     content = "⚠️ An error occurred while generating a response: ${e.message ?: "Unknown error"}"
                 )
-                db.insertMessage(errorMsg)
+                db.insertMessage(errorMsg, currentConvId)
                 withContext(Dispatchers.Main) {
                     _uiState.value = _uiState.value.copy(
                         messages = updatedMessages + errorMsg,
@@ -376,8 +385,9 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                     )
                 }
             } finally {
-                withContext(Dispatchers.Main) {
-                    _uiState.value = _uiState.value.copy(isStreaming = false)
+                withContext(NonCancellable + Dispatchers.Main) {
+                    if (_uiState.value.currentConversationId == currentConvId)
+                        _uiState.value = _uiState.value.copy(isStreaming = false)
                 }
             }
         }
@@ -387,12 +397,16 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         if (workflow.state == WorkflowState.AWAITING_CONFIRMATION || workflow.state == WorkflowState.AWAITING_USER_INPUT) {
             withContext(Dispatchers.Main) {
                 _uiState.value = _uiState.value.copy(isStreaming = false)
-                speakReply(workflow.missingInputPrompt ?: "Review the pending action and confirm it on screen.")
+                val step = workflow.steps.find { it.id == workflow.pendingConfirmationStepId }
+                speakReply(workflow.missingInputPrompt ?: "${step?.title}. ${step?.arguments?.entries?.joinToString { "${it.key}: ${it.value}" }}. Say yes to proceed, or no to cancel.")
             }
             return
         }
 
-        val summary = workflow.executionSummary?.humanReadableText
+        val outcomes = workflow.steps.filter { it.result != null }
+        val dataSummary = ToolResultSynthesizer.synthesize(
+            outcomes.map { ToolCall(it.idempotencyKey, it.toolName, it.arguments) }, outcomes.mapNotNull { it.result })
+        val summary = dataSummary.takeIf { it.isNotBlank() } ?: workflow.executionSummary?.humanReadableText
             ?: when (workflow.state) {
                 WorkflowState.COMPLETED -> "Workflow completed successfully."
                 WorkflowState.PARTIALLY_COMPLETED -> "Workflow completed with some skipped or unavailable steps."
@@ -413,11 +427,12 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         }
 
         val assistantMsg = Message(
+            conversationId = workflow.conversationId,
             role = MessageRole.ASSISTANT,
             content = formattedContent.trim(),
             toolResults = workflow.steps.mapNotNull { it.result }
         )
-        db.insertMessage(assistantMsg)
+        db.insertMessage(assistantMsg, workflow.conversationId)
 
         if (workflow.state == WorkflowState.COMPLETED) {
             try {
@@ -445,34 +460,42 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun confirmWorkflowStep(stepId: String, confirmed: Boolean) {
+        if (_uiState.value.isStreaming) return
         val workflow = _uiState.value.activeWorkflow ?: return
-        viewModelScope.launch(Dispatchers.IO + coroutineExceptionHandler) {
+        if (workflow.conversationId != _uiState.value.currentConversationId) return
+        _uiState.value = _uiState.value.copy(isStreaming = true)
+        taskJob = viewModelScope.launch(Dispatchers.IO + coroutineExceptionHandler) {
             try {
                 val updated = workflowEngine.confirmStep(workflow, stepId, confirmed) { plan ->
-                    withContext(Dispatchers.Main) {
-                        _uiState.value = _uiState.value.copy(activeWorkflow = plan)
-                    }
+                    withContext(Dispatchers.Main) { _uiState.value = _uiState.value.copy(activeWorkflow = plan) }
                 }
                 handleWorkflowCompletion(updated, _uiState.value.messages)
-            } catch (e: Exception) {
-                Log.e("MainScreenViewModel", "Error confirming workflow step", e)
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) {
+                withContext(Dispatchers.Main) { _uiState.value = _uiState.value.copy(errorMessage = e.message) }
+            } finally {
+                withContext(NonCancellable + Dispatchers.Main) { _uiState.value = _uiState.value.copy(isStreaming = false) }
             }
         }
     }
 
-    fun cancelWorkflow() {
-        val workflow = _uiState.value.activeWorkflow ?: return
-        viewModelScope.launch(Dispatchers.IO + coroutineExceptionHandler) {
-            try {
-                val cancelled = workflowEngine.cancelWorkflow(workflow) { plan ->
-                    withContext(Dispatchers.Main) {
-                        _uiState.value = _uiState.value.copy(activeWorkflow = plan)
-                    }
-                }
-                handleWorkflowCompletion(cancelled, _uiState.value.messages)
-            } catch (e: Exception) {
-                Log.e("MainScreenViewModel", "Error cancelling workflow", e)
+    fun cancelWorkflow() = cancelTask()
+
+    fun cancelTask() {
+        val running = taskJob
+        running?.cancel()
+        voiceManager.dismissFollowup()
+        voiceManager.stopSpeaking()
+        val workflow = _uiState.value.activeWorkflow
+        viewModelScope.launch {
+            running?.join()
+            if (workflow != null && workflow.state !in setOf(WorkflowState.COMPLETED, WorkflowState.CANCELLED)) {
+                val latest = withContext(Dispatchers.IO) { db.getWorkflow(workflow.id) } ?: workflow
+                val cancelled = workflowEngine.cancelWorkflow(latest)
+                _uiState.value = _uiState.value.copy(activeWorkflow = cancelled)
             }
+            _uiState.value = _uiState.value.copy(isStreaming = false, pendingConfirmation = null,
+                messages = _uiState.value.messages.filterNot { it.isStreaming }, statusBanner = "Task stopped. Inspect any action already dispatched.")
         }
     }
 
@@ -656,73 +679,22 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         tools: List<ToolCall>,
         currentHistory: List<Message>
     ) {
-        val executedResults = mutableListOf<ToolResult>()
-        var pendingConfirmationReq: ConfirmationRequest? = null
-
-        for (toolCall in tools) {
-            val result = toolRegistry.executeToolCall(toolCall, userConfirmed = false)
-            executedResults.add(result)
-            if (result.requiresUserConfirmation) {
-                pendingConfirmationReq = result.confirmationPayload
-                break // Pause execution and wait for user confirmation
-            }
+        val conversationId = currentHistory.lastOrNull()?.conversationId ?: _uiState.value.currentConversationId
+        val plan = WorkflowPlan(
+            title = if (tools.size == 1) toolRegistry.getTool(tools.first().toolName)?.description?.substringBefore('.') ?: "Assistant action" else "Assistant task",
+            userQuery = currentHistory.lastOrNull { it.role == MessageRole.USER }?.content.orEmpty(),
+            conversationId = conversationId,
+            steps = tools.mapIndexed { index, call ->
+                val tool = toolRegistry.getTool(call.toolName)
+                com.example.tavi.workflow.WorkflowStep(id = call.id, idempotencyKey = call.id,
+                    stepIndex = index, title = tool?.name?.replace('_', ' ') ?: call.toolName,
+                    toolName = call.toolName, arguments = call.arguments,
+                    isReadOnly = tool?.isReadOnly == true, riskLevel = tool?.riskLevel ?: com.example.tavi.model.ToolRiskLevel.LOW)
+            })
+        val updated = workflowEngine.executePlan(plan) { update ->
+            withContext(Dispatchers.Main) { _uiState.value = _uiState.value.copy(activeWorkflow = update) }
         }
-
-        if (pendingConfirmationReq != null) {
-            // Need user confirmation dialog
-            val pauseMsg = Message(
-                role = MessageRole.ASSISTANT,
-                content = "This action requires your explicit confirmation before proceeding.",
-                toolCalls = tools,
-                toolResults = executedResults
-            )
-            db.insertMessage(pauseMsg)
-
-            withContext(Dispatchers.Main) {
-                _uiState.value = _uiState.value.copy(
-                    messages = currentHistory + pauseMsg,
-                    isStreaming = false,
-                    pendingConfirmation = pendingConfirmationReq
-                )
-                if (voiceManager.autoReadReplies.value || voiceManager.isVoiceSessionActive) {
-                    val promptText = "Do you want me to ${pendingConfirmationReq.title}? Say yes or no."
-                    voiceManager.speak(promptText)
-                }
-            }
-            return
-        }
-
-        // Synthesize tool output to truthful, verified local explanation
-        val deterministicSummary = ToolResultSynthesizer.synthesize(tools, executedResults)
-        val finalSummary = if (deterministicSummary.isNotBlank()) {
-            deterministicSummary
-        } else {
-            "Action executed: ${tools.firstOrNull()?.toolName ?: "Success"}"
-        }
-
-        val currentConvId = _uiState.value.currentConversationId
-        val assistantMessage = Message(
-            conversationId = currentConvId,
-            role = MessageRole.ASSISTANT,
-            content = finalSummary,
-            toolCalls = tools,
-            toolResults = executedResults,
-            isStreaming = false
-        )
-        db.insertMessage(assistantMessage, currentConvId)
-
-        val prunedNotice = if (ContextBudgetManager.lastPrunedMessageCount > 0) {
-            "Context limit reached: ${ContextBudgetManager.lastPrunedMessageCount} earlier messages were pruned to fit memory."
-        } else null
-
-        withContext(Dispatchers.Main) {
-            _uiState.value = _uiState.value.copy(
-                messages = currentHistory + assistantMessage,
-                isStreaming = false,
-                statusBanner = prunedNotice ?: _uiState.value.statusBanner
-            )
-            speakReply(finalSummary)
-        }
+        handleWorkflowCompletion(updated, currentHistory)
     }
 
     fun confirmPendingAction(confirmed: Boolean) {
@@ -746,7 +718,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                 }
 
                 // User confirmed: execute tool with userConfirmed = true
-                val toolCall = ToolCall(toolName = req.toolName, arguments = req.arguments)
+                val toolCall = ToolCall(id = req.id, toolName = req.toolName, arguments = req.arguments)
                 val result = toolRegistry.executeToolCall(toolCall, userConfirmed = true)
 
                 val finalSummary = if (result.isSuccess) {
@@ -781,8 +753,15 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun handleSpokenInput(spokenText: String, onFinalText: ((String) -> Unit)? = null) {
+        val workflow = _uiState.value.activeWorkflow
         val pending = _uiState.value.pendingConfirmation
-        if (pending != null) {
+        if (workflow?.state == WorkflowState.AWAITING_CONFIRMATION) {
+            when (com.example.tavi.voice.VoiceConfirmationParser.parse(spokenText)) {
+                com.example.tavi.voice.VoiceConfirmationDecision.AFFIRMATIVE -> workflow.pendingConfirmationStepId?.let { confirmWorkflowStep(it, true) }
+                com.example.tavi.voice.VoiceConfirmationDecision.NEGATIVE -> workflow.pendingConfirmationStepId?.let { confirmWorkflowStep(it, false) }
+                else -> voiceManager.speak("Please say yes to proceed, or no to cancel.")
+            }
+        } else if (pending != null) {
             when (com.example.tavi.voice.VoiceConfirmationParser.parse(spokenText)) {
                 com.example.tavi.voice.VoiceConfirmationDecision.AFFIRMATIVE -> {
                     confirmPendingAction(true)
@@ -932,11 +911,20 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
     fun startNewChat() {
         val newId = UUID.randomUUID().toString()
         val newSession = ConversationSession(id = newId, title = "New Chat")
+        voiceManager.dismissFollowup()
+        voiceManager.stopSpeaking()
+        val running = taskJob
+        running?.cancel()
+        _uiState.value = _uiState.value.copy(isStreaming = true, pendingConfirmation = null)
         viewModelScope.launch(Dispatchers.IO + coroutineExceptionHandler) {
+            running?.join()
             db.insertOrUpdateConversation(newSession)
             val allConvs = db.getConversations()
             withContext(Dispatchers.Main) {
                 _uiState.value = _uiState.value.copy(
+                    isStreaming = false,
+                    pendingConfirmation = null,
+                    activeWorkflow = null,
                     conversations = allConvs,
                     currentConversationId = newId,
                     currentConversationTitle = "New Chat",
@@ -949,12 +937,22 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
 
     fun selectConversation(convId: String) {
         if (convId == _uiState.value.currentConversationId) return
+        voiceManager.dismissFollowup()
+        voiceManager.stopSpeaking()
+        val running = taskJob
+        running?.cancel()
+        _uiState.value = _uiState.value.copy(isStreaming = true, pendingConfirmation = null)
         viewModelScope.launch(Dispatchers.IO + coroutineExceptionHandler) {
+            running?.join()
             val convs = db.getConversations()
             val target = convs.find { it.id == convId } ?: return@launch
             val messages = db.getMessagesForConversation(convId)
+            val restoredWorkflow = restoreWorkflow(convId)
             withContext(Dispatchers.Main) {
                 _uiState.value = _uiState.value.copy(
+                    isStreaming = false,
+                    pendingConfirmation = null,
+                    activeWorkflow = restoredWorkflow,
                     conversations = convs,
                     currentConversationId = target.id,
                     currentConversationTitle = target.title,
@@ -968,7 +966,13 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
     private var lastDeletedConversation: Pair<ConversationSession, List<Message>>? = null
 
     fun deleteConversation(convId: String) {
+        voiceManager.dismissFollowup()
+        voiceManager.stopSpeaking()
+        val running = taskJob
+        running?.cancel()
+        _uiState.value = _uiState.value.copy(isStreaming = true, pendingConfirmation = null)
         viewModelScope.launch(Dispatchers.IO + coroutineExceptionHandler) {
+            running?.join()
             val session = db.getConversations().find { it.id == convId }
             val msgs = db.getMessagesForConversation(convId)
             if (session != null) {
@@ -984,6 +988,9 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
             val messages = db.getMessagesForConversation(next.id)
             withContext(Dispatchers.Main) {
                 _uiState.value = _uiState.value.copy(
+                    isStreaming = false,
+                    pendingConfirmation = null,
+                    activeWorkflow = null,
                     conversations = db.getConversations(),
                     currentConversationId = next.id,
                     currentConversationTitle = next.title,
@@ -996,7 +1003,13 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
 
     fun undoDeleteConversation() {
         val backup = lastDeletedConversation ?: return
+        voiceManager.dismissFollowup()
+        voiceManager.stopSpeaking()
+        val running = taskJob
+        running?.cancel()
+        _uiState.value = _uiState.value.copy(isStreaming = true, pendingConfirmation = null)
         viewModelScope.launch(Dispatchers.IO + coroutineExceptionHandler) {
+            running?.join()
             db.insertOrUpdateConversation(backup.first)
             for (m in backup.second) {
                 db.insertMessage(m, backup.first.id)
@@ -1005,6 +1018,9 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
             val messages = db.getMessagesForConversation(backup.first.id)
             withContext(Dispatchers.Main) {
                 _uiState.value = _uiState.value.copy(
+                    isStreaming = false,
+                    pendingConfirmation = null,
+                    activeWorkflow = null,
                     conversations = remaining,
                     currentConversationId = backup.first.id,
                     currentConversationTitle = backup.first.title,
@@ -1018,10 +1034,17 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
 
     fun clearCurrentConversation() {
         val currentId = _uiState.value.currentConversationId
+        voiceManager.dismissFollowup()
+        voiceManager.stopSpeaking()
+        val running = taskJob
+        running?.cancel()
+        _uiState.value = _uiState.value.copy(isStreaming = true, pendingConfirmation = null)
         viewModelScope.launch(Dispatchers.IO + coroutineExceptionHandler) {
+            running?.join()
             db.clearMessagesForConversation(currentId)
             withContext(Dispatchers.Main) {
                 _uiState.value = _uiState.value.copy(
+                    isStreaming = false, activeWorkflow = null, pendingConfirmation = null,
                     messages = emptyList(),
                     statusBanner = "Conversation cleared."
                 )

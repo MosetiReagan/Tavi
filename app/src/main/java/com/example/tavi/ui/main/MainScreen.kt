@@ -700,6 +700,10 @@ fun MainScreen(
                 SnackbarHost(hostState = snackbarHostState)
             },
             bottomBar = {
+            Column {
+            if (uiState.isStreaming) {
+                TextButton(onClick = { viewModel.cancelTask() }) { Text("Stop task") }
+            }
             ModernInputDock(
                 inputText = inputText,
                 isStreaming = uiState.isStreaming,
@@ -738,6 +742,7 @@ fun MainScreen(
                 followupRemainingSeconds = uiState.followupRemainingSeconds,
                 onDismissFollowup = { viewModel.dismissFollowup() }
             )
+            }
         }
     ) { innerPadding ->
         Box(

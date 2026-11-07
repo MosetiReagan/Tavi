@@ -111,7 +111,8 @@ data class WorkflowPlan(
     val missingInputParam: String? = null,
     val pendingConfirmationStepId: String? = null,
     val error: String? = null,
-    val executionSummary: WorkflowExecutionSummary? = null
+    val executionSummary: WorkflowExecutionSummary? = null,
+    val conversationId: String = "default"
 )
 
 /**

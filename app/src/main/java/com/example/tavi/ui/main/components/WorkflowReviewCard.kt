@@ -67,7 +67,7 @@ fun WorkflowReviewCard(
     }
 
     val stateText = when (workflow.state) {
-        WorkflowState.COMPLETED -> "Completed & Verified"
+        WorkflowState.COMPLETED -> "Completed"
         WorkflowState.EXECUTING -> "Executing Step ${workflow.currentStepIndex + 1}/${workflow.steps.size}"
         WorkflowState.VERIFYING -> "Verifying Result"
         WorkflowState.AWAITING_CONFIRMATION -> "Requires Confirmation"
@@ -356,7 +356,7 @@ fun WorkflowReviewCard(
                     TextButton(onClick = onDismiss) {
                         Text("Dismiss", fontSize = 12.sp)
                     }
-                } else if (workflow.state == WorkflowState.EXECUTING || workflow.state == WorkflowState.VERIFYING) {
+                } else {
                     TextButton(onClick = onCancelWorkflow) {
                         Text("Cancel Workflow", fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
                     }
