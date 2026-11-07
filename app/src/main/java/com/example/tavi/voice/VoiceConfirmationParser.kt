@@ -27,21 +27,13 @@ object VoiceConfirmationParser {
         if (input.isNullOrBlank()) return VoiceConfirmationDecision.AMBIGUOUS
 
         val normalized = input.trim().lowercase()
+            .replace('’', '\'')
             .replace(Regex("""[^\w\s']"""), " ")
             .replace(Regex("""\s+"""), " ")
             .trim()
 
-        // 1. Direct or substring checks
-        for (term in AFFIRMATIVE_TERMS) {
-            if (normalized == term ||
-                normalized.startsWith("$term ") ||
-                normalized.endsWith(" $term") ||
-                normalized.contains(" $term ")
-            ) {
-                return VoiceConfirmationDecision.AFFIRMATIVE
-            }
-        }
-
+        // A negation always cancels, including "don't send it" and "yes, actually no".
+        // Never authorize an action merely because approval words occur in a sentence.
         for (term in NEGATIVE_TERMS) {
             if (normalized == term ||
                 normalized.startsWith("$term ") ||
@@ -50,6 +42,11 @@ object VoiceConfirmationParser {
             ) {
                 return VoiceConfirmationDecision.NEGATIVE
             }
+        }
+
+        if (normalized in AFFIRMATIVE_TERMS ||
+            normalized.removeSuffix(" please") in AFFIRMATIVE_TERMS) {
+            return VoiceConfirmationDecision.AFFIRMATIVE
         }
 
         return VoiceConfirmationDecision.AMBIGUOUS
