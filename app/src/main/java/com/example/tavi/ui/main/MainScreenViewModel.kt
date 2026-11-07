@@ -11,6 +11,7 @@ import com.example.tavi.memory.MemoryProvenance
 import com.example.tavi.engine.DeterministicAssistantEngine
 import com.example.tavi.engine.InferenceEngine
 import com.example.tavi.engine.LiteRtLlmEngine
+import com.example.tavi.engine.LocalRequestEngine
 import com.example.tavi.engine.ModelManager
 import com.example.tavi.model.ConfirmationRequest
 import com.example.tavi.model.Message
@@ -74,7 +75,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
     val workflowEngine = WorkflowEngine(application, toolRegistry, db)
 
     private var taskJob: Job? = null
-    private var preloadJob: Job? = null
+    private val localRequestEngine = LocalRequestEngine()
 
     private var activeEngine: InferenceEngine = LiteRtLlmEngine(
         application,
@@ -102,7 +103,6 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         observeNetworkAndModel()
         observeVoiceState()
         observeDownloadProgress()
-        preloadModel()
     }
 
     fun checkModelInstallation() {
@@ -130,38 +130,6 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                         isModelInstalled = installed,
                         downloadProgress = 0f,
                         downloadStatusText = null
-                    )
-                }
-            }
-        }
-    }
-
-    private fun preloadModel() {
-        preloadJob = viewModelScope.launch(Dispatchers.IO + coroutineExceptionHandler) {
-            try {
-                val engine = resolveActiveEngine()
-                if (engine !is LiteRtLlmEngine || !engine.hasModelWeights || engine.isGenuineInferenceActive) {
-                    return@launch
-                }
-
-                withContext(Dispatchers.Main) {
-                    _uiState.value = _uiState.value.copy(statusBanner = "Loading Gemma 3 1B on device...")
-                }
-
-                val result = engine.loadModel()
-                withContext(Dispatchers.Main) {
-                    _uiState.value = _uiState.value.copy(
-                        activeModelName = if (engine.isGenuineInferenceActive) engine.name else "Basic commands • AI unavailable",
-                        statusBanner = result.exceptionOrNull()?.let {
-                            "Gemma 3 1B failed to load: ${it.message}"
-                        }
-                    )
-                }
-            } catch (e: Exception) {
-                Log.e("MainScreenViewModel", "Model preload failed", e)
-                withContext(Dispatchers.Main) {
-                    _uiState.value = _uiState.value.copy(
-                        statusBanner = "Gemma 3 1B failed to load: ${e.message ?: "unknown error"}"
                     )
                 }
             }
@@ -245,7 +213,6 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                 val currentEngine = activeEngine
                 if (currentEngine is LiteRtLlmEngine && currentEngine.requestedRuntime != runtime) {
                     taskJob?.cancelAndJoin()
-                    preloadJob?.cancelAndJoin()
                     currentEngine.switchRuntime(runtime)
                     val modelOption = modelManager.getAvailableModels().find { it.id == modelManager.activeModelId.value }
                     val baseName = modelOption?.name ?: "Gemma 3 1B"
@@ -257,7 +224,6 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
             modelManager.memoryPressure.drop(1).collect {
                 cancelTask()
                 taskJob?.join()
-                preloadJob?.cancelAndJoin()
                 withContext(Dispatchers.IO) { (activeEngine as? LiteRtLlmEngine)?.unloadModel() }
                 _uiState.value = _uiState.value.copy(activeModelName = "Basic commands • model released",
                     statusBanner = "Android reported low memory. Model memory was released; basic commands remain available.")
@@ -358,6 +324,26 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                 if (memCommand != null) {
                     handleMemoryCommand(memCommand, userMessage, updatedMessages)
                     return@launch
+                }
+
+                when (val request = localRequestEngine.route(trimmed,
+                    com.example.tavi.language.AssistantLanguage.selected(getApplication()))) {
+                    is LocalRequestEngine.Decision.Tools -> {
+                        com.example.tavi.roles.assistant.AssistContextStore.consume()
+                        executeToolsAndSynthesize(request.calls, updatedMessages)
+                        return@launch
+                    }
+                    is LocalRequestEngine.Decision.Reply -> {
+                        com.example.tavi.roles.assistant.AssistContextStore.consume()
+                        val response = Message(conversationId = currentConvId, role = MessageRole.ASSISTANT, content = request.text)
+                        db.insertMessage(response, currentConvId)
+                        withContext(Dispatchers.Main) {
+                            _uiState.value = _uiState.value.copy(messages = updatedMessages + response, isStreaming = false)
+                            speakReply(request.text)
+                        }
+                        return@launch
+                    }
+                    LocalRequestEngine.Decision.Delegate -> Unit
                 }
 
                 // 2. Multi-Step Workflow Planning (Deterministic fast-path or Gemma 3 1B)
