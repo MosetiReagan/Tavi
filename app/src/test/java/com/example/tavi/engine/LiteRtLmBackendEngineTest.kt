@@ -70,7 +70,9 @@ class LiteRtLmBackendEngineTest {
         )
 
         assertFalse(formatted.contains("<start_of_turn>system"))
-        assertTrue(formatted.startsWith("<start_of_turn>user\nYou are Tavi, a helpful on-device assistant.\n\nHi, my name is Alex.<end_of_turn>\n"))
+        assertTrue(formatted.startsWith("<start_of_turn>user\nYou are Tavi, a helpful on-device assistant.\n"))
+        assertTrue(formatted.contains("Reply in the user's language; preserve names, numbers, and quoted message text."))
+        assertTrue(formatted.contains("\n\nHi, my name is Alex.<end_of_turn>\n"))
         assertTrue(formatted.contains("<start_of_turn>model\nHello Alex! How can I help you today?<end_of_turn>\n"))
         assertTrue(formatted.endsWith("<start_of_turn>user\nWhat is my name?<end_of_turn>\n<start_of_turn>model\n"))
     }

@@ -6,7 +6,7 @@ import java.util.Locale
 object AssistantLanguage {
     const val PREFS = "tavi_voice_prefs"
     const val KEY = "assistant_language"
-    fun selected(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, "auto") ?: "auto"
+    fun selected(context: Context) = runCatching { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, "auto") ?: "auto" }.getOrDefault("auto")
     fun locale(context: Context): Locale = when (selected(context)) { "sw" -> Locale.forLanguageTag("sw-KE"); "en" -> Locale.forLanguageTag("en-US"); else -> Locale.getDefault() }
     fun set(context: Context, code: String) {
         require(code in setOf("auto", "en", "sw"))
