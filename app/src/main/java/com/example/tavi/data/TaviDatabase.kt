@@ -35,7 +35,7 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     companion object {
         const val DATABASE_NAME = "tavi_local.db"
-        const val DATABASE_VERSION = 6
+        const val DATABASE_VERSION = 7
 
         @Volatile
         private var INSTANCE: TaviDatabase? = null
@@ -133,6 +133,12 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
                     is_completed INTEGER NOT NULL DEFAULT 0
                 )
             """.trimIndent())
+
+            db.rawQuery("PRAGMA table_info(reminders)", null).use { columns ->
+                var recurrence = false
+                while (columns.moveToNext()) if (columns.getString(columns.getColumnIndexOrThrow("name")) == "recurrence") recurrence = true
+                if (!recurrence) db.execSQL("ALTER TABLE reminders ADD COLUMN recurrence TEXT NOT NULL DEFAULT 'none'")
+            }
 
             db.execSQL("""
                 CREATE TABLE IF NOT EXISTS audit_logs (
@@ -858,12 +864,13 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     // --- REMINDERS ---
 
-    fun insertReminder(id: String, title: String, triggerTime: Long): Boolean {
+    fun insertReminder(id: String, title: String, triggerTime: Long, recurrence: String = "none"): Boolean {
         return try {
             val values = ContentValues().apply {
                 put("id", id)
                 put("title", title)
                 put("trigger_time", triggerTime)
+                put("recurrence", recurrence)
                 put("is_completed", 0)
             }
             val rowId = writableDatabase.insertWithOnConflict("reminders", null, values, SQLiteDatabase.CONFLICT_REPLACE)
@@ -894,7 +901,8 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
                         mapOf(
                             "id" to c.getString(idIdx),
                             "title" to c.getString(titleIdx),
-                            "triggerTime" to c.getLong(timeIdx)
+                            "triggerTime" to c.getLong(timeIdx),
+                            "recurrence" to c.getString(c.getColumnIndexOrThrow("recurrence"))
                         )
                     )
                 }
@@ -903,6 +911,16 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
             android.util.Log.e("TaviDatabase", "Error querying reminders", e)
         }
         return list
+    }
+
+    fun getReminder(id: String): Map<String, Any>? = readableDatabase.query("reminders", null, "id = ?", arrayOf(id), null, null, null).use { c ->
+        if (!c.moveToFirst()) null else mapOf("id" to id, "title" to c.getString(c.getColumnIndexOrThrow("title")),
+            "triggerTime" to c.getLong(c.getColumnIndexOrThrow("trigger_time")),
+            "recurrence" to c.getString(c.getColumnIndexOrThrow("recurrence")),
+            "completed" to c.getInt(c.getColumnIndexOrThrow("is_completed")))
+    }
+    fun completeReminder(id: String) {
+        writableDatabase.execSQL("UPDATE reminders SET is_completed = 1 WHERE id = ?", arrayOf(id))
     }
 
     fun deleteReminder(id: String): Boolean {

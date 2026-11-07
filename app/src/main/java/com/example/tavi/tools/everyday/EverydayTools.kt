@@ -21,6 +21,7 @@ import com.example.tavi.model.ToolRiskLevel
 import com.example.tavi.security.SecurityGuard
 import com.example.tavi.tools.AssistantTool
 import com.example.tavi.tools.calendar.CalendarNaturalDateResolver
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Calendar
@@ -289,35 +290,12 @@ class DateCalculationTool : AssistantTool {
 
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        val title = intent.getStringExtra("title") ?: "Reminder"
-        val channelId = "tavi_reminders"
-
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "Tavi Reminders", NotificationManager.IMPORTANCE_HIGH)
-            notificationManager.createNotificationChannel(channel)
+        val pending = goAsync()
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            try { com.example.tavi.reminders.ReminderDelivery.deliver(context, intent) }
+            catch (e: Exception) { android.util.Log.e("ReminderReceiver", "Reminder delivery failed", e) }
+            finally { pending.finish() }
         }
-
-        val launchIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            0,
-            launchIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val notification = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(android.R.drawable.ic_popup_reminder)
-            .setContentTitle("Tavi Reminder")
-            .setContentText(title)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
-            .build()
-
-        notificationManager.notify((System.currentTimeMillis() % 10000).toInt(), notification)
     }
 }
 
@@ -332,7 +310,8 @@ class ReminderCreateTool : AssistantTool {
           "type": "object",
           "properties": {
             "title": {"type": "string", "description": "Reminder text"},
-            "time": {"type": "string", "description": "Natural date/time string (e.g., 'in 30 minutes', 'tomorrow at 8am')"}
+            "time": {"type": "string", "description": "Natural date/time string (e.g., 'in 30 minutes', 'tomorrow at 8am')"},
+            "recurrence": {"type": "string", "enum": ["none", "daily", "weekly"]}
           },
           "required": ["title", "time"]
         }
@@ -380,37 +359,24 @@ class ReminderCreateTool : AssistantTool {
             )
         }
 
-        val reminderId = java.util.UUID.randomUUID().toString()
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(context, ReminderReceiver::class.java).apply {
-            putExtra("title", title)
-            putExtra("reminderId", reminderId)
+        if (!androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            return ToolResult(toolCallId, name, "{}", false, state = ToolExecutionState.PERMISSION_REQUIRED,
+                requiredPermission = if (Build.VERSION.SDK_INT >= 33) android.Manifest.permission.POST_NOTIFICATIONS else null,
+                settingsAction = android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS,
+                errorMessage = "Enable Tavi notifications before scheduling a reminder.")
         }
-        val reqCode = (reminderId.hashCode() and 0x7FFFFFFF) % 1000000
-        val pendingIntent = PendingIntent.getBroadcast(
-            context,
-            reqCode,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
+        val reminderId = toolCallId
+        val recurrence = arguments["recurrence"]?.toString() ?: "none"
         try {
-            val hasExactAlarm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                alarmManager.canScheduleExactAlarms()
-            } else true
-
-            if (hasExactAlarm) {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
-            } else {
-                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
-            }
-
-            // Persist reminder in local database so user can view/cancel it
-            TaviDatabase.getInstance(context).insertReminder(reminderId, title, triggerMillis)
+            val db = TaviDatabase.getInstance(context)
+            check(db.insertReminder(reminderId, title, triggerMillis, recurrence)) { "Reminder could not be saved." }
+            val hasExactAlarm = try { com.example.tavi.reminders.ReminderScheduler.schedule(context, reminderId, triggerMillis) }
+                catch (e: Exception) { db.deleteReminder(reminderId); throw e }
 
             val resultObj = JSONObject().apply {
                 put("verified", true)
                 put("reminderId", reminderId)
+                put("recurrence", recurrence)
                 put("title", title)
                 put("exactTiming", hasExactAlarm)
                 put("triggerTime", CalendarNaturalDateResolver.formatDateTime(triggerMillis))
@@ -555,22 +521,8 @@ class ReminderCancelTool : AssistantTool {
             val id = match["id"] as String
             val title = match["title"] as String
 
-            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-            val intent = Intent(context, ReminderReceiver::class.java).apply {
-                putExtra("title", title)
-                putExtra("reminderId", id)
-            }
-            val reqCode = (id.hashCode() and 0x7FFFFFFF) % 1000000
-            val pendingIntent = PendingIntent.getBroadcast(
-                context,
-                reqCode,
-                intent,
-                PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
-            )
-            if (pendingIntent != null) {
-                alarmManager.cancel(pendingIntent)
-                pendingIntent.cancel()
-            }
+            com.example.tavi.reminders.ReminderScheduler.cancel(context, id)
+            (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(id, 1)
 
             db.deleteReminder(id)
 
