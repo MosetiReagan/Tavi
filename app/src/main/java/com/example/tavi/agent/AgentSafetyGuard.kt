@@ -29,7 +29,7 @@ object AgentSafetyGuard {
     private val CONSEQUENTIAL_ACTION_KEYWORDS = setOf(
         "send", "buy", "purchase", "delete", "erase", "remove",
         "confirm", "pay", "payment", "transfer", "checkout",
-        "order", "uninstall", "factory reset", "format"
+        "order", "uninstall", "factory reset", "format", "tuma", "futa", "nunua", "lipa", "hamisha"
     )
 
     /**

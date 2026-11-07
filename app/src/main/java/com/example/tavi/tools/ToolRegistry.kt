@@ -73,6 +73,7 @@ import kotlinx.coroutines.ensureActive
 class ToolRegistry(private val context: Context) {
 
     private val tools = mutableMapOf<String, AssistantTool>()
+    var screenAgentEngineProvider: (() -> com.example.tavi.engine.InferenceEngine)? = null
 
     init {
         // Calendar
@@ -159,7 +160,8 @@ class ToolRegistry(private val context: Context) {
         register(UsageStatsTool())
         register(AccessibilityReadScreenTool())
         register(AccessibilityPerformActionTool())
-        register(com.example.tavi.tools.agent.ScreenAgentRunTool())
+        register(com.example.tavi.tools.agent.ScreenAgentRunTool { screenAgentEngineProvider?.invoke() })
+        register(com.example.tavi.tools.agent.ScreenAgentResumeTool { screenAgentEngineProvider?.invoke() })
 
         // Research
         register(BrowserResearchTool())

@@ -96,6 +96,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     init {
+        toolRegistry.screenAgentEngineProvider = { resolveActiveEngine() }
         checkModelInstallation()
         loadPersistedMessages()
         observeNetworkAndModel()
@@ -498,6 +499,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
     fun cancelWorkflow() = cancelTask()
 
     fun cancelTask() {
+        com.example.tavi.agent.AgentStopOverlay.hide()
         val running = taskJob
         running?.cancel()
         voiceManager.dismissFollowup()

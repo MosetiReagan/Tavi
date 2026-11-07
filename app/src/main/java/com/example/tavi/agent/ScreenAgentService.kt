@@ -81,31 +81,24 @@ object ScreenAgentService {
     /**
      * Finds and clicks a node by text, content description, or view ID.
      */
-    fun clickNode(selector: String): Boolean {
+    fun clickNode(selector: String, expected: CompactTreeNode? = null): Boolean {
         val root = activeService?.rootInActiveWindow ?: return false
         val node = findMatchingNode(root, selector) ?: return false
-        return if (node.isClickable) {
-            node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-        } else {
-            // Traverse up to find clickable parent
-            var parent = node.parent
-            var clicked = false
-            while (parent != null && !clicked) {
-                if (parent.isClickable) {
-                    clicked = parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                }
-                parent = parent.parent
-            }
-            clicked
-        }
+        if (!matchesExpected(node, expected) || !node.isClickable || !node.isEnabled || !node.isVisibleToUser) return false
+        return node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
     }
+
+    private fun matchesExpected(node: AccessibilityNodeInfo, expected: CompactTreeNode?): Boolean = expected == null ||
+        (AccessibilityTreeReader.sanitizeText(node.text?.toString(), node.isPassword) == expected.text &&
+         AccessibilityTreeReader.sanitizeText(node.contentDescription?.toString(), node.isPassword) == expected.contentDescription)
 
     /**
      * Types text into a targeted editable node.
      */
-    fun typeText(selector: String, text: String): Boolean {
+    fun typeText(selector: String, text: String, expected: CompactTreeNode? = null): Boolean {
         val root = activeService?.rootInActiveWindow ?: return false
         val node = findMatchingNode(root, selector) ?: return false
+        if (!matchesExpected(node, expected) || !node.isEditable || node.isPassword || !node.isEnabled || !node.isVisibleToUser) return false
         val arguments = Bundle().apply {
             putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
         }
@@ -135,36 +128,18 @@ object ScreenAgentService {
     }
 
     private fun findMatchingNode(root: AccessibilityNodeInfo, selector: String): AccessibilityNodeInfo? {
-        val target = selector.trim().lowercase()
-
-        // 1. By View ID
-        val byId = root.findAccessibilityNodeInfosByViewId(selector)
-        if (!byId.isNullOrEmpty()) return byId.first()
-
-        // 2. By Text
-        val byText = root.findAccessibilityNodeInfosByText(selector)
-        if (!byText.isNullOrEmpty()) return byText.first()
-
-        // 3. Fallback depth search
-        return searchNodeRecursive(root, target)
-    }
-
-    private fun searchNodeRecursive(node: AccessibilityNodeInfo?, target: String): AccessibilityNodeInfo? {
-        if (node == null) return null
-        val text = node.text?.toString()?.lowercase() ?: ""
-        val desc = node.contentDescription?.toString()?.lowercase() ?: ""
-        val id = node.viewIdResourceName?.lowercase() ?: ""
-
-        if (text.contains(target) || desc.contains(target) || id.contains(target)) {
-            return node
+        if (selector.isBlank()) return null
+        val matches = mutableListOf<AccessibilityNodeInfo>()
+        var count = 0
+        fun visit(node: AccessibilityNodeInfo?, depth: Int) {
+            if (node == null || depth > 12 || count++ > 300) return
+            val id = node.viewIdResourceName.orEmpty()
+            if (node.isVisibleToUser && (id == selector || id.substringAfterLast('/') == selector ||
+                node.text?.toString() == selector || node.contentDescription?.toString() == selector)) matches.add(node)
+            for (index in 0 until node.childCount) visit(node.getChild(index), depth + 1)
         }
-
-        for (i in 0 until node.childCount) {
-            val child = try { node.getChild(i) } catch (_: Exception) { null }
-            val found = searchNodeRecursive(child, target)
-            if (found != null) return found
-        }
-        return null
+        visit(root, 0)
+        return matches.singleOrNull()
     }
 
     private fun findScrollableNode(node: AccessibilityNodeInfo?): AccessibilityNodeInfo? {

@@ -11,7 +11,8 @@ data class CompactTreeNode(
     val isClickable: Boolean,
     val isEditable: Boolean,
     val bounds: String = "",
-    val children: List<CompactTreeNode> = emptyList()
+    val children: List<CompactTreeNode> = emptyList(),
+    val isSensitive: Boolean = false
 )
 
 data class CompactScreenTree(
@@ -116,7 +117,8 @@ object AccessibilityTreeReader {
             isClickable = isClickable,
             isEditable = isEditable,
             bounds = boundsStr,
-            children = children
+            children = children,
+            isSensitive = isPassword
         )
 
         if (isClickable || isEditable || text.isNotBlank() || desc.isNotBlank()) {

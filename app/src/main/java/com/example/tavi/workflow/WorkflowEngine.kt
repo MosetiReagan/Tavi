@@ -69,7 +69,8 @@ class WorkflowEngine(
             plan = plan.copy(steps = steps.toList(), updatedAt = System.currentTimeMillis())
             notifyUpdate(plan, onPlanUpdated)
         }
-        val outcome = withTimeoutOrNull(MAX_WORKFLOW_TIMEOUT_MS) {
+        val screenTask = plan.steps.any { it.toolName.startsWith("screen_agent_") }
+        val outcome = withTimeoutOrNull(if (screenTask) 150_000 else MAX_WORKFLOW_TIMEOUT_MS) {
             for (i in plan.currentStepIndex until steps.size) {
                 var step = steps[i]
                 if (step.status in setOf(StepExecutionStatus.VERIFIED, StepExecutionStatus.COMPLETED_UNVERIFIED, StepExecutionStatus.SKIPPED)) continue
@@ -101,10 +102,19 @@ class WorkflowEngine(
                 steps[i] = step.copy(status = StepExecutionStatus.EXECUTING)
                 update()
                 val call = ToolCall(id = step.idempotencyKey, toolName = step.toolName, arguments = args)
-                val result = withTimeoutOrNull(MAX_STEP_TIMEOUT_MS) {
+                val result = withTimeoutOrNull(if (call.toolName.startsWith("screen_agent_")) 120_000 else MAX_STEP_TIMEOUT_MS) {
                     executeToolWithRetry(call, step.maxRetries, consequential && authorizedStepId == step.id)
                 } ?: ToolResult(call.id, call.toolName, "{}", false,
                     errorMessage = "Step timed out. Inspect the destination before retrying a write.")
+                val nested = result.confirmationPayload
+                if (result.requiresUserConfirmation && nested != null) {
+                    steps[i] = step.copy(toolName = nested.toolName, arguments = nested.arguments, title = nested.title,
+                        idempotencyKey = java.util.UUID.randomUUID().toString(), status = StepExecutionStatus.AWAITING_CONFIRMATION,
+                        riskLevel = ToolRiskLevel.HIGH_CONSEQUENTIAL, result = result)
+                    plan = plan.copy(state = WorkflowState.AWAITING_CONFIRMATION, pendingConfirmationStepId = step.id)
+                    update()
+                    return@withTimeoutOrNull plan
+                }
                 val verification = verify?.invoke(step, result) ?: WorkflowStepVerifier.verifyStep(context, step, result)
                 val status = when {
                     !result.isSuccess || verification.status == StepVerificationStatus.FAILED -> StepExecutionStatus.FAILED
@@ -186,6 +196,10 @@ class WorkflowEngine(
         currentPlan: WorkflowPlan,
         onPlanUpdated: (suspend (WorkflowPlan) -> Unit)? = null
     ): WorkflowPlan = withContext(Dispatchers.IO) {
+        currentPlan.steps.filter { it.toolName == "screen_agent_resume" }.forEach { step ->
+            val token = step.arguments["token"] as? String
+            if (token != null) (db ?: TaviDatabase.getInstance(context)).writableDatabase.delete("agent_continuations", "id = ?", arrayOf(token))
+        }
         val steps = currentPlan.steps.map {
             if (it.status in setOf(StepExecutionStatus.PENDING, StepExecutionStatus.EXECUTING, StepExecutionStatus.VERIFYING, StepExecutionStatus.AWAITING_CONFIRMATION)) {
                 it.copy(status = StepExecutionStatus.CANCELLED)
