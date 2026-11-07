@@ -1,18 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
-    <!-- Include user preferences and application settings -->
+    <!-- An inclusion list omits every other domain, including databases and model/document files. -->
     <include domain="sharedpref" path="." />
-
-    <!-- Strictly exclude private on-device SQLite memory and conversation history from remote backups -->
-    <exclude domain="database" path="tavi.db" />
-    <exclude domain="database" path="tavi.db-wal" />
-    <exclude domain="database" path="tavi.db-shm" />
-    <exclude domain="database" path="tavi_local.db" />
-    <exclude domain="database" path="tavi_documents.db" />
-    <exclude domain="file" path="ocr/" />
-
-    <!-- Strictly exclude large multi-gigabyte re-downloadable neural model weights -->
-    <exclude domain="file" path="models/" />
-    <exclude domain="file" path="litertlm/" />
-    <exclude domain="root" path="files/models" />
 </full-backup-content>
