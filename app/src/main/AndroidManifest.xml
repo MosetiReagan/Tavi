@@ -235,6 +235,7 @@
         </service>
 
         <!-- Broadcast Receiver for Scheduled Reminders -->
+        <receiver android:name=".routines.RoutineReceiver" android:exported="false" />
         <receiver android:name=".reminders.ScheduleRestoreReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

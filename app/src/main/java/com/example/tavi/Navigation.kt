@@ -29,6 +29,7 @@ fun MainNavigation() {
                     onBack = { backStack.removeLastOrNull() },
                     onNavigateToCapabilities = { backStack.add(Capabilities) },
                     onNavigateToDocuments = { backStack.add(Documents) },
+                    onNavigateToRoutines = { backStack.add(Routines) },
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -39,6 +40,10 @@ fun MainNavigation() {
                 )
             }
             entry<Documents> { com.example.tavi.ui.documents.DocumentLibraryScreen(onBack = { backStack.removeLastOrNull() }) }
+            entry<Routines> { com.example.tavi.ui.routines.RoutinesScreen(onBack = { backStack.removeLastOrNull() }, onUse = { prompt ->
+                MainActivity.sharedIncomingText.value = prompt
+                while (backStack.size > 1) backStack.removeLastOrNull()
+            }) }
         }
     )
 }

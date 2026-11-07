@@ -37,6 +37,9 @@ class MainActivity : ComponentActivity() {
 
   private fun handleIncomingIntent(intent: Intent?) {
     if (intent == null) return
+    intent.getStringExtra("EXTRA_ROUTINE_ID")?.let { id ->
+      com.example.tavi.routines.RoutineStore(this).get(id)?.let { sharedIncomingText.value = it.prompt }
+    }
 
     // 1. Assistant invocation (Long-press power / Corner swipe / Voice interaction)
     if (intent.getBooleanExtra("EXTRA_FROM_ASSISTANT_INVOCATION", false) ||

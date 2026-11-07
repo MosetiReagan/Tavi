@@ -8,3 +8,4 @@ import kotlinx.serialization.Serializable
 @Serializable data object Capabilities : NavKey
 @Serializable data object AuditLog : NavKey
 @Serializable data object Documents : NavKey
+@Serializable data object Routines : NavKey

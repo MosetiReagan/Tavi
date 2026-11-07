@@ -35,7 +35,7 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     companion object {
         const val DATABASE_NAME = "tavi_local.db"
-        const val DATABASE_VERSION = 7
+        const val DATABASE_VERSION = 8
 
         @Volatile
         private var INSTANCE: TaviDatabase? = null
@@ -61,6 +61,7 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
     }
 
     private fun ensureAllTables(db: SQLiteDatabase) {
+        com.example.tavi.routines.RoutineStore.createSchema(db)
         db.execSQL("""CREATE TABLE IF NOT EXISTS execution_receipts (
             id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, result_json TEXT,
             started_at INTEGER NOT NULL, completed_at INTEGER)""")

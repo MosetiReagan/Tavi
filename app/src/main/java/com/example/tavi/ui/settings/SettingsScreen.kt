@@ -92,6 +92,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onNavigateToCapabilities: () -> Unit = {},
     onNavigateToDocuments: () -> Unit = {},
+    onNavigateToRoutines: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -272,6 +273,7 @@ fun SettingsScreen(
             // --- SECTION 1: MODEL SELECTION ---
             item {
                 OutlinedButton(onClick = onNavigateToDocuments, modifier = Modifier.fillMaxWidth()) { Text("Local document library") }
+                OutlinedButton(onClick = onNavigateToRoutines, modifier = Modifier.fillMaxWidth()) { Text("Personal routines") }
             }
             item {
                 Text(

@@ -13,7 +13,7 @@ class ScheduleRestoreReceiver : BroadcastReceiver() {
                 Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED, "android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED")) return
         val pending = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
-            try { ReminderScheduler.rescheduleAll(context) }
+            try { ReminderScheduler.rescheduleAll(context); com.example.tavi.routines.RoutineScheduler.restore(context) }
             catch (e: Exception) { android.util.Log.e("ScheduleRestore", "Could not restore reminders", e) }
             finally { pending.finish() }
         }
