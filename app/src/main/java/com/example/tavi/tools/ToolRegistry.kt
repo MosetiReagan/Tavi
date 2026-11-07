@@ -290,9 +290,40 @@ class ToolRegistry(private val context: Context) {
      * Generates a concise, token-efficient system prompt describing registered tools.
      * Keeps token size compact to avoid native context-window overflow.
      */
-    fun generateToolsSystemPrompt(): String {
+    fun selectRelevantTools(query: String, history: List<com.example.tavi.model.Message> = emptyList()): List<AssistantTool> {
+        val words = query.lowercase().split(Regex("[^\\p{L}\\p{N}]+" )).filter { it.length > 2 }.toSet()
+        val recent = history.takeLast(4).flatMap { it.toolCalls }.map { it.toolName }.toSet()
+        val synonyms = mapOf(
+            ToolCategory.CALENDAR to "calendar meeting appointment schedule agenda event",
+            ToolCategory.TELEPHONY to "sms text message call dial phone recipient",
+            ToolCategory.CONTACTS to "contact contacts person number recipient",
+            ToolCategory.CLOCK to "alarm timer time reminder remind countdown",
+            ToolCategory.NOTES to "note notes memory remember forget calculate calculation",
+            ToolCategory.APPLICATIONS to "app apps open launch settings browser url share",
+            ToolCategory.ACCESSIBILITY to "screen tap click scroll agent",
+            ToolCategory.NOTIFICATIONS to "notification notifications unread",
+            ToolCategory.LOCATION to "map maps navigate navigation location directions",
+            ToolCategory.DEVICE to "battery device flashlight torch brightness",
+            ToolCategory.FILES to "file files document documents pdf export import",
+            ToolCategory.MEDIA to "music play pause camera photo voice speak",
+            ToolCategory.RESEARCH to "research web website browse",
+            ToolCategory.USAGE to "usage screentime",
+            ToolCategory.CONNECTIVITY to "wifi network bluetooth internet")
+        val ranked = tools.values.sortedByDescending { tool ->
+            val text = (tool.name.replace('_', ' ') + " " + tool.description).lowercase()
+            words.count { text.contains(it) } + words.count { synonyms[tool.category].orEmpty().split(' ').contains(it) } * 3 +
+                if (tool.name in recent) 2 else 0
+        }
+        var tokens = 0
+        return ranked.filter { tool ->
+            val cost = com.example.tavi.context.ContextBudgetManager.estimateTokens(tool.parametersSchema + tool.description)
+            if (tokens + cost <= 800) { tokens += cost; true } else false
+        }.take(6)
+    }
+
+    fun generateToolsSystemPrompt(selectedTools: List<AssistantTool> = tools.values.toList()): String {
         val toolList = StringBuilder()
-        for (t in tools.values) {
+        for (t in selectedTools) {
             val paramsList = try {
                 val schema = JSONObject(t.parametersSchema)
                 val props = schema.optJSONObject("properties")

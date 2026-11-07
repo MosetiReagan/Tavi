@@ -390,7 +390,7 @@ class LiteRtLmBackendEngine(
         conversationHistory: List<Message>
     ): List<ToolCall> = inferenceMutex.withLock {
         withContext(Dispatchers.IO) {
-            val systemPrompt = toolRegistry.generateToolsSystemPrompt()
+            val systemPrompt = toolRegistry.generateToolsSystemPrompt(toolRegistry.selectRelevantTools(userQuery, conversationHistory))
             val formattedPrompt = formatGemmaToolPrompt(userQuery, conversationHistory, systemPrompt)
 
             try {

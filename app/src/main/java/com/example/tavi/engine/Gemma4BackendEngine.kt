@@ -447,7 +447,8 @@ class Gemma4BackendEngine(
         conversationHistory: List<Message>
     ): List<ToolCall> = withContext(Dispatchers.IO) {
         val targetEngine = engine ?: return@withContext fallbackEngine.proposeToolCalls(userQuery, conversationHistory)
-        val toolProviders = toolSetBridge.buildToolProviders()
+        val selectedTools = toolRegistry.selectRelevantTools(userQuery, conversationHistory)
+        val toolProviders = toolSetBridge.buildToolProvidersFor(selectedTools)
 
         var conv: Conversation? = null
         try {
@@ -458,7 +459,7 @@ class Gemma4BackendEngine(
                 samplerConfig = SamplerConfig(topK = 20, topP = 0.9, temperature = 0.1, seed = 0)
             )
             conv = targetEngine.createConversation(config)
-            val responseMsg = conv.sendMessage(formatGemma4Prompt(userQuery, conversationHistory))
+            val responseMsg = conv.sendMessage(formatGemma4Prompt(userQuery, conversationHistory, selectedTools.sumOf { ContextBudgetManager.estimateTokens(it.parametersSchema + it.description) }))
 
             val sdkCalls = responseMsg.toolCalls
             if (sdkCalls != null && sdkCalls.isNotEmpty()) {
@@ -478,7 +479,8 @@ class Gemma4BackendEngine(
 
     private fun formatGemma4Prompt(
         currentPrompt: String,
-        conversationHistory: List<Message>
+        conversationHistory: List<Message>,
+        toolTokens: Int = 0
     ): String {
         val cleanHistory = LiteRtLlmEngine.historyWithoutCurrentPrompt(conversationHistory, currentPrompt)
         return ContextBudgetManager.buildGemma3Prompt(
@@ -486,7 +488,8 @@ class Gemma4BackendEngine(
             currentPrompt,
             "You are Tavi, an honest and capable on-device AI assistant running locally on Android. Answer concisely, helpfully, and truthfully.",
             persistentMemories = com.example.tavi.memory.PersistentMemoryManager.retrieveRelevantMemories(context, currentPrompt),
-            episodicMemories = com.example.tavi.memory.PersistentMemoryManager.retrieveRelevantEpisodes(context, currentPrompt)
+            episodicMemories = com.example.tavi.memory.PersistentMemoryManager.retrieveRelevantEpisodes(context, currentPrompt),
+            reservedToolTokens = toolTokens
         )
     }
 

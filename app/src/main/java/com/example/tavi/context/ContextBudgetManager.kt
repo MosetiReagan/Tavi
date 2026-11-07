@@ -31,7 +31,9 @@ object ContextBudgetManager {
      */
     fun estimateTokens(text: String): Int {
         if (text.isEmpty()) return 0
-        return (text.length / 3.8).toInt().coerceAtLeast(1)
+        val ascii = text.count { it.code < 128 }
+        val nonAsciiBytes = text.filter { it.code >= 128 }.toByteArray(Charsets.UTF_8).size
+        return kotlin.math.ceil(ascii / 3.0).toInt() + nonAsciiBytes
     }
 
     /**
@@ -43,7 +45,8 @@ object ContextBudgetManager {
         baseSystemInstruction: String,
         ledger: ConversationLedger? = null,
         persistentMemories: List<PersistentMemoryRecord>? = null,
-        episodicMemories: List<EpisodicMemoryRecord>? = null
+        episodicMemories: List<EpisodicMemoryRecord>? = null,
+        reservedToolTokens: Int = 0
     ): String {
         // 1. Build authoritative ledger from full history
         val activeLedger = ledger ?: ConversationLedger().apply { buildFromHistory(history) }
@@ -59,15 +62,12 @@ object ContextBudgetManager {
         } else {
             ""
         }
-        val effectiveSystem = buildString {
-            append(baseSystemInstruction.trim())
-            if (memoryHeader.isNotBlank()) {
-                append("\n").append(memoryHeader)
-            }
-            if (ledgerHeader.isNotBlank()) {
-                append("\n").append(ledgerHeader)
-            }
-        }
+        val inputLimit = MAX_CONTEXT_TOKENS - RESERVED_GENERATION_TOKENS - reservedToolTokens.coerceAtLeast(0)
+        val mandatory = estimateTokens(baseSystemInstruction) + estimateTokens(currentPrompt) + 40
+        require(mandatory <= inputLimit) { "This request exceeds the local model's context limit. Shorten it or search your document library." }
+        val optionalBudget = (inputLimit - mandatory).coerceAtMost(300)
+        val optionalContext = truncateToTokens(listOf(memoryHeader, ledgerHeader).filter { it.isNotBlank() }.joinToString("\n"), optionalBudget)
+        val effectiveSystem = baseSystemInstruction.trim() + if (optionalContext.isBlank()) "" else "\n$optionalContext"
 
         // 3. Filter history to remove any duplicate of current prompt at the tail
         val cleanedHistory = if (history.isNotEmpty() &&
@@ -80,7 +80,7 @@ object ContextBudgetManager {
         }
 
         // 4. Token-budgeted history selection (Complete Turn Pairs)
-        val budgetedHistory = selectBudgetedTurns(cleanedHistory, currentPrompt, AVAILABLE_HISTORY_TOKENS)
+        val budgetedHistory = selectBudgetedTurns(cleanedHistory, currentPrompt, inputLimit - estimateTokens(effectiveSystem) - 40)
 
         // 5. Serialize into strictly alternating Gemma 3 chat template
         val sb = StringBuilder()
@@ -98,7 +98,7 @@ object ContextBudgetManager {
             val partBuilder = StringBuilder()
             for (i in toolCalls.indices) {
                 val call = toolCalls[i]
-                val res = toolResults.getOrNull(i)
+                val res = toolResults.firstOrNull { it.toolCallId == call.id } ?: toolResults.getOrNull(i)
                 partBuilder.append("[Tool Call: ").append(call.toolName).append("(")
                 partBuilder.append(call.arguments.entries.joinToString(", ") { "${it.key}=${it.value}" })
                 partBuilder.append(")]\n")
@@ -171,7 +171,21 @@ object ContextBudgetManager {
         sb.append(currentPrompt.trim()).append("<end_of_turn>\n")
         sb.append("<start_of_turn>model\n")
 
-        return sb.toString()
+        val result = sb.toString()
+        require(estimateTokens(result) <= inputLimit) { "The assembled prompt exceeds the local context limit. Shorten this request." }
+        return result
+    }
+
+    fun truncateToTokens(text: String, budget: Int): String {
+        if (budget <= 0) return ""
+        if (estimateTokens(text) <= budget) return text
+        var lo = 0
+        var hi = text.length
+        while (lo < hi) {
+            val mid = (lo + hi + 1) / 2
+            if (estimateTokens(text.take(mid) + "…") <= budget) lo = mid else hi = mid - 1
+        }
+        return text.take(lo) + "…"
     }
 
     var lastPrunedMessageCount: Int = 0
@@ -195,8 +209,9 @@ object ContextBudgetManager {
         // Scan backwards from newest to oldest
         for (i in history.indices.reversed()) {
             val msg = history[i]
-            val msgTokens = estimateTokens(msg.content) + (msg.toolResults?.sumOf { estimateTokens(it.resultJson) } ?: 0)
-            if (currentTokens + msgTokens > maxTokens && selected.isNotEmpty()) {
+            val msgTokens = estimateTokens(msg.content) + msg.toolResults.sumOf { estimateTokens(it.resultJson) } +
+                msg.toolCalls.sumOf { estimateTokens(it.toolName + it.arguments.toString()) } + 30
+            if (currentTokens + msgTokens > maxTokens) {
                 lastPrunedMessageCount = i + 1
                 Log.d(TAG, "Context budget reached ($currentTokens tokens). Pruned $lastPrunedMessageCount older messages.")
                 break
