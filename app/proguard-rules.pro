@@ -2,6 +2,7 @@
 # Preserves JNI boundaries, on-device AI runtime bindings, and serialized schemas.
 
 # 1. Native JNI Bindings
+-keep class com.k2fsa.sherpa.onnx.** { *; }
 -keepclasseswithmembernames class * {
     native <methods>;
 }
@@ -47,3 +48,6 @@
 -dontwarn java.lang.invoke.MethodType
 -dontwarn javax.annotation.**
 -keepattributes EnclosingMethod, Signature
+
+# sherpa JNI resolves this typed callback method by its exact name and signature.
+-keep class com.example.tavi.voice.SpeechGenerationCallback { *; }

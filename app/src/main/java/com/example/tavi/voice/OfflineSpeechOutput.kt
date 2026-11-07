@@ -12,6 +12,20 @@ import java.util.Locale
 
 object OfflineSpeechOutput {
     suspend fun speak(context: Context, text: String): Boolean = withContext(Dispatchers.Main) {
+        val local = LocalSpeechRuntime.getInstance(context)
+        if (local.outputAvailable()) {
+            val manager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+            val job = kotlinx.coroutines.currentCoroutineContext()[kotlinx.coroutines.Job]
+            val focus = android.media.AudioManager.OnAudioFocusChangeListener { change ->
+                if (change == android.media.AudioManager.AUDIOFOCUS_LOSS || change == android.media.AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) job?.cancel()
+            }
+            if (manager.requestAudioFocus(focus, android.media.AudioManager.STREAM_MUSIC,
+                    android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK) != android.media.AudioManager.AUDIOFOCUS_REQUEST_GRANTED) return@withContext false
+            try {
+                for (chunk in LocalAudioPlayback.chunks(text)) LocalAudioPlayback.play(local.synthesize(chunk))
+                return@withContext true
+            } finally { manager.abandonAudioFocus(focus) }
+        }
         withTimeoutOrNull(30_000) {
             suspendCancellableCoroutine { continuation ->
                 var tts: TextToSpeech? = null

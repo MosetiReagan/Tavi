@@ -1,0 +1,25 @@
+LICENSE 581 a70a523bafbb595c2844104feb313d204904dac91c3d186c05f22a10a71c7a94
+tokens.txt 86423 a7a044c52cb29cbe8b0dc1953e92cefd4ca16b0ed968177b6beab21f9a7d0b31
+model.int8.onnx 365352120 e7c4e54ee4c4c47829cc6667d5d00ed8ea7bef1dcfeef0fce766f77752a2726c
+Copyright 2025 (c) Meta Platforms, Inc. and affiliates.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+{"model": "omnilingual-300m", "file": "5952193592402663472.wav", "expected": "nextgen ni mfumo ambao utawala wa shirikisho la anga unadai ungeruhusu ndege kutumia njia fupi na kuokoa mamilioni ya galoni za mafuta kila mwaka na kukata uzalishaji wa kaboni", "actual": "next ja ni mfumo ambao utawala washirikisho na anga unadai ungeruhusu ndege kutumia njia fupi na kuukoa ma milioni ya geloni ya mafuta kila mwaka kukata uzalishaji wa kaboni", "errors": [11, 29], "seconds": 1.5554380416870117}
+{"model": "omnilingual-300m", "file": "12530876620590353761.wav", "expected": "utafiti wa karne ya ishirini umeonyesha kwamba kuna makundi mawili ya utofauti wa jeni: fiche na zilizoelezewa", "actual": "utafiti wa karne ya ishirini imaonyesha kwamba kuna makudi mawili ya utafuti wa jeni fije na zilizaelezwa", "errors": [5, 17], "seconds": 1.0501854419708252}
+{"model": "omnilingual-300m", "file": "2128471129536729579.wav", "expected": "baadhi ya safari za baharini huonyesha berlin na ujerumani katika brosha zao. kama unavyoona katika ramani iliyo hapo juu berlin haipo popote karibu na bahari na safari ya jiji hili haijumuishwi katika bei ya safari za baharini", "actual": "baadhi ya safari za baharini huonyesha balin na ujermani katika brosha zao kama unaviona katika ramani iliyo hapo juu balin haipo popote karibu na bahari na safari ya jiji hili haijumuishwi katika bei a safari za baharini", "errors": [5, 37], "seconds": 2.399029493331909}
+/project/sherpa-onnx/csrc/offline-stream.cc:AcceptWaveformImpl:129 Creating a resampler:
+   in_sample_rate: 22050
+   output_sample_rate: 16000
+
+SYNTHETIC zaa ndapisasa

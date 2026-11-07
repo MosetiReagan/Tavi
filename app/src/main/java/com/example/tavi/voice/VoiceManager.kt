@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import com.example.tavi.models.LocalModelPacks
 import java.util.Locale
 
 class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
@@ -43,6 +45,10 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var followupJob: Job? = null
+    private var localListenJob: Job? = null
+    private var localSpeakJob: Job? = null
+    private val localRuntime = LocalSpeechRuntime.getInstance(context)
+    private val packs = LocalModelPacks.getInstance(context)
 
     private var speechRecognizer: SpeechRecognizer? = null
     private var textToSpeech: TextToSpeech? = null
@@ -105,6 +111,7 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
 
     init {
         prefs.registerOnSharedPreferenceChangeListener(preferenceListener)
+        scope.launch { packs.revision.collect { configureOfflineVoice() } }
         try {
             textToSpeech = TextToSpeech(context.applicationContext, this)
         } catch (e: Exception) {
@@ -119,8 +126,12 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
             textToSpeech?.setPitch(_pitch.value)
             textToSpeech?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(utteranceId: String?) {
-                    _isSpeaking.value = true
-                    _sessionMode.value = VoiceSessionMode.SPEAKING
+                    scope.launch {
+                        if (utteranceId == activeUtteranceId) {
+                            _isSpeaking.value = true
+                            _sessionMode.value = VoiceSessionMode.SPEAKING
+                        }
+                    }
                 }
 
                 override fun onDone(utteranceId: String?) {
@@ -152,7 +163,7 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
         val locale = com.example.tavi.language.AssistantLanguage.locale(context)
         val voice = textToSpeech?.voices?.filter { !it.isNetworkConnectionRequired && it.locale.language == locale.language }?.maxByOrNull { it.quality }
         isTtsReady = voice != null
-        _offlineVoiceAvailable.value = isTtsReady
+        _offlineVoiceAvailable.value = isTtsReady || localRuntime.outputAvailable()
         if (voice != null) textToSpeech?.voice = voice
     }
 
@@ -220,9 +231,39 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
 
         cancelFollowupCountdown()
 
+        stopListeningInternal()
+        if (localRuntime.recognitionAvailable()) {
+            localListenJob = scope.launch {
+                try {
+                    val samples = LocalMicrophone.capture(context, onReady = {
+                        _isListening.value = true
+                        _sessionMode.value = if (followupListening) VoiceSessionMode.AWAITING_FOLLOWUP else VoiceSessionMode.LISTENING
+                    }, onSpeech = {
+                        cancelFollowupCountdown(); followupListening = false
+                        _sessionMode.value = VoiceSessionMode.LISTENING
+                    })
+                    _isListening.value = false
+                    _sessionMode.value = VoiceSessionMode.PROCESSING
+                    val spoken = localRuntime.transcribe(samples, 16000)
+                    if (spoken.isBlank()) error("No speech recognized. Try again.")
+                    activeOnResult?.invoke(spoken)
+                } catch (e: CancellationException) { throw e }
+                catch (e: Exception) {
+                    _isListening.value = false
+                    if (followupListening) dismissFollowup()
+                    else {
+                        isVoiceSessionActive = false
+                        _sessionMode.value = VoiceSessionMode.IDLE
+                        activeOnError?.invoke(e.message ?: "Local speech recognition failed.")
+                    }
+                }
+            }
+            return
+        }
+
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || !SpeechRecognizer.isOnDeviceRecognitionAvailable(context)) {
             isVoiceSessionActive = false
-            activeOnError?.invoke("Offline speech recognition is unavailable. Install an on-device speech provider in Android settings, or use text input.")
+            activeOnError?.invoke("Download the offline recognition pack in Tavi Settings, or install an Android on-device speech provider.")
             _sessionMode.value = VoiceSessionMode.IDLE
             return
         }
@@ -365,6 +406,7 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
     }
 
     private fun stopListeningInternal() {
+        localListenJob?.cancel(); localListenJob = null
         try {
             speechRecognizer?.stopListening()
             speechRecognizer?.destroy()
@@ -385,7 +427,8 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
     }
 
     fun speak(text: String, onDoneCallback: (() -> Unit)? = null) {
-        if (!isTtsReady || text.isEmpty()) {
+        val useLocal = localRuntime.outputAvailable()
+        if ((!isTtsReady && !useLocal) || text.isEmpty()) {
             onDoneCallback?.invoke()
             handleSpeechEnded()
             return
@@ -404,6 +447,29 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
         val utteranceId = "TAVI_TTS_${System.currentTimeMillis()}"
         activeUtteranceId = utteranceId
         if (onDoneCallback != null) doneCallbacks[utteranceId] = onDoneCallback
+        if (useLocal) {
+            localSpeakJob = scope.launch {
+                try {
+                    for (chunk in LocalAudioPlayback.chunks(text)) {
+                        val audio = localRuntime.synthesize(chunk, speed = _speechRate.value)
+                        LocalAudioPlayback.play(audio, _pitch.value)
+                    }
+                } catch (e: CancellationException) { throw e }
+                catch (e: Exception) {
+                    Log.w(TAG, "Local voice output failed", e)
+                    isVoiceSessionActive = false
+                    activeOnError?.invoke(e.message ?: "Local voice output failed.")
+                }
+                if (activeUtteranceId == utteranceId) {
+                    activeUtteranceId = null
+                    _isSpeaking.value = false
+                    audioManager?.abandonAudioFocus(focusListener)
+                    doneCallbacks.remove(utteranceId)?.invoke()
+                    handleSpeechEnded()
+                }
+            }
+            return
+        }
         if (textToSpeech?.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId) == TextToSpeech.ERROR) {
             activeUtteranceId = null
             doneCallbacks.remove(utteranceId)?.invoke()
@@ -414,6 +480,7 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
     }
 
     fun stopSpeaking() {
+        localSpeakJob?.cancel(); localSpeakJob = null
         activeUtteranceId = null
         doneCallbacks.clear()
         audioManager?.abandonAudioFocus(focusListener)
@@ -435,5 +502,6 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
         activeOnResult = null
         activeOnPartialResult = null
         activeOnError = null
+        CoroutineScope(Dispatchers.IO).launch { localRuntime.release() }
     }
 }

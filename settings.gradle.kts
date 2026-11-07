@@ -14,6 +14,13 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        ivy {
+            name = "SherpaOnnxReleases"
+            url = uri("https://github.com/k2-fsa/sherpa-onnx/releases/download")
+            patternLayout { artifact("v[revision]/[artifact]-[revision].[ext]") }
+            metadataSources { artifact() }
+            content { includeModule("com.k2fsa.sherpa.onnx", "sherpa-onnx-static-link-onnxruntime") }
+        }
         maven {
             url = uri("https://jitpack.io")
             content { includeGroup("cz.adaptech.tesseract4android") }

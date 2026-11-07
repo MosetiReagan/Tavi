@@ -1,5 +1,7 @@
 # Changelog
 
+- Independent offline speech: verified Whisper English/Omnilingual Kiswahili recognition and English/Kiswahili Piper packs, microphone endpointing, cancellable playback, lazy CPU inference, and Settings download/remove controls.
+
 All notable changes to **Tavi** will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),

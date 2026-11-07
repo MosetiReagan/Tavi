@@ -70,7 +70,7 @@ Tavi combines local conversation with Android actions and user-controlled person
 | :--- | :--- | :--- |
 | Small request engine | Common commands and clarifications run in a bounded Kotlin router without model weights | Handles time, battery, network, alarms/timers, notes, documents, contacts, settings, and explicit message requests. Shared workflow gates check every action. |
 | Local conversation | Gemma 4 E2B or Gemma 3 1B, with a deterministic fallback | Install verified weights and choose a compatible runtime; speed varies by device. |
-| Offline voice | On-device recognition, local speech output, follow-up listening | Recognition requires Android 12+ and an installed on-device provider; language packs vary by device. Text remains available. |
+| Offline voice | Independent Whisper English/Omnilingual Kiswahili recognition, Piper English/Kiswahili output, follow-up listening | Optional verified packs in Settings. Android on-device providers are a fallback; short Kiswahili accuracy varies. [Pack details and terms](docs/LOCAL_MODEL_PACKS.md). |
 | Personal memory | Relevant recall, provenance, corrections, deletion | Stored in private local SQLite; heuristic filters cannot guarantee every sensitive string is detected. |
 | Document library | Text/PDF/image import, English/Kiswahili OCR, cited search | Local lexical search; OCR quality depends on the scan. Search covers imported documents and saved notes. |
 | Reminders and routines | Recurrence, snooze, reboot restoration, editable routine schedules | Notification permission required; exact timing depends on Android alarm access. Scheduled routines send reminder notifications. |

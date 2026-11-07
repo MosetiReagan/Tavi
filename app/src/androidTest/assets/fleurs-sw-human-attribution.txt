@@ -1,0 +1,10 @@
+Human Kiswahili test recording from Google FLEURS (sw_ke), CC BY 4.0.
+https://huggingface.co/datasets/google/fleurs
+Revision: 70bb2e84b976b7e960aa89f1c648e09c59f894dd
+Original: data/sw_ke/audio/test.tar.gz / 12530876620590353761.wav
+Modification: converted to mono 16 kHz PCM16 WAV with soundfile; no speech edits.
+License: https://creativecommons.org/licenses/by/4.0/
+FLEURS: Few-shot Learning Evaluation of Universal Representations of Speech,
+Conneau et al., 2022. https://arxiv.org/abs/2205.12446
+
+Reference: utafiti wa karne ya ishirini umeonyesha kwamba kuna makundi mawili ya utofauti wa jeni: fiche na zilizoelezewa

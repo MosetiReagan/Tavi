@@ -1,0 +1,216 @@
+{
+  "packs": [
+    {
+      "id": "speech-recognition",
+      "title": "Offline recognition \u2014 English",
+      "description": "Compact English speech recognition on this device. Kiswahili uses its separate recognition pack.",
+      "source": "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-tiny",
+      "assets": [
+        {
+          "path": "tiny-encoder.int8.onnx",
+          "url": "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-tiny/resolve/65176e2deb88badc814a94058666cadccc29b61c/tiny-encoder.int8.onnx",
+          "bytes": 12937772,
+          "sha256": "d24fb083ae3b1041fc24e97971d60e280c9342201fbb67b0ab428a8b4a51a434"
+        },
+        {
+          "path": "tiny-decoder.int8.onnx",
+          "url": "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-tiny/resolve/65176e2deb88badc814a94058666cadccc29b61c/tiny-decoder.int8.onnx",
+          "bytes": 89855401,
+          "sha256": "d2fece8dd42771f1df975c6c0445770d0c292bf7547c2cae04a6c0cc57540925"
+        },
+        {
+          "path": "tiny-tokens.txt",
+          "url": "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-tiny/resolve/65176e2deb88badc814a94058666cadccc29b61c/tiny-tokens.txt",
+          "bytes": 816730,
+          "sha256": "b34b360dbb493e781e479794586d661700670d65564001f23024971d1f2fa126"
+        }
+      ]
+    },
+    {
+      "id": "speech-recognition-sw",
+      "title": "Offline recognition \u2014 Kiswahili",
+      "description": "Omnilingual 300M recognizes Kiswahili locally. Larger download; errors remain, especially on short or mixed-language speech. Review the transcript before acting.",
+      "source": "https://huggingface.co/csukuangfj/sherpa-onnx-omnilingual-asr-1600-languages-300M-ctc-int8-2025-11-12",
+      "assets": [
+        {
+          "path": "model.int8.onnx",
+          "url": "https://huggingface.co/csukuangfj/sherpa-onnx-omnilingual-asr-1600-languages-300M-ctc-int8-2025-11-12/resolve/6abf1ece20cd2308bdb7d13cd78ec1c44fa4c094/model.int8.onnx",
+          "bytes": 365352120,
+          "sha256": "e7c4e54ee4c4c47829cc6667d5d00ed8ea7bef1dcfeef0fce766f77752a2726c"
+        },
+        {
+          "path": "tokens.txt",
+          "url": "https://huggingface.co/csukuangfj/sherpa-onnx-omnilingual-asr-1600-languages-300M-ctc-int8-2025-11-12/resolve/6abf1ece20cd2308bdb7d13cd78ec1c44fa4c094/tokens.txt",
+          "bytes": 86423,
+          "sha256": "a7a044c52cb29cbe8b0dc1953e92cefd4ca16b0ed968177b6beab21f9a7d0b31"
+        },
+        {
+          "path": "LICENSE",
+          "url": "https://huggingface.co/csukuangfj/sherpa-onnx-omnilingual-asr-1600-languages-300M-ctc-int8-2025-11-12/resolve/6abf1ece20cd2308bdb7d13cd78ec1c44fa4c094/LICENSE",
+          "bytes": 581,
+          "sha256": "a70a523bafbb595c2844104feb313d204904dac91c3d186c05f22a10a71c7a94"
+        }
+      ]
+    },
+    {
+      "id": "voice-en",
+      "title": "Offline voice \u2014 English",
+      "description": "Read replies aloud locally without an installed Android voice. Voice pack terms are available from its source.",
+      "source": "https://huggingface.co/csukuangfj/vits-piper-en_US-lessac-low",
+      "assets": [
+        {
+          "path": "en_US-lessac-low.onnx",
+          "url": "https://huggingface.co/csukuangfj/vits-piper-en_US-lessac-low/resolve/7f5edb341cadf35daab356f857ed5ae8545d22bf/en_US-lessac-low.onnx",
+          "bytes": 63201425,
+          "sha256": "7552bd58d49baaee47628e945f5045b6876a6af0aa3bb5605efcaa755ea9640f"
+        },
+        {
+          "path": "tokens.txt",
+          "url": "https://huggingface.co/csukuangfj/vits-piper-en_US-lessac-low/resolve/7f5edb341cadf35daab356f857ed5ae8545d22bf/tokens.txt",
+          "bytes": 921,
+          "sha256": "87c8ef66eae5473ed0cc0366b3964c736ca6c5f676c979522ea31234e47430b9"
+        },
+        {
+          "path": "MODEL_CARD",
+          "url": "https://huggingface.co/csukuangfj/vits-piper-en_US-lessac-low/resolve/7f5edb341cadf35daab356f857ed5ae8545d22bf/MODEL_CARD",
+          "bytes": 345,
+          "sha256": "f4f5b5ab354ab71dd2c71b571bcd0879b259ddfabaa5169b968a60427d0b73f3"
+        },
+        {
+          "path": "espeak-ng-data/intonations",
+          "url": "https://huggingface.co/csukuangfj/vits-piper-en_US-lessac-low/resolve/7f5edb341cadf35daab356f857ed5ae8545d22bf/espeak-ng-data/intonations",
+          "bytes": 2040,
+          "sha256": "3f8af65fd3eda9759a10f021d61361c120871f463515229c925995c7f90918cc"
+        },
+        {
+          "path": "espeak-ng-data/phondata",
+          "url": "https://huggingface.co/csukuangfj/vits-piper-en_US-lessac-low/resolve/7f5edb341cadf35daab356f857ed5ae8545d22bf/espeak-ng-data/phondata",
+          "bytes": 550424,
+          "sha256": "4e0288957874029a8c3c9f41a8f517ad4bf18127046decbdd4b9d1d6807ce3a3"
+        },
+        {
+          "path": "espeak-ng-data/phonindex",
+          "url": "https://huggingface.co/csukuangfj/vits-piper-en_US-lessac-low/resolve/7f5edb341cadf35daab356f857ed5ae8545d22bf/espeak-ng-data/phonindex",
+          "bytes": 39074,
+          "sha256": "3ca7b8fa3b42624e4b0f152707e7a39245fce569aa99ea47c055d9e622fcf0c4"
+        },
+        {
+          "path": "espeak-ng-data/phontab",
+          "url": "https://huggingface.co/csukuangfj/vits-piper-en_US-lessac-low/resolve/7f5edb341cadf35daab356f857ed5ae8545d22bf/espeak-ng-data/phontab",
+          "bytes": 55796,
+          "sha256": "886f3fa402cb0ba73d483aa8ad000af47a6b7cc06293c75a97913fba68a530f6"
+        },
+        {
+          "path": "espeak-ng-data/en_dict",
+          "url": "https://huggingface.co/csukuangfj/vits-piper-en_US-lessac-low/resolve/7f5edb341cadf35daab356f857ed5ae8545d22bf/espeak-ng-data/en_dict",
+          "bytes": 166944,
+          "sha256": "71bd330ba8a2e3e8076e631508208ef49449d6147c17b7bd2b4b1e1468292e35"
+        },
+        {
+          "path": "espeak-ng-data/sw_dict",
+          "url": "https://huggingface.co/csukuangfj/vits-piper-en_US-lessac-low/resolve/7f5edb341cadf35daab356f857ed5ae8545d22bf/espeak-ng-data/sw_dict",
+          "bytes": 47804,
+          "sha256": "375fab2ccd0d669177ad406b20b0cdb5851a1e86f093672f24f72c29fec8a815"
+        },
+        {
+          "path": "espeak-ng-data/lang/gmw/en",
+          "url": "https://huggingface.co/csukuangfj/vits-piper-en_US-lessac-low/resolve/7f5edb341cadf35daab356f857ed5ae8545d22bf/espeak-ng-data/lang/gmw/en",
+          "bytes": 140,
+          "sha256": "4605d5330801de3641c6e366d15f129ea1f5ffbce8722642aba01ace07ab9c83"
+        },
+        {
+          "path": "espeak-ng-data/lang/gmw/en-US",
+          "url": "https://huggingface.co/csukuangfj/vits-piper-en_US-lessac-low/resolve/7f5edb341cadf35daab356f857ed5ae8545d22bf/espeak-ng-data/lang/gmw/en-US",
+          "bytes": 257,
+          "sha256": "41534c2a22df5dd4f1052ff9e1a33a3ea7bff5a26b5c02bdad5ba8ddb7524704"
+        },
+        {
+          "path": "espeak-ng-data/lang/bnt/sw",
+          "url": "https://huggingface.co/csukuangfj/vits-piper-en_US-lessac-low/resolve/7f5edb341cadf35daab356f857ed5ae8545d22bf/espeak-ng-data/lang/bnt/sw",
+          "bytes": 41,
+          "sha256": "271dd28b3ec41adeea53f1146249ba6cab61572963ab2743041114d95784e368"
+        }
+      ]
+    },
+    {
+      "id": "voice-sw",
+      "title": "Offline voice \u2014 Kiswahili",
+      "description": "Read replies aloud locally without an installed Android voice. Voice pack terms are available from its source.",
+      "source": "https://huggingface.co/csukuangfj/vits-piper-sw_CD-lanfrica-medium",
+      "assets": [
+        {
+          "path": "sw_CD-lanfrica-medium.onnx",
+          "url": "https://huggingface.co/csukuangfj/vits-piper-sw_CD-lanfrica-medium/resolve/627325ced1dfadc02e5e2b6c1b2dbe546e66485f/sw_CD-lanfrica-medium.onnx",
+          "bytes": 63201438,
+          "sha256": "1476cf51ff6cee33b34b966781abce544cd85b038cfb88171b7cad96f7eecd8b"
+        },
+        {
+          "path": "tokens.txt",
+          "url": "https://huggingface.co/csukuangfj/vits-piper-en_US-lessac-low/resolve/7f5edb341cadf35daab356f857ed5ae8545d22bf/tokens.txt",
+          "bytes": 921,
+          "sha256": "87c8ef66eae5473ed0cc0366b3964c736ca6c5f676c979522ea31234e47430b9"
+        },
+        {
+          "path": "MODEL_CARD",
+          "url": "https://huggingface.co/csukuangfj/vits-piper-sw_CD-lanfrica-medium/resolve/627325ced1dfadc02e5e2b6c1b2dbe546e66485f/MODEL_CARD",
+          "bytes": 315,
+          "sha256": "763a444ca0e205ac08bd3bf3a4d3d44da58f56d244a145adf22eb0a863638ab2"
+        },
+        {
+          "path": "espeak-ng-data/intonations",
+          "url": "https://huggingface.co/csukuangfj/vits-piper-en_US-lessac-low/resolve/7f5edb341cadf35daab356f857ed5ae8545d22bf/espeak-ng-data/intonations",
+          "bytes": 2040,
+          "sha256": "3f8af65fd3eda9759a10f021d61361c120871f463515229c925995c7f90918cc"
+        },
+        {
+          "path": "espeak-ng-data/phondata",
+          "url": "https://huggingface.co/csukuangfj/vits-piper-en_US-lessac-low/resolve/7f5edb341cadf35daab356f857ed5ae8545d22bf/espeak-ng-data/phondata",
+          "bytes": 550424,
+          "sha256": "4e0288957874029a8c3c9f41a8f517ad4bf18127046decbdd4b9d1d6807ce3a3"
+        },
+        {
+          "path": "espeak-ng-data/phonindex",
+          "url": "https://huggingface.co/csukuangfj/vits-piper-en_US-lessac-low/resolve/7f5edb341cadf35daab356f857ed5ae8545d22bf/espeak-ng-data/phonindex",
+          "bytes": 39074,
+          "sha256": "3ca7b8fa3b42624e4b0f152707e7a39245fce569aa99ea47c055d9e622fcf0c4"
+        },
+        {
+          "path": "espeak-ng-data/phontab",
+          "url": "https://huggingface.co/csukuangfj/vits-piper-en_US-lessac-low/resolve/7f5edb341cadf35daab356f857ed5ae8545d22bf/espeak-ng-data/phontab",
+          "bytes": 55796,
+          "sha256": "886f3fa402cb0ba73d483aa8ad000af47a6b7cc06293c75a97913fba68a530f6"
+        },
+        {
+          "path": "espeak-ng-data/en_dict",
+          "url": "https://huggingface.co/csukuangfj/vits-piper-en_US-lessac-low/resolve/7f5edb341cadf35daab356f857ed5ae8545d22bf/espeak-ng-data/en_dict",
+          "bytes": 166944,
+          "sha256": "71bd330ba8a2e3e8076e631508208ef49449d6147c17b7bd2b4b1e1468292e35"
+        },
+        {
+          "path": "espeak-ng-data/sw_dict",
+          "url": "https://huggingface.co/csukuangfj/vits-piper-en_US-lessac-low/resolve/7f5edb341cadf35daab356f857ed5ae8545d22bf/espeak-ng-data/sw_dict",
+          "bytes": 47804,
+          "sha256": "375fab2ccd0d669177ad406b20b0cdb5851a1e86f093672f24f72c29fec8a815"
+        },
+        {
+          "path": "espeak-ng-data/lang/gmw/en",
+          "url": "https://huggingface.co/csukuangfj/vits-piper-en_US-lessac-low/resolve/7f5edb341cadf35daab356f857ed5ae8545d22bf/espeak-ng-data/lang/gmw/en",
+          "bytes": 140,
+          "sha256": "4605d5330801de3641c6e366d15f129ea1f5ffbce8722642aba01ace07ab9c83"
+        },
+        {
+          "path": "espeak-ng-data/lang/gmw/en-US",
+          "url": "https://huggingface.co/csukuangfj/vits-piper-en_US-lessac-low/resolve/7f5edb341cadf35daab356f857ed5ae8545d22bf/espeak-ng-data/lang/gmw/en-US",
+          "bytes": 257,
+          "sha256": "41534c2a22df5dd4f1052ff9e1a33a3ea7bff5a26b5c02bdad5ba8ddb7524704"
+        },
+        {
+          "path": "espeak-ng-data/lang/bnt/sw",
+          "url": "https://huggingface.co/csukuangfj/vits-piper-en_US-lessac-low/resolve/7f5edb341cadf35daab356f857ed5ae8545d22bf/espeak-ng-data/lang/bnt/sw",
+          "bytes": 41,
+          "sha256": "271dd28b3ec41adeea53f1146249ba6cab61572963ab2743041114d95784e368"
+        }
+      ]
+    }
+  ]
+}

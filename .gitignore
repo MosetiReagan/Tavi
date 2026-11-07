@@ -17,7 +17,9 @@
 local.properties
 
 # Model binaries & caches
-models/
+/models/
+*.onnx
+*.aar
 *.task
 *.litertlm
 *.bin

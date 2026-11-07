@@ -42,9 +42,9 @@ Tavi performs inference, memory retrieval, and document processing on your devic
    - Assistant invocation context stays in memory, expires after two minutes, and is consumed by one conversational turn. A generated response may quote relevant screen text in saved chat history.
 
 4. **Speech & Audio**:
-   - Speech recognition uses Android's on-device recognizer on Android 12+ with an installed provider. Recognition is unavailable otherwise; Tavi does not substitute a cloud recognizer.
+   - Optional verified Whisper English and Omnilingual Kiswahili packs recognize speech locally on supported ARM64/x86_64 devices. Without a language's pack, Android 12+ can use an installed on-device provider. Tavi does not substitute a cloud recognizer.
    - Audio recordings are processed in real-time buffers and never saved to persistent storage.
-   - Speech output selects installed voices that do not require a network connection. Missing language packs leave text input/output available.
+   - Speech output uses optional local Piper English/Kiswahili packs or installed Android voices that do not require a network connection. Missing language packs leave text input/output available.
 
 5. **Imported Documents**:
    - English and Kiswahili OCR data are bundled in the app. OCR runs locally.
@@ -65,3 +65,5 @@ Tavi performs inference, memory retrieval, and document processing on your devic
 ## 📬 Contact & Open Source Auditing
 
 Tavi is open-source software under the Apache License 2.0. The complete source code, reproducible build instructions, and security test harnesses are publicly available for independent audit on GitHub.
+
+Independent offline speech packs are optional and downloaded explicitly from HTTPS model hosts. Downloads reveal the normal network metadata to those hosts, but no voice or document content is uploaded. Microphone recordings remain in memory only. Installed packs are checked against pinned hashes before inference, and can be removed in Settings. Model terms and bundled speech runtime licenses are described in [local model packs](docs/LOCAL_MODEL_PACKS.md).

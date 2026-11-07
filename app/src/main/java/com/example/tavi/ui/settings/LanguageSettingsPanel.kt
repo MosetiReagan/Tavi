@@ -17,7 +17,8 @@ fun LanguageSettingsPanel(voice: VoiceManager) {
         Row { listOf("auto" to "Device", "en" to "English", "sw" to "Kiswahili").forEach { (code, label) ->
             TextButton(onClick = { AssistantLanguage.set(context, code); selected = code }) { Text(if (selected == code) "✓ $label" else label) }
         } }
-        Text(if (available) "Offline speech voice available." else "No installed offline voice for this language. Install a language pack in Android text-to-speech settings, or use text.")
+        Text(if (available) "Offline speech voice available." else "Download a voice below for independent offline speech output.")
+        LocalPacksPanel(setOf("speech-recognition", "speech-recognition-sw", "voice-en", "voice-sw"))
         Text("Common commands support English/Kiswahili mixing. Use 24-hour reminder times: ‘nikumbushe kupiga simu kesho saa 14:30’. Neural language quality depends on your model.", style = MaterialTheme.typography.bodySmall)
     }
 }

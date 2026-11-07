@@ -1,3 +1,5 @@
+import java.security.MessageDigest
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.compose.compiler)
@@ -82,7 +84,37 @@ kotlin {
     jvmToolchain(17)
 }
 
+val speechRuntimeVerification by configurations.creating {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+}
+val localSpeechAar = providers.gradleProperty("taviSpeechAar").orNull
+val speechRuntimeDependency = "com.k2fsa.sherpa.onnx:sherpa-onnx-static-link-onnxruntime:1.12.20@aar"
+val verifySpeechRuntime = tasks.register("verifySpeechRuntime") {
+    val artifacts = if (localSpeechAar == null) speechRuntimeVerification else files(localSpeechAar)
+    inputs.files(artifacts)
+    doLast {
+        val artifact = artifacts.singleFile
+        val digest = MessageDigest.getInstance("SHA-256")
+        artifact.inputStream().use { input ->
+            val buffer = ByteArray(65536)
+            while (true) { val n = input.read(buffer); if (n < 0) break; digest.update(buffer, 0, n) }
+        }
+        val actual = digest.digest().joinToString("") { "%02x".format(it) }
+        check(actual == "c8a88a8390ea699b24c49a31c56e8b2e3515c5cd5a2a49f8555a3b3fd68d253a") {
+            "Offline speech runtime failed its publisher SHA-256 verification."
+        }
+    }
+}
+tasks.named("preBuild").configure { dependsOn(verifySpeechRuntime) }
+
 dependencies {
+  if (localSpeechAar == null) {
+      implementation(speechRuntimeDependency)
+      add(speechRuntimeVerification.name, speechRuntimeDependency)
+  } else {
+      implementation(files(localSpeechAar))
+  }
   coreLibraryDesugaring(libs.desugar.jdk.libs)
   implementation("cz.adaptech.tesseract4android:tesseract4android:4.9.0")
   val composeBom = platform(libs.androidx.compose.bom)
