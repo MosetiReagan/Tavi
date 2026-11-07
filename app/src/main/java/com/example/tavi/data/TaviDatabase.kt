@@ -35,7 +35,7 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     companion object {
         const val DATABASE_NAME = "tavi_local.db"
-        const val DATABASE_VERSION = 4
+        const val DATABASE_VERSION = 5
 
         @Volatile
         private var INSTANCE: TaviDatabase? = null
@@ -61,6 +61,9 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
     }
 
     private fun ensureAllTables(db: SQLiteDatabase) {
+        db.execSQL("""CREATE TABLE IF NOT EXISTS execution_receipts (
+            id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, result_json TEXT,
+            started_at INTEGER NOT NULL, completed_at INTEGER)""")
         try {
             db.execSQL("""
                 CREATE TABLE IF NOT EXISTS conversations (
@@ -962,6 +965,28 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
     }
 
     // --- WORKFLOWS ---
+
+    fun executionReceiptStore() = object : com.example.tavi.tools.ExecutionReceiptStore {
+        override fun claim(id: String, fingerprint: String): Boolean {
+            val values = ContentValues().apply {
+                put("id", id); put("fingerprint", fingerprint); put("started_at", System.currentTimeMillis())
+            }
+            return writableDatabase.insertWithOnConflict("execution_receipts", null, values, SQLiteDatabase.CONFLICT_IGNORE) != -1L
+        }
+        override fun read(id: String): com.example.tavi.tools.ExecutionReceipt? =
+            readableDatabase.query("execution_receipts", null, "id = ?", arrayOf(id), null, null, null).use { c ->
+                if (!c.moveToFirst()) null else com.example.tavi.tools.ExecutionReceipt(
+                    c.getString(c.getColumnIndexOrThrow("fingerprint")),
+                    MessageToolCodec.decodeResults(c.getString(c.getColumnIndexOrThrow("result_json"))).firstOrNull())
+            }
+        override fun complete(id: String, result: ToolResult) {
+            val values = ContentValues().apply {
+                put("result_json", MessageToolCodec.encodeResults(listOf(result)))
+                put("completed_at", System.currentTimeMillis())
+            }
+            check(writableDatabase.update("execution_receipts", values, "id = ?", arrayOf(id)) == 1)
+        }
+    }
 
     fun saveWorkflow(plan: WorkflowPlan) {
         try {

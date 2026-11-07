@@ -67,6 +67,7 @@ import com.example.tavi.tools.messages.PhoneCallTool
 import com.example.tavi.tools.messages.PhoneDialTool
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlinx.coroutines.CancellationException
 
 class ToolRegistry(private val context: Context) {
 
@@ -190,6 +191,10 @@ class ToolRegistry(private val context: Context) {
                 errorMessage = "Unknown tool '${toolCall.toolName}'. Check available tools in registry."
             )
 
+        ToolArgumentValidator.validate(tool.parametersSchema, toolCall.arguments)?.let { error ->
+            return ToolResult(toolCall.id, tool.name, "{}", false, errorMessage = error)
+        }
+
         // 1. Permission checks
         for (perm in tool.requiredPermissions) {
             if (ContextCompat.checkSelfPermission(context, perm) != PackageManager.PERMISSION_GRANTED) {
@@ -249,7 +254,11 @@ class ToolRegistry(private val context: Context) {
 
         // 4. Execute tool
         val result = try {
-            tool.execute(toolCall.id, effectiveArgs, context)
+            val action: suspend () -> ToolResult = { tool.execute(toolCall.id, effectiveArgs, context) }
+            if (tool.isReadOnly) action() else
+                ExecutionReceipts(TaviDatabase.getInstance(context).executionReceiptStore()).execute(toolCall, action)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             ToolResult(
                 toolCallId = toolCall.id,
@@ -268,7 +277,7 @@ class ToolRegistry(private val context: Context) {
                 toolName = tool.name,
                 status = if (result.isSuccess) "SUCCESS" else result.state.name,
                 summary = if (result.isSuccess) "Tool executed successfully" else (result.errorMessage ?: "Unknown error"),
-                verified = result.isSuccess
+                verified = false
             )
         )
 

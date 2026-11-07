@@ -12,6 +12,7 @@ interface AssistantTool {
     val parametersSchema: String
     val requiredPermissions: List<String>
     val requiresConfirmation: Boolean
+    val isReadOnly: Boolean get() = NativeToolPolicy.isReadOnly(name)
     val category: ToolCategory get() = ToolCategory.NOTES
     val riskLevel: ToolRiskLevel get() = if (requiresConfirmation) ToolRiskLevel.HIGH_CONSEQUENTIAL else ToolRiskLevel.LOW
     val specialAccessType: SpecialAccessType get() = SpecialAccessType.NONE
