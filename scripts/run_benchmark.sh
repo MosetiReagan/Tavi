@@ -19,11 +19,14 @@ adb -s "$DEVICE_ID" install -r -t app/build/outputs/apk/androidTest/debug/app-de
 mkdir -p benchmarks
 
 remote_reports() {
-    adb -s "$DEVICE_ID" shell "run-as com.tavi.assistant sh -c 'ls /sdcard/Android/data/com.tavi.assistant/files/benchmark_*.json files/benchmark_*.json 2>/dev/null'" | tr -d '\r' || true
+    # Android's shell can read app-specific external files; run-as may lack that access.
+    adb -s "$DEVICE_ID" shell 'ls /sdcard/Android/data/com.tavi.assistant/files/benchmark_*.json 2>/dev/null' | tr -d '\r' || true
+    adb -s "$DEVICE_ID" shell "run-as com.tavi.assistant sh -c 'ls files/benchmark_*.json 2>/dev/null'" | tr -d '\r' || true
 }
 files_before=$(remote_reports)
 test_output=$(mktemp)
-trap 'rm -f "$test_output"' EXIT
+report_output=$(mktemp)
+trap 'rm -f "$test_output" "$report_output"' EXIT
 status=0
 adb -s "$DEVICE_ID" shell am instrument -w -r \
     -e class com.example.tavi.benchmark.DeviceBenchmark \
@@ -37,7 +40,17 @@ new_reports=0
 while IFS= read -r report; do
     [ -n "$report" ] || continue
     if printf '%s\n' "$files_before" | grep -Fxq "$report"; then continue; fi
-    adb -s "$DEVICE_ID" exec-out run-as com.tavi.assistant cat "$report" > "benchmarks/$(basename "$report")"
+    if [[ "$report" == /sdcard/* ]]; then
+        adb -s "$DEVICE_ID" exec-out cat "$report" > "$report_output" || status=1
+    else
+        adb -s "$DEVICE_ID" exec-out run-as com.tavi.assistant cat "$report" > "$report_output" || status=1
+    fi
+    if ! python3 -m json.tool "$report_output" >/dev/null 2>&1; then
+        echo "Could not read a valid JSON report from $report."
+        status=1
+        continue
+    fi
+    cp "$report_output" "benchmarks/$(basename "$report")"
     new_reports=$((new_reports + 1))
 done <<< "$files_after"
 if [ "$new_reports" -eq 0 ]; then
