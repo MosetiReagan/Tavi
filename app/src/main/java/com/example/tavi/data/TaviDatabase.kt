@@ -519,8 +519,17 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     // --- PERSISTENT PERSONAL MEMORY (PHASE 4) ---
 
-    fun insertPersistentMemory(record: PersistentMemoryRecord) {
+    fun replacePersistentMemory(record: PersistentMemoryRecord, oldId: String?) {
+        val db = writableDatabase
+        db.beginTransaction()
         try {
+            insertPersistentMemory(record)
+            if (oldId != null) db.execSQL("UPDATE persistent_memories SET state = 'SUPERSEDED', superseded_by_id = ? WHERE id = ?", arrayOf(record.id, oldId))
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+    }
+
+    fun insertPersistentMemory(record: PersistentMemoryRecord) {
             val values = ContentValues().apply {
                 put("id", record.id)
                 put("memory_type", record.memoryType.name)
@@ -541,10 +550,7 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
                 put("source_conversation_id", record.sourceConversationId)
                 put("source_message_id", record.sourceMessageId)
             }
-            writableDatabase.insertWithOnConflict("persistent_memories", null, values, SQLiteDatabase.CONFLICT_REPLACE)
-        } catch (e: Exception) {
-            android.util.Log.e("TaviDatabase", "Error inserting persistent memory", e)
-        }
+            check(writableDatabase.insertWithOnConflict("persistent_memories", null, values, SQLiteDatabase.CONFLICT_REPLACE) != -1L)
     }
 
     fun getPersistentMemory(id: String): PersistentMemoryRecord? {
@@ -622,22 +628,8 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
     }
 
     fun deletePersistentMemory(keyOrId: String): Boolean {
-        return try {
-            val values = ContentValues().apply {
-                put("state", MemoryState.DELETED.name)
-                put("updated_at", System.currentTimeMillis())
-            }
-            val rows = writableDatabase.update(
-                "persistent_memories",
-                values,
-                "(id = ? OR mem_key = ?) AND state = ?",
-                arrayOf(keyOrId, keyOrId.trim().lowercase(), MemoryState.ACTIVE.name)
-            )
-            rows > 0
-        } catch (e: Exception) {
-            android.util.Log.e("TaviDatabase", "Error deleting persistent memory", e)
-            false
-        }
+        val key = getPersistentMemory(keyOrId)?.key ?: keyOrId.trim().lowercase()
+        return writableDatabase.delete("persistent_memories", "mem_key = ? OR id = ?", arrayOf(key, keyOrId)) > 0
     }
 
     fun clearAllPersistentMemories() {

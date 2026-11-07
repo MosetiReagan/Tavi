@@ -353,7 +353,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                 db.insertMessage(userMessage, currentConvId)
 
                 // 1.5. Explicit Personal Memory Management (Instant deterministic handling)
-                val memCommand = PersistentMemoryManager.parseMemoryCommand(trimmed)
+                val memCommand = PersistentMemoryManager.parseMemoryCommand(trimmed, currentConvId, userMessage.id)
                 if (memCommand != null) {
                     handleMemoryCommand(memCommand, userMessage, updatedMessages)
                     return@launch
@@ -458,6 +458,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                     decisionRationale = "Completed workflow with ${workflow.steps.size} steps",
                     outcome = "SUCCESS",
                     taskStatus = "COMPLETED",
+                    sourceConversationId = workflow.conversationId,
                     tags = listOf("workflow", workflow.title.lowercase())
                 )
             } catch (e: Exception) {
@@ -543,7 +544,9 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                     key = command.key,
                     value = command.newValue,
                     category = command.category,
-                    provenance = MemoryProvenance.USER_EXPLICIT
+                    provenance = MemoryProvenance.USER_EXPLICIT,
+                    sourceConversationId = userMessage.conversationId,
+                    sourceMessageId = userMessage.id
                 )
                 when (val res = PersistentMemoryManager.saveOrUpdateMemory(app, record)) {
                     is PersistentMemoryManager.SaveResult.Saved -> {

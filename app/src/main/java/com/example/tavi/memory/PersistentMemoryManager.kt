@@ -385,15 +385,14 @@ object PersistentMemoryManager {
                 Log.d(TAG, "Duplicate memory for key=${record.key}; preserving active record id=${existingActive.id}")
                 return SaveResult.Saved(existingActive)
             }
-            // Supersede existing record
-            db.supersedePersistentMemory(existingActive.id, record.id)
-            Log.i(TAG, "Superseded memory id=${existingActive.id} with new record id=${record.id}")
+            // The replacement and superseding history are committed together below.
         }
 
         // 3. Insert new active record
-        db.insertPersistentMemory(record)
-
-        return SaveResult.Saved(record, existingActive?.id)
+        return try {
+            db.replacePersistentMemory(record, existingActive?.id)
+            SaveResult.Saved(record, existingActive?.id)
+        } catch (e: Exception) { SaveResult.Error(e.message ?: "Memory could not be saved.") }
     }
 
     /**
@@ -461,53 +460,27 @@ object PersistentMemoryManager {
         maxTokens: Int = 180
     ): List<PersistentMemoryRecord> {
         if (!isMemoryEnabled(context)) return emptyList()
+        migrateLegacyMemories(context)
 
         val db = TaviDatabase.getInstance(context)
         val activeMemories = db.getActivePersistentMemories()
         if (activeMemories.isEmpty()) return emptyList()
 
-        val queryTokens = query.lowercase(Locale.ROOT)
-            .split(Regex("[^a-zA-Z0-9_-]+"))
-            .filter { it.length > 2 }
-            .toSet()
+        return MemoryRelevance.select(query, activeMemories, maxTokens)
+    }
 
-        // Score each memory based on keyword overlap, type priority, and recency
-        val scored = activeMemories.map { mem ->
-            var score = 0.0f
-            val memTokens = "${mem.key} ${mem.value} ${mem.category}".lowercase(Locale.ROOT)
-                .split(Regex("[^a-zA-Z0-9_-]+"))
-                .toSet()
-
-            val overlap = queryTokens.intersect(memTokens).size
-            score += overlap * 10.0f
-
-            // Preference and profile facts get base baseline boost so critical facts are available
-            if (mem.memoryType == MemoryType.PREFERENCE || mem.memoryType == MemoryType.PROFILE_FACT) {
-                score += 1.0f
-            }
-
-            // Recency boost (last 7 days get slight boost)
-            val ageDays = (System.currentTimeMillis() - mem.updatedAt) / (1000 * 60 * 60 * 24)
-            if (ageDays < 7) {
-                score += (7 - ageDays) * 0.2f
-            }
-
-            mem to score
-        }.sortedByDescending { it.second }
-
-        // Greedily pick top memories within maxTokens
-        val selected = mutableListOf<PersistentMemoryRecord>()
-        var tokensUsed = 0
-
-        for ((mem, _) in scored) {
-            val estimated = ContextBudgetManager.estimateTokens("• ${mem.key}: ${mem.value}")
-            if (tokensUsed + estimated <= maxTokens && selected.size < 6) {
-                selected.add(mem)
-                tokensUsed += estimated
+    fun migrateLegacyMemories(context: Context) {
+        if (!isMemoryEnabled(context)) return
+        val db = TaviDatabase.getInstance(context)
+        val existing = db.getActivePersistentMemories().map { it.key.lowercase() }.toSet()
+        db.getAllMemory().forEach { legacy ->
+            if (legacy.key.lowercase() in existing) db.deleteMemory(legacy.id)
+            else if (!checkSensitivity("${legacy.key} ${legacy.value}").isSensitive) {
+                val record = PersistentMemoryRecord(key = legacy.key, value = legacy.value, category = legacy.category,
+                    createdAt = legacy.timestamp, updatedAt = legacy.timestamp)
+                if (saveOrUpdateMemory(context, record) is SaveResult.Saved) db.deleteMemory(legacy.id)
             }
         }
-
-        return selected
     }
 
     /**
@@ -521,10 +494,9 @@ object PersistentMemoryManager {
         if (!isMemoryEnabled(context)) return emptyList()
 
         val db = TaviDatabase.getInstance(context)
-        val episodes = db.searchEpisodicMemories(query, limit = 3)
-        if (episodes.isEmpty()) {
-            return db.getEpisodicMemories(limit = 1)
-        }
+        val episodes = db.getEpisodicMemories(limit = 100).map { episode ->
+            episode to MemoryRelevance.score(query, "${episode.title} ${episode.summary} ${episode.tags.joinToString(" ")}")
+        }.filter { it.second > 0 }.sortedByDescending { it.second }.map { it.first }
 
         val selected = mutableListOf<EpisodicMemoryRecord>()
         var tokensUsed = 0
