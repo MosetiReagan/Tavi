@@ -238,28 +238,28 @@ class MediaPipeGenAiBackendEngine(
                             if (fullResponse.length >= MAX_RESPONSE_CHARS) {
                                 loopDetected = true
                                 val capped = fullResponse.toString()
-                                    try {
-                                        activeFuture?.cancel(true)
-                                    } catch (e: Exception) {
-                                        Log.w(TAG, "Failed cancelling MediaPipe generation on max response limit", e)
-                                    }
-                                    if (continuation.isActive) continuation.resume(capped)
-                                    return@ProgressListener
+                                try {
+                                    activeFuture?.cancel(true)
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "Failed cancelling MediaPipe generation on max response limit", e)
                                 }
+                                if (continuation.isActive) continuation.resume(capped)
+                                return@ProgressListener
+                            }
 
-                                if (LiteRtLlmEngine.hasDegenerativeRepetition(fullResponse)) {
-                                    loopDetected = true
-                                    val cleaned = LiteRtLlmEngine.cleanRepetitiveText(fullResponse.toString())
-                                    fullResponse.clear()
-                                    fullResponse.append(cleaned)
-                                    try {
-                                        activeFuture?.cancel(true)
-                                    } catch (e: Exception) {
-                                        Log.w(TAG, "Failed cancelling MediaPipe generation on repetition loop", e)
-                                    }
-                                    if (continuation.isActive) continuation.resume(cleaned)
-                                    return@ProgressListener
+                            if (LiteRtLlmEngine.hasDegenerativeRepetition(fullResponse)) {
+                                loopDetected = true
+                                val cleaned = LiteRtLlmEngine.cleanRepetitiveText(fullResponse.toString())
+                                fullResponse.clear()
+                                fullResponse.append(cleaned)
+                                try {
+                                    activeFuture?.cancel(true)
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "Failed cancelling MediaPipe generation on repetition loop", e)
                                 }
+                                if (continuation.isActive) continuation.resume(cleaned)
+                                return@ProgressListener
+                            }
 
                             onToken(partialResult)
                         }
