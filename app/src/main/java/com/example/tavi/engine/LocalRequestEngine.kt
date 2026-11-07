@@ -7,12 +7,50 @@ import java.util.Locale
 /** A bounded, model-free first pass. Tool execution stays behind the normal workflow gates. */
 class LocalRequestEngine {
     sealed interface Decision {
-        data class Reply(val text: String) : Decision
+        data class Reply(val text: String, val clarification: LocalClarification? = null) : Decision
         data class Tools(val calls: List<ToolCall>) : Decision
         data object Delegate : Decision
     }
 
-    fun route(input: String, language: String = "auto"): Decision {
+    fun route(input: String, language: String = "auto", clarification: LocalClarification? = null,
+        now: Long = System.currentTimeMillis()): Decision {
+        val fresh = routeFresh(input, language, now)
+        if (clarification == null || input.length > 4000 || input.isBlank()) return fresh
+        val answer = input.trim()
+        val sw = language == "sw" || (language == "auto" && clarification.language == "sw")
+        val continuationLanguage = if (language == "auto") clarification.language else language
+        fun response(en: String, kiswahili: String, pending: LocalClarification? = null) = Decision.Reply(if (sw) kiswahili else en, pending)
+        if (answer.lowercase(Locale.ROOT).trimEnd('.', '!') in setOf("cancel", "never mind", "nevermind", "stop", "no", "acha", "ghairi", "hapana"))
+            return response("Cancelled. No action was taken.", "Nimeghairi. Hakuna hatua iliyotekelezwa.")
+        // A complete new command replaces the old request. Missing-slot replies never grant approval.
+        if (fresh is Decision.Tools || (fresh is Decision.Reply && fresh.clarification != null)) return fresh
+        if (!clarification.isCurrent(now)) return if (fresh == Decision.Delegate)
+            response("That request expired. Please give the full command again.", "Ombi hilo limeisha muda. Tafadhali rudia amri kamili.") else fresh
+        if (clarification.slot != ClarificationSlot.MESSAGE_BODY && fresh is Decision.Reply) return fresh
+        fun keepDeadline(decision: Decision): Decision = if (decision is Decision.Reply && decision.clarification != null)
+            decision.copy(clarification = decision.clarification.copy(createdAt = clarification.createdAt)) else decision
+        return when (clarification.slot) {
+            ClarificationSlot.ALARM_TIME -> keepDeadline(routeFresh("set alarm at " + answer.replace(Regex("(?i)^(?:at|saa)\\s+"), ""), continuationLanguage, now))
+            ClarificationSlot.TIMER_DURATION -> {
+                val duration = normalizeDuration(answer)
+                keepDeadline(routeFresh("timer for $duration", continuationLanguage, now))
+            }
+            ClarificationSlot.MESSAGE_RECIPIENT -> {
+                val recipient = answer.replace(Regex("(?i)^(?:to|kwa)\\s+"), "").trim()
+                if (recipient.length > 200 || !recipientName.matches(recipient))
+                    response("Please give one contact name or phone number.", "Tafadhali taja jina la mtu mmoja au namba ya simu.", clarification)
+                else if (clarification.body != null) tools(clarification.toolName, mapOf("recipient" to recipient, "body" to clarification.body))
+                else response("What exact message should I send to $recipient?", "Niandike ujumbe gani kamili kwa $recipient?",
+                    clarification.copy(slot = ClarificationSlot.MESSAGE_BODY, recipient = recipient))
+            }
+            ClarificationSlot.MESSAGE_BODY -> {
+                val body = answer.replace(Regex("(?i)^(?:say|sema|ukisema)\\s+"), "")
+                tools(clarification.toolName, mapOf("recipient" to clarification.recipient, "body" to body))
+            }
+        }
+    }
+
+    private fun routeFresh(input: String, language: String, now: Long): Decision {
         var sw = language == "sw"
         fun reply(en: String, kiswahili: String) = Decision.Reply(if (sw) kiswahili else en)
         if (input.length > 4000) return reply("Please split this request into shorter messages.", "Tafadhali gawanya ombi hili katika ujumbe mfupi.")
@@ -43,6 +81,7 @@ class LocalRequestEngine {
             if (hour == null || minutes == null || minutes !in 0..59 ||
                 hour !in (if (period.isEmpty()) 0..23 else 1..12)) {
                 return reply("Use an alarm time such as 07:30 or 7:30 AM.", "Tumia saa ya kengele kama 07:30 au 7:30 AM.")
+                    .copy(clarification = LocalClarification(ClarificationSlot.ALARM_TIME, "alarm_create", now, language = if (sw) "sw" else "en"))
             }
             val normalizedHour = if (period.isEmpty()) hour else hour % 12 + if (period == "pm") 12 else 0
             return tools("alarm_create", mapOf("hour" to normalizedHour, "minutes" to minutes, "title" to "Alarm"))
@@ -52,6 +91,7 @@ class LocalRequestEngine {
             val multiplier = when { it.groupValues[2].startsWith("hour") -> 3600; it.groupValues[2].startsWith("min") -> 60; else -> 1 }
             if (count == null || count <= 0 || count > Int.MAX_VALUE / multiplier) {
                 return reply("Choose a positive timer duration under 2,147,483,647 seconds.", "Chagua muda chanya ulio chini ya sekunde 2,147,483,647.")
+                    .copy(clarification = LocalClarification(ClarificationSlot.TIMER_DURATION, "timer_set", now, language = if (sw) "sw" else "en"))
             }
             return tools("timer_set", mapOf("seconds" to (count * multiplier).toInt(), "title" to "Timer"))
         }
@@ -73,11 +113,30 @@ class LocalRequestEngine {
 
         if (Regex("^(?:set (?:an? )?alarm|alarm (?:at|for))(?:\\s|$)").containsMatchIn(q))
             return reply("What exact alarm time should I use? For example, 07:30.", "Niweke kengele saa ngapi? Kwa mfano, 07:30.")
+                .copy(clarification = LocalClarification(ClarificationSlot.ALARM_TIME, "alarm_create", now, language = if (sw) "sw" else "en"))
         if (Regex("^(?:set (?:a )?timer|timer)(?:\\s|$)").containsMatchIn(q))
             return reply("How long should the timer run? For example, 5 minutes.", "Kipima muda kiwe cha muda gani? Kwa mfano, dakika 5.")
-        if (Regex("^(?:send|draft|compose) (?:an? )?(?:sms|message|text)(?:\\s|$)").containsMatchIn(q))
-            return reply("Provide the recipient and the exact message: send SMS to Alice saying I'll be there.", "Taja mpokeaji na ujumbe kamili: tuma SMS kwa Alice ukisema Nitafika.")
+                .copy(clarification = LocalClarification(ClarificationSlot.TIMER_DURATION, "timer_set", now, language = if (sw) "sw" else "en"))
+        partialMessage.matchEntire(text)?.let {
+            val tool = if (it.groupValues[1].equals("send", true)) "messages_send_sms" else "messages_draft"
+            val recipient = it.groupValues[2].trim().takeIf { value -> value.isNotEmpty() && value.length <= 200 }
+            val body = it.groupValues[3].takeIf { value -> value.isNotBlank() }
+            val slot = if (recipient == null) ClarificationSlot.MESSAGE_RECIPIENT else ClarificationSlot.MESSAGE_BODY
+            val pending = LocalClarification(slot, tool, now, recipient, body, if (sw) "sw" else "en")
+            return if (recipient == null) reply("Who should receive the message?", "Ujumbe utumwe kwa nani?").copy(clarification = pending)
+            else reply("What exact message should I send to $recipient?", "Niandike ujumbe gani kamili kwa $recipient?").copy(clarification = pending)
+        }
         return Decision.Delegate
+    }
+
+    private fun normalizeDuration(input: String): String {
+        val q = input.lowercase(Locale.ROOT).trim()
+        val sw = Regex("^(dakika|sekunde|saa|masaa)\\s+(.+)$").matchEntire(q)
+        val phrase = if (sw != null) sw.groupValues[2] + " " + when (sw.groupValues[1]) { "dakika" -> "minutes"; "sekunde" -> "seconds"; else -> "hours" } else q
+        val number = phrase.substringBefore(' ')
+        val values = mapOf("one" to 1, "two" to 2, "three" to 3, "four" to 4, "five" to 5, "six" to 6, "seven" to 7, "eight" to 8, "nine" to 9, "ten" to 10,
+            "moja" to 1, "mbili" to 2, "tatu" to 3, "nne" to 4, "tano" to 5, "sita" to 6, "saba" to 7, "nane" to 8, "tisa" to 9, "kumi" to 10)
+        return values[number]?.let { "$it ${phrase.substringAfter(' ')}" } ?: phrase
     }
 
     private fun tools(name: String, arguments: Map<String, Any?> = emptyMap()) =
@@ -99,6 +158,8 @@ class LocalRequestEngine {
         private val calculation = Regex("(?:calculate|compute|what is)\\s+([0-9+*/^%().\\s-]+|sqrt\\([0-9.]+\\))", RegexOption.IGNORE_CASE)
         private val flashlight = Regex("turn (on|off) (?:the )?(?:flashlight|torch)")
         private val message = Regex("(send|draft|compose) (?:an? )?(?:sms|message|text) to ([\\p{L}\\p{N} .+'()\\-]+?) (?:saying|:) (.+)", RegexOption.IGNORE_CASE)
+        private val partialMessage = Regex("(send|draft|compose) (?:an? )?(?:sms|message|text)(?: to ([\\p{L}\\p{N} .+'()\\-]+?))?(?: saying (.+))?", RegexOption.IGNORE_CASE)
+        private val recipientName = Regex("[\\p{L}\\p{N} .+'()\\-]+")
         private val note = Regex("(?:take a note:|save (?:a )?note:|note:)\\s*(.+)", RegexOption.IGNORE_CASE)
         private val document = Regex("(?:search|find) (?:in )?(?:my )?(?:documents|document library|library) (?:for )?(.+)", RegexOption.IGNORE_CASE)
         private val contact = Regex("(?:find contact|search contacts for|look up contact) ([\\p{L}\\p{N} .+'()\\-]+)", RegexOption.IGNORE_CASE)

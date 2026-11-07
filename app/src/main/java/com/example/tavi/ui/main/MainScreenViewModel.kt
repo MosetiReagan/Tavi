@@ -76,6 +76,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
 
     private var taskJob: Job? = null
     private val localRequestEngine = LocalRequestEngine()
+    private val localClarifications = com.example.tavi.engine.LocalClarificationStore(application)
 
     private var activeEngine: InferenceEngine = LiteRtLlmEngine(
         application,
@@ -322,12 +323,15 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                 // 1.5. Explicit Personal Memory Management (Instant deterministic handling)
                 val memCommand = PersistentMemoryManager.parseMemoryCommand(trimmed, currentConvId, userMessage.id)
                 if (memCommand != null) {
+                    localClarifications.clear(currentConvId)
                     handleMemoryCommand(memCommand, userMessage, updatedMessages)
                     return@launch
                 }
 
-                when (val request = localRequestEngine.route(trimmed,
-                    com.example.tavi.language.AssistantLanguage.selected(getApplication()))) {
+                val request = localRequestEngine.route(trimmed,
+                    com.example.tavi.language.AssistantLanguage.selected(getApplication()), localClarifications.get(currentConvId))
+                localClarifications.save(currentConvId, (request as? LocalRequestEngine.Decision.Reply)?.clarification)
+                when (request) {
                     is LocalRequestEngine.Decision.Tools -> {
                         com.example.tavi.roles.assistant.AssistContextStore.consume()
                         executeToolsAndSynthesize(request.calls, updatedMessages)
@@ -491,8 +495,10 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         voiceManager.dismissFollowup()
         voiceManager.stopSpeaking()
         val workflow = _uiState.value.activeWorkflow
+        val conversationId = _uiState.value.currentConversationId
         viewModelScope.launch {
             running?.join()
+            withContext(Dispatchers.IO) { localClarifications.clear(conversationId) }
             if (workflow != null && workflow.state !in setOf(WorkflowState.COMPLETED, WorkflowState.CANCELLED)) {
                 val latest = withContext(Dispatchers.IO) { db.getWorkflow(workflow.id) } ?: workflow
                 val cancelled = workflowEngine.cancelWorkflow(latest)

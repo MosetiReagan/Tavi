@@ -30,9 +30,18 @@ object LanguageRouter {
         Regex("(?i)^(?:onyesha|angalia)\\s+(?:kalenda|ratiba)(?:\\s+yangu)?(?:\\s+ya)?\\s+(leo|kesho)$").matchEntire(text)?.let {
             return "show calendar ${if (it.groupValues[1].equals("leo", true)) "today" else "tomorrow"}"
         }
-        Regex("(?i)^tuma\\s+(?:ujumbe|sms|message)\\s+(?:kwa|to)\\s+(.+?)\\s+(?:ukisema|saying|sema)\\s+(.+)$").matchEntire(text)?.let {
-            return "send sms to ${it.groupValues[1]} saying ${it.groupValues[2]}"
+        Regex("(?i)^(tuma|andaa)\\s+(?:ujumbe|sms|message)\\s+(?:kwa|to)\\s+(.+?)\\s+(?:ukisema|saying|sema)\\s+(.+)$").matchEntire(text)?.let {
+            return (if (it.groupValues[1].equals("tuma", true)) "send sms" else "draft message") +
+                " to ${it.groupValues[2]} saying ${it.groupValues[3]}"
         }
+        Regex("(?i)^(tuma|andaa)\\s+(?:ujumbe|sms|message)(?:\\s+(?:kwa|to)\\s+(.+))?$").matchEntire(text)?.let {
+            return (if (it.groupValues[1].equals("tuma", true)) "send sms" else "draft message") +
+                it.groupValues[2].takeIf { recipient -> recipient.isNotBlank() }?.let { recipient -> " to $recipient" }.orEmpty()
+        }
+        Regex("(?i)^weka\\s+kengele(?:\\s+saa\\s+(.+))?$").matchEntire(text)?.let {
+            return "set alarm" + it.groupValues[1].takeIf { time -> time.isNotBlank() }?.let { time -> " at $time" }.orEmpty()
+        }
+        Regex("(?i)^weka\\s+(?:kipima muda|timer)$").matchEntire(text)?.let { return "set a timer" }
         Regex("(?i)^nikumbushe\\s+(.+?)\\s+(leo|kesho)\\s+(?:saa\\s+)?(\\d{2}:\\d{2})$").matchEntire(text)?.let {
             return "remind me to ${it.groupValues[1]} at ${if (it.groupValues[2].equals("leo", true)) "today" else "tomorrow"} at ${it.groupValues[3]}"
         }

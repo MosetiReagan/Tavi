@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Conversation-scoped clarification follow-ups for alarm times, timer durations, SMS recipients, and exact message text, with cancellation, ten-minute expiry, and persistent missing slots.
 - Small model-free request engine for common bilingual commands, payload preservation, bounded input, and missing-detail clarification; neural weights load only when needed.
 - Offline document library with text, image, and PDF import, bundled English/Kiswahili OCR, local search, page citations, and deletion.
 - Editable personal routines with recurring reminder schedules; reminders restore after reboot and support snoozing.

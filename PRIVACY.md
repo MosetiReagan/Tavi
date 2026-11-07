@@ -25,7 +25,7 @@ Tavi performs inference, memory retrieval, and document processing on your devic
 
 1. **Local SQLite Storage (`tavi_local.db` and `tavi_documents.db`)**:
    - Retained only in private app internal storage (`/data/data/com.tavi.assistant/databases/`).
-   - `tavi_local.db` stores conversation turns and tool evidence, personal facts, routine/reminder schedules, workflow checkpoints, execution receipts, and SMS dispatch status. `tavi_documents.db` stores imported document text and citations.
+   - `tavi_local.db` stores conversation turns and tool evidence, personal facts, routine/reminder schedules, workflow checkpoints, execution receipts, and SMS dispatch status. Pending clarification slots (including explicitly supplied message text) expire after ten minutes and are removed on completion or cancellation. `tavi_documents.db` stores imported document text and citations.
    - Personal memory and screen input use heuristic redaction filters. These filters do not guarantee detection of every sensitive string, and imported documents may contain private text.
    - Users can inspect and delete personal memories, documents, routines, and conversations through their respective screens. Clearing personal memory does not erase every other database table.
 

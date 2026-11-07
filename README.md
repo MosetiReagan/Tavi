@@ -229,7 +229,7 @@ Step 4: messages_send_sms(recipient="Dennis", text="I will join after lunch.") -
 
 ## 🧠 Dual-Engine Local Inference
 
-`LocalRequestEngine` handles supported complete commands before model planning or loading. It preserves message/note text, rejects invalid alarm times and overflowing timer durations, and asks for missing recipients or message bodies. It never executes a tool directly. Gemma loads on demand for requests that need interpretation; opening the app or running a supported basic command does not preload neural weights.
+`LocalRequestEngine` handles supported commands before model planning or loading. It preserves message/note text, rejects invalid alarm times and overflowing timer durations, and collects missing details through follow-ups. Replies such as "7:30 AM", "five minutes", "dakika tano", or "Alice" fill the pending slot in that conversation. Missing slots persist locally for ten minutes; cancellation or a new complete command replaces them. Completing an SMS still requires a separate confirmation. The engine never executes a tool directly. Gemma loads on demand for requests that need interpretation; opening the app or running a supported basic command does not preload neural weights.
 
 Tavi implements a **Dual-Engine Architecture** managed through `InferenceRuntime`:
 

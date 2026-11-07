@@ -35,7 +35,7 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     companion object {
         const val DATABASE_NAME = "tavi_local.db"
-        const val DATABASE_VERSION = 10
+        const val DATABASE_VERSION = 11
 
         @Volatile
         private var INSTANCE: TaviDatabase? = null
@@ -61,6 +61,7 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
     }
 
     private fun ensureAllTables(db: SQLiteDatabase) {
+        com.example.tavi.engine.LocalClarificationStore.createSchema(db)
         com.example.tavi.tools.messages.SmsDispatchTracker.createSchema(db)
         com.example.tavi.agent.AgentContinuationStore.createSchema(db)
         com.example.tavi.routines.RoutineStore.createSchema(db)
@@ -284,6 +285,7 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     fun deleteConversation(id: String) {
         try {
+            writableDatabase.delete("local_clarifications", "conversation_id = ?", arrayOf(id))
             writableDatabase.delete("conversations", "id = ?", arrayOf(id))
             writableDatabase.delete("messages", "conversation_id = ?", arrayOf(id))
         } catch (e: Exception) {
