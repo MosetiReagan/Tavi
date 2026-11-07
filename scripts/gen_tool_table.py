@@ -21,16 +21,16 @@ def find_tools():
                     content = f.read()
 
                 # Find classes implementing AssistantTool
-                class_matches = re.finditer(r"class\s+(\w+)\s*:\s*AssistantTool\b", content)
-                for cm in class_matches:
+                class_matches = list(re.finditer(r"^class\s+(\w+)[^\n]*:\s*AssistantTool\b", content, re.MULTILINE))
+                for index, cm in enumerate(class_matches):
                     start_pos = cm.start()
-                    # Find matching braces or next class to bound the search
-                    sub = content[start_pos:start_pos + 2500]
+                    end_pos = class_matches[index + 1].start() if index + 1 < len(class_matches) else len(content)
+                    sub = content[start_pos:end_pos]
 
-                    name_match = re.search(r'override\s+val\s+name\s*:\s*String\s*=\s*"([^"]+)"', sub)
-                    cat_match = re.search(r'override\s+val\s+category\s*:\s*ToolCategory\s*=\s*ToolCategory\.(\w+)', sub)
-                    desc_match = re.search(r'override\s+val\s+description\s*:\s*String\s*=\s*"([^"]+)"', sub)
-                    conf_match = re.search(r'override\s+val\s+requiresConfirmation\s*:\s*Boolean\s*=\s*(true|false)', sub)
+                    name_match = re.search(r'override\s+val\s+name\s*(?::\s*String)?\s*=\s*"([^"]+)"', sub)
+                    cat_match = re.search(r'override\s+val\s+category\s*(?::\s*ToolCategory)?\s*=\s*ToolCategory\.(\w+)', sub)
+                    desc_match = re.search(r'override\s+val\s+description\s*(?::\s*String)?\s*=\s*"([^"]+)"', sub)
+                    conf_match = re.search(r'override\s+val\s+requiresConfirmation\s*(?::\s*Boolean)?\s*=\s*(true|false)', sub)
 
                     if name_match:
                         t_name = name_match.group(1)
@@ -39,12 +39,17 @@ def find_tools():
                         t_conf = conf_match.group(1).lower() == "true" if conf_match else False
 
                         tools.append({
+                            "class": cm.group(1),
                             "name": t_name,
                             "category": t_cat,
                             "description": t_desc,
                             "confirmation": "🔒 Required" if t_conf else "⚡ Direct",
                             "file": file
                         })
+    # Document only tools actually registered by the app.
+    with open(os.path.join(TOOLS_DIR, "ToolRegistry.kt"), encoding="utf-8") as f:
+        registered = {name.rsplit(".", 1)[-1] for name in re.findall(r"register\(([\w.]+)(?:\(|\s*\{)", f.read())}
+    tools = [tool for tool in tools if tool["class"] in registered]
     # Sort alphabetically by category, then name
     tools.sort(key=lambda t: (t["category"], t["name"]))
     return tools
