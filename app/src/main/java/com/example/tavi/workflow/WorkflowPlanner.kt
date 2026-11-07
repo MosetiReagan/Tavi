@@ -40,7 +40,7 @@ class WorkflowPlanner(
      * Simple questions must go to chat/tool routing instead of being turned into invented workflows.
      */
     fun shouldAttemptModelPlanning(userQuery: String): Boolean {
-        val trimmed = userQuery.trim()
+        val trimmed = com.example.tavi.language.LanguageRouter.route(userQuery)
         if (trimmed.isEmpty() || SecurityGuard.isInjectionAttempt(trimmed)) return false
         val hasAction = MODEL_PLANNER_ACTION_PATTERN.matcher(trimmed).find()
         val hasMultiStepCue = MODEL_PLANNER_MULTI_STEP_PATTERN.matcher(trimmed).find()
@@ -52,7 +52,7 @@ class WorkflowPlanner(
      * Returns null if the query is a simple single-turn conversational prompt or single tool query.
      */
     fun planWorkflow(userQuery: String): WorkflowPlan? {
-        val trimmed = userQuery.trim()
+        val trimmed = com.example.tavi.language.LanguageRouter.route(userQuery)
         if (trimmed.isEmpty() || SecurityGuard.isInjectionAttempt(trimmed)) {
             return null
         }

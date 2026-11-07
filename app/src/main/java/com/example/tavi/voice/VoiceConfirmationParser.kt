@@ -14,13 +14,13 @@ object VoiceConfirmationParser {
     private val AFFIRMATIVE_TERMS = setOf(
         "yes", "yeah", "yep", "sure", "do it", "confirm", "confirmed",
         "go ahead", "proceed", "okay", "ok", "affirmative", "absolutely",
-        "please do", "yup", "definitely", "send it", "run it"
+        "please do", "yup", "definitely", "send it", "run it", "ndiyo", "naam", "endelea", "thibitisha"
     )
 
     private val NEGATIVE_TERMS = setOf(
         "no", "nope", "stop", "cancel", "don't", "dont", "never mind",
         "nevermind", "abort", "halt", "dismiss", "do not", "negative",
-        "don't do it", "dont do it"
+        "don't do it", "dont do it", "hapana", "usi", "usitume", "usifanye", "ghairi", "acha"
     )
 
     fun parse(input: String?): VoiceConfirmationDecision {

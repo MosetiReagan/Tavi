@@ -50,15 +50,16 @@ class DeterministicAssistantEngine : InferenceEngine {
         userQuery: String,
         conversationHistory: List<Message>
     ): List<ToolCall> {
+        val routedQuery = com.example.tavi.language.LanguageRouter.route(userQuery)
         Regex("(?i)^(?:search|find|look up)\\s+(?:in\\s+)?(?:my\\s+)?(?:documents|document library|library)\\s+(?:for\\s+)?(.+)$")
-            .find(userQuery.trim())?.let { match ->
+            .find(routedQuery.trim())?.let { match ->
                 return listOf(ToolCall(toolName = "documents_search", arguments = mapOf("query" to match.groupValues[1])))
             }
-        val q = userQuery.trim().lowercase(Locale.ROOT).replace(Regex("[?!.,]+$"), "").trim()
+        val q = routedQuery.trim().lowercase(Locale.ROOT).replace(Regex("[?!.,]+$"), "").trim()
         val toolCalls = mutableListOf<ToolCall>()
 
         // 1. Calculator expressions
-        val mathMatch = Pattern.compile("(?i)(?:calculate|compute|what is|eval)\\s+([0-9\\+\\-\\*/\\^%\\(\\)\\.\\s]+|sqrt\\([0-9\\.]+\\))").matcher(userQuery)
+        val mathMatch = Pattern.compile("(?i)(?:calculate|compute|what is|eval)\\s+([0-9\\+\\-\\*/\\^%\\(\\)\\.\\s]+|sqrt\\([0-9\\.]+\\))").matcher(routedQuery)
         if (mathMatch.find() && mathMatch.group(1)?.any { it.isDigit() } == true) {
             val expr = mathMatch.group(1)?.trim() ?: ""
             if (expr.isNotEmpty()) {
@@ -68,7 +69,7 @@ class DeterministicAssistantEngine : InferenceEngine {
         }
 
         // 2. Alarms & Clock Tools
-        val alarmMatch = Pattern.compile("(?i)(?:set\\s+(?:an?\\s+)?alarm|alarm\\s+(?:for|at))\\s+(?:for\\s+|at\\s+)?(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm)?").matcher(userQuery)
+        val alarmMatch = Pattern.compile("(?i)(?:set\\s+(?:an?\\s+)?alarm|alarm\\s+(?:for|at))\\s+(?:for\\s+|at\\s+)?(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm)?").matcher(routedQuery)
         if (alarmMatch.find()) {
             val rawHour = alarmMatch.group(1)?.toIntOrNull() ?: 7
             val min = alarmMatch.group(2)?.toIntOrNull() ?: 0
@@ -91,7 +92,7 @@ class DeterministicAssistantEngine : InferenceEngine {
         }
 
         // 3. Timers
-        val timerMatch = Pattern.compile("(?i)(?:set\\s+(?:a\\s+)?timer|timer\\s+(?:for)?)\\s+(?:for\\s+)?(\\d+)\\s*(min|minute|sec|second|hour)s?").matcher(userQuery)
+        val timerMatch = Pattern.compile("(?i)(?:set\\s+(?:a\\s+)?timer|timer\\s+(?:for)?)\\s+(?:for\\s+)?(\\d+)\\s*(min|minute|sec|second|hour)s?").matcher(routedQuery)
         if (timerMatch.find()) {
             val num = timerMatch.group(1)?.toIntOrNull() ?: 60
             val unit = timerMatch.group(2)?.lowercase(Locale.ROOT) ?: "minute"
@@ -117,7 +118,7 @@ class DeterministicAssistantEngine : InferenceEngine {
 
         // 5. Date Calculations
         if (q.contains("days until") || q.contains("days between") || q.contains("how many days to")) {
-            val target = userQuery.replace(Regex("(?i).*?(?:days until|how many days to)\\s+"), "").trim()
+            val target = routedQuery.replace(Regex("(?i).*?(?:days until|how many days to)\\s+"), "").trim()
             toolCalls.add(
                 ToolCall(
                     toolName = "date_calculation",
@@ -126,7 +127,7 @@ class DeterministicAssistantEngine : InferenceEngine {
             )
             return toolCalls
         } else if (q.contains("day of the week") || q.contains("what day is")) {
-            val target = userQuery.replace(Regex("(?i).*?(?:day of the week is|what day is)\\s+"), "").trim()
+            val target = routedQuery.replace(Regex("(?i).*?(?:day of the week is|what day is)\\s+"), "").trim()
             toolCalls.add(
                 ToolCall(
                     toolName = "date_calculation",
@@ -135,7 +136,7 @@ class DeterministicAssistantEngine : InferenceEngine {
             )
             return toolCalls
         } else if (q.contains("date in ") || q.contains("what is the date after")) {
-            val duration = userQuery.replace(Regex("(?i).*?(?:date in|date after)\\s+"), "").trim()
+            val duration = routedQuery.replace(Regex("(?i).*?(?:date in|date after)\\s+"), "").trim()
             toolCalls.add(
                 ToolCall(
                     toolName = "date_calculation",
@@ -207,7 +208,7 @@ class DeterministicAssistantEngine : InferenceEngine {
             q.contains("how much did i use") || q.contains("phone usage") || q == "usage"
         ) {
             val pkgFilter = if (q.contains("how much did i use")) {
-                userQuery.replace(Regex("[?!.,]+$"), "")
+                routedQuery.replace(Regex("[?!.,]+$"), "")
                     .replace(Regex("(?i).*?how much did i use\\s+"), "")
                     .replace(Regex("(?i)\\s+(?:today|this week|yesterday)"), "")
                     .trim()
@@ -248,7 +249,7 @@ class DeterministicAssistantEngine : InferenceEngine {
             toolCalls.add(ToolCall(toolName = "location_get_current", arguments = emptyMap()))
             return toolCalls
         }
-        val navMatch = Pattern.compile("(?i)(?:navigate to|directions to|take me to|maps to|open maps for)\\s+(.+)$").matcher(userQuery)
+        val navMatch = Pattern.compile("(?i)(?:navigate to|directions to|take me to|maps to|open maps for)\\s+(.+)$").matcher(routedQuery)
         if (navMatch.find()) {
             val dest = navMatch.group(1)?.trim() ?: ""
             if (dest.isNotEmpty()) {
@@ -258,8 +259,8 @@ class DeterministicAssistantEngine : InferenceEngine {
         }
 
         // 10. Phone Calls & Dialer
-        val callMatch = Pattern.compile("(?i)(?:call|phone)\\s+([a-zA-Z0-9\\+\\s]+?)(?:\\s+now)?$").matcher(userQuery)
-        val dialMatch = Pattern.compile("(?i)(?:dial|open dialer for)\\s+([a-zA-Z0-9\\+\\s]+)$").matcher(userQuery)
+        val callMatch = Pattern.compile("(?i)(?:call|phone)\\s+([a-zA-Z0-9\\+\\s]+?)(?:\\s+now)?$").matcher(routedQuery)
+        val dialMatch = Pattern.compile("(?i)(?:dial|open dialer for)\\s+([a-zA-Z0-9\\+\\s]+)$").matcher(routedQuery)
         if (q.startsWith("call ") && callMatch.find()) {
             val person = callMatch.group(1)?.trim() ?: ""
             if (person.isNotEmpty() && !person.equals("me", ignoreCase = true)) {
@@ -276,7 +277,7 @@ class DeterministicAssistantEngine : InferenceEngine {
         }
 
         // 11. Applications: Launch & List
-        val appLaunchMatch = Pattern.compile("(?i)(?:open|launch)\\s+([a-zA-Z0-9\\s]+?)(?:\\s+app)?$").matcher(userQuery)
+        val appLaunchMatch = Pattern.compile("(?i)(?:open|launch)\\s+([a-zA-Z0-9\\s]+?)(?:\\s+app)?$").matcher(routedQuery)
         if (appLaunchMatch.find()) {
             val appTarget = appLaunchMatch.group(1)?.trim() ?: ""
             val ignoredKeywords = setOf("calendar", "settings", "alarms", "notes", "camera", "my notes", "wifi", "bluetooth", "sms", "messages")
@@ -295,7 +296,7 @@ class DeterministicAssistantEngine : InferenceEngine {
             toolCalls.add(ToolCall(toolName = "clipboard_read", arguments = emptyMap()))
             return toolCalls
         }
-        val copyMatch = Pattern.compile("(?i)(?:copy|copy to clipboard)\\s+(.+)$").matcher(userQuery)
+        val copyMatch = Pattern.compile("(?i)(?:copy|copy to clipboard)\\s+(.+)$").matcher(routedQuery)
         if (copyMatch.find()) {
             val textToCopy = copyMatch.group(1)?.trim() ?: ""
             toolCalls.add(ToolCall(toolName = "clipboard_copy", arguments = mapOf("text" to textToCopy)))
@@ -307,13 +308,13 @@ class DeterministicAssistantEngine : InferenceEngine {
             toolCalls.add(ToolCall(toolName = "reminder_list", arguments = emptyMap()))
             return toolCalls
         }
-        val cancelRemindMatch = Pattern.compile("(?i)(?:cancel|delete|remove)\\s+(?:reminder|my reminder)\\s+(?:for\\s+|to\\s+)?(.+)$").matcher(userQuery)
+        val cancelRemindMatch = Pattern.compile("(?i)(?:cancel|delete|remove)\\s+(?:reminder|my reminder)\\s+(?:for\\s+|to\\s+)?(.+)$").matcher(routedQuery)
         if (cancelRemindMatch.find()) {
             val target = cancelRemindMatch.group(1)?.trim() ?: ""
             toolCalls.add(ToolCall(toolName = "reminder_cancel", arguments = mapOf("query" to target)))
             return toolCalls
         }
-        val remindMatch = Pattern.compile("(?i)(?:remind me to|set a reminder to|reminder:?)\\s+(.+?)(?:\\s+(?:at|in|on)\\s+(.+))?$").matcher(userQuery)
+        val remindMatch = Pattern.compile("(?i)(?:remind me to|set a reminder to|reminder:?)\\s+(.+?)(?:\\s+(?:at|in|on)\\s+(.+))?$").matcher(routedQuery)
         if (remindMatch.find()) {
             val title = remindMatch.group(1)?.trim() ?: "Reminder"
             val time = remindMatch.group(2)?.trim() ?: "in 1 hour"
@@ -331,13 +332,13 @@ class DeterministicAssistantEngine : InferenceEngine {
             toolCalls.add(ToolCall(toolName = "notes_list", arguments = emptyMap()))
             return toolCalls
         }
-        val searchNotesMatch = Pattern.compile("(?i)(?:search notes for|find note)\\s+(.+)$").matcher(userQuery)
+        val searchNotesMatch = Pattern.compile("(?i)(?:search notes for|find note)\\s+(.+)$").matcher(routedQuery)
         if (searchNotesMatch.find()) {
             val term = searchNotesMatch.group(1)?.trim() ?: ""
             toolCalls.add(ToolCall(toolName = "notes_list", arguments = mapOf("query" to term)))
             return toolCalls
         }
-        val noteMatch = Pattern.compile("(?i)(?:take a note|save note|note that|create note|save as a note|save this as a note):?\\s+(.+?)(?:\\s+titled?\\s+(.+))?$").matcher(userQuery)
+        val noteMatch = Pattern.compile("(?i)(?:take a note|save note|note that|create note|save as a note|save this as a note):?\\s+(.+?)(?:\\s+titled?\\s+(.+))?$").matcher(routedQuery)
         if (noteMatch.find()) {
             val content = noteMatch.group(1)?.trim() ?: ""
             val title = noteMatch.group(2)?.trim() ?: (if (content.length > 20) content.take(20) + "..." else content)
@@ -351,7 +352,7 @@ class DeterministicAssistantEngine : InferenceEngine {
         }
 
         // 15. Personal Memory
-        val rememberMatch = Pattern.compile("(?i)(?:remember that|save preference|my)\\s+([a-zA-Z0-9_\\s]+?)(?:\\s+is|\\s+expires in|\\s+expires on|\\s*:\\s*)(.+)$").matcher(userQuery)
+        val rememberMatch = Pattern.compile("(?i)(?:remember that|save preference|my)\\s+([a-zA-Z0-9_\\s]+?)(?:\\s+is|\\s+expires in|\\s+expires on|\\s*:\\s*)(.+)$").matcher(routedQuery)
         if (rememberMatch.find()) {
             val key = rememberMatch.group(1)?.trim()?.replace(" ", "_") ?: "general"
             val value = rememberMatch.group(2)?.trim() ?: ""
@@ -363,7 +364,7 @@ class DeterministicAssistantEngine : InferenceEngine {
             )
             return toolCalls
         } else if (q.contains("what is my") || q.contains("what did i say about") || q.contains("do you remember")) {
-            val keyOrQuery = userQuery.replace(Regex("(?i).*?(?:what is my|what did i say about|do you remember)\\s+"), "").replace("?", "").trim()
+            val keyOrQuery = routedQuery.replace(Regex("(?i).*?(?:what is my|what did i say about|do you remember)\\s+"), "").replace("?", "").trim()
             toolCalls.add(
                 ToolCall(
                     toolName = "memory_retrieve",
@@ -380,7 +381,7 @@ class DeterministicAssistantEngine : InferenceEngine {
             )
             return toolCalls
         } else if (q.contains("delete memory") || q.contains("forget that") || q.contains("forget my")) {
-            val target = userQuery.replace(Regex("(?i).*?(?:delete memory|forget that|forget my)\\s+"), "").trim()
+            val target = routedQuery.replace(Regex("(?i).*?(?:delete memory|forget that|forget my)\\s+"), "").trim()
             toolCalls.add(
                 ToolCall(
                     toolName = "memory_delete",
@@ -410,7 +411,7 @@ class DeterministicAssistantEngine : InferenceEngine {
         }
 
         // 17. Calendar: Create Event
-        val eventCreateMatch = Pattern.compile("(?i)(?:schedule|create(?:\\s+an?)?\\s+event|add(?:\\s+an?)?\\s+event|set meeting)\\s+(?:called|titled)?\\s*(.+?)(?:\\s+(?:on|at|for)\\s+(.+))?$").matcher(userQuery)
+        val eventCreateMatch = Pattern.compile("(?i)(?:schedule|create(?:\\s+an?)?\\s+event|add(?:\\s+an?)?\\s+event|set meeting)\\s+(?:called|titled)?\\s*(.+?)(?:\\s+(?:on|at|for)\\s+(.+))?$").matcher(routedQuery)
         if (eventCreateMatch.find()) {
             val p1 = eventCreateMatch.group(1)?.trim() ?: ""
             val p2 = eventCreateMatch.group(2)?.trim() ?: ""
@@ -428,7 +429,7 @@ class DeterministicAssistantEngine : InferenceEngine {
         }
 
         // 18. Calendar: Delete Event
-        val eventDeleteMatch = Pattern.compile("(?i)(?:delete|cancel|remove)\\s+(?:calendar\\s+)?(?:event|meeting)\\s+(?:with\\s+)?(?:#|id\\s+)?([0-9]+)").matcher(userQuery)
+        val eventDeleteMatch = Pattern.compile("(?i)(?:delete|cancel|remove)\\s+(?:calendar\\s+)?(?:event|meeting)\\s+(?:with\\s+)?(?:#|id\\s+)?([0-9]+)").matcher(routedQuery)
         if (eventDeleteMatch.find()) {
             val eventId = eventDeleteMatch.group(1)?.toLongOrNull() ?: -1L
             toolCalls.add(
@@ -441,8 +442,8 @@ class DeterministicAssistantEngine : InferenceEngine {
         }
 
         // 19. Messages: Draft
-        val draftMatchWithBody = Pattern.compile("(?i)(?:can you\\s+)?(?:draft|prepare message|compose)(?:\\s+an?\\s*(?:test|sample)?\\s*(?:sms|message|text))?(?:\\s+to\\s+([a-zA-Z0-9\\+\\s]+?))?\\s*(?:saying|body:?|:)\\s+(.+)$").matcher(userQuery)
-        val draftMatchSimple = Pattern.compile("(?i)(?:can you\\s+)?(?:draft|prepare|compose)(?:\\s+an?\\s*(?:test|sample)?\\s*(?:sms|message|text))?(?:\\s+to\\s+([a-zA-Z0-9\\+\\s]+))?$").matcher(userQuery)
+        val draftMatchWithBody = Pattern.compile("(?i)(?:can you\\s+)?(?:draft|prepare message|compose)(?:\\s+an?\\s*(?:test|sample)?\\s*(?:sms|message|text))?(?:\\s+to\\s+([a-zA-Z0-9\\+\\s]+?))?\\s*(?:saying|body:?|:)\\s+(.+)$").matcher(routedQuery)
+        val draftMatchSimple = Pattern.compile("(?i)(?:can you\\s+)?(?:draft|prepare|compose)(?:\\s+an?\\s*(?:test|sample)?\\s*(?:sms|message|text))?(?:\\s+to\\s+([a-zA-Z0-9\\+\\s]+))?$").matcher(routedQuery)
         if (q.contains("draft") || q.contains("prepare message") || (q.contains("compose") && q.contains("message"))) {
             if (draftMatchWithBody.find()) {
                 val rawRecipient = draftMatchWithBody.group(1)?.trim() ?: "Contact"
@@ -478,8 +479,8 @@ class DeterministicAssistantEngine : InferenceEngine {
         // 20. Messages: Send SMS
         val sendSmsMatch = Pattern.compile(
             "(?i)(?:actually\\s+|please\\s+)?(?:send\\s+(?:an?\\s+|it\\s+|this\\s+)?(?:sms|message|text)?\\s*(?:to)?|do\\s+(?:an?\\s+|it\\s+|this\\s+)?(?:sms|message|text)?\\s*to|write\\s+(?:an?\\s+|it\\s+|this\\s+)?(?:sms|message|text)?\\s*to|text|tell|message\\s+to|message)\\s+([a-zA-Z0-9\\+\\-\\(\\)\\s]+?)(?:\\s*:\\s*|\\s+(?:and\\s+(?:tell|say|ask)(?:\\s+(?:him|her|them))?(?:\\s+to)?|saying|telling (?:him|her|them) to|with body|that|to|message:?)\\s+)(.+)$"
-        ).matcher(userQuery)
-        val sendSmsSimple = Pattern.compile("(?i)(?:actually\\s+|please\\s+)?(?:send\\s+(?:an?\\s+|it\\s+|this\\s+)?(?:sms|message|text)?\\s*to|do\\s+(?:an?\\s+|it\\s+|this\\s+)?(?:sms|message|text)?\\s*to|write\\s+(?:an?\\s+|it\\s+|this\\s+)?(?:sms|message|text)?\\s*to|text|message\\s+to)\\s+([a-zA-Z0-9\\+\\-\\(\\)\\s]+)$").matcher(userQuery)
+        ).matcher(routedQuery)
+        val sendSmsSimple = Pattern.compile("(?i)(?:actually\\s+|please\\s+)?(?:send\\s+(?:an?\\s+|it\\s+|this\\s+)?(?:sms|message|text)?\\s*to|do\\s+(?:an?\\s+|it\\s+|this\\s+)?(?:sms|message|text)?\\s*to|write\\s+(?:an?\\s+|it\\s+|this\\s+)?(?:sms|message|text)?\\s*to|text|message\\s+to)\\s+([a-zA-Z0-9\\+\\-\\(\\)\\s]+)$").matcher(routedQuery)
         if (sendSmsMatch.find()) {
             val rawRecipient = sendSmsMatch.group(1)?.trim() ?: ""
             val recipient = rawRecipient.replace(Regex("(?i)^to\\s+"), "").trim()
@@ -509,7 +510,7 @@ class DeterministicAssistantEngine : InferenceEngine {
 
         // 21. Messages: Search
         if (q.contains("search messages") || q.contains("search sms") || q.contains("find message")) {
-            val term = userQuery.replace(Regex("(?i).*?(?:search messages for|search sms for|find message containing)\\s+"), "").trim()
+            val term = routedQuery.replace(Regex("(?i).*?(?:search messages for|search sms for|find message containing)\\s+"), "").trim()
             toolCalls.add(
                 ToolCall(
                     toolName = "messages_search",
@@ -538,7 +539,7 @@ class DeterministicAssistantEngine : InferenceEngine {
         )
 
         for (cp in contactPatterns) {
-            val matcher = cp.matcher(userQuery.trim())
+            val matcher = cp.matcher(routedQuery.trim())
             if (matcher.find()) {
                 val rawName = matcher.group(1)?.trim() ?: ""
                 val name = rawName.replace(Regex("(?i)^(?:find|search|look up|get)\\s+"), "").trim()
@@ -557,7 +558,7 @@ class DeterministicAssistantEngine : InferenceEngine {
 
         // 24. Browser Tasks: Research
         if (q.startsWith("research ") || q.startsWith("search web ") || q.startsWith("browse ") || q.startsWith("look up ")) {
-            val topic = userQuery.replace(Regex("(?i)^(?:research|search web for|browse|look up)\\s+"), "").trim()
+            val topic = routedQuery.replace(Regex("(?i)^(?:research|search web for|browse|look up)\\s+"), "").trim()
             toolCalls.add(
                 ToolCall(
                     toolName = "browser_research_topic",
@@ -571,7 +572,8 @@ class DeterministicAssistantEngine : InferenceEngine {
     }
 
     private fun synthesizeResponse(prompt: String, conversationHistory: List<Message>): String {
-        val q = prompt.trim().lowercase(Locale.ROOT)
+        if (prompt.trim().lowercase() in setOf("habari", "hujambo", "mambo", "salama")) return "Habari! Mimi ni Tavi. Unaweza kuniuliza kuhusu ratiba, betri, notes, au kuweka kikumbusho kwa saa 14:30."
+        val q = com.example.tavi.language.LanguageRouter.route(prompt).lowercase(Locale.ROOT)
 
         if (q == "schedule meeting" || q == "add event" || q == "create an event") {
             return "What is the title and date/time for the event you would like me to schedule? For example: 'Schedule Team Sync tomorrow at 3pm'."

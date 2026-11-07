@@ -151,7 +151,7 @@ object PersistentMemoryManager {
         conversationId: String? = null,
         messageId: String? = null
     ): MemoryExtractionResult? {
-        val trimmed = text.trim()
+        val trimmed = com.example.tavi.language.LanguageRouter.route(text)
         val lower = trimmed.lowercase(Locale.ROOT)
 
         // 1. Clear all memories trigger

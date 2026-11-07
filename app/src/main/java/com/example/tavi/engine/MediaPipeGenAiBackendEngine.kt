@@ -403,7 +403,7 @@ class MediaPipeGenAiBackendEngine(
     ): String {
         val defaultSystem = "You are Tavi, a helpful and concise on-device AI assistant for Android. Your name is Tavi. You are not any contact or person mentioned in previous messages. Always respond politely and concisely as Tavi."
         val effectiveSystem = if (!systemPrompt.isNullOrBlank()) systemPrompt.trim() else defaultSystem
-        return ContextBudgetManager.buildGemma3Prompt(conversationHistory, userPrompt, effectiveSystem)
+        return ContextBudgetManager.buildGemma3Prompt(conversationHistory, userPrompt, effectiveSystem + "\n" + com.example.tavi.language.AssistantLanguage.replyInstruction(context))
     }
 
     fun formatGemmaToolPrompt(
@@ -425,7 +425,7 @@ class MediaPipeGenAiBackendEngine(
             append("User: Message Dennis: Are we meeting at 3?\n")
             append("Assistant: ```tool_call\n{\"tool\": \"messages_send_sms\", \"arguments\": {\"recipient\": \"Dennis\", \"body\": \"Are we meeting at 3?\"}}\n```")
         }
-        return ContextBudgetManager.buildGemma3Prompt(conversationHistory, userQuery, instructions)
+        return ContextBudgetManager.buildGemma3Prompt(conversationHistory, userQuery, instructions + "\n" + com.example.tavi.language.AssistantLanguage.replyInstruction(context))
     }
 
     suspend fun synthesizeToolResultWithGemma(

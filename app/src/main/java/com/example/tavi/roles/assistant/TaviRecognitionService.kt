@@ -59,7 +59,11 @@ class TaviRecognitionService : RecognitionService() {
                         }
                         override fun onEvent(eventType: Int, params: Bundle?) {}
                     })
-                    startListening(recognizerIntent ?: Intent())
+                    startListening(Intent(recognizerIntent ?: Intent()).apply {
+                        putExtra(android.speech.RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+                        if (!hasExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE)) putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE,
+                            com.example.tavi.language.AssistantLanguage.locale(this@TaviRecognitionService).toLanguageTag())
+                    })
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to start speech recognition proxy", e)

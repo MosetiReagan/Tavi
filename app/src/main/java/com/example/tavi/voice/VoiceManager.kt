@@ -47,6 +47,8 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
     private var speechRecognizer: SpeechRecognizer? = null
     private var textToSpeech: TextToSpeech? = null
     private var isTtsReady = false
+    private val _offlineVoiceAvailable = MutableStateFlow(false)
+    val offlineVoiceAvailable = _offlineVoiceAvailable.asStateFlow()
     private var followupListening = false
     var isVoiceSessionActive = false
         private set
@@ -57,10 +59,13 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
         if (change == AudioManager.AUDIOFOCUS_LOSS || change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT)
             scope.launch { dismissFollowup(); stopSpeaking() }
     }
-    private val preferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+    private val preferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         _autoReadReplies.value = prefs.getBoolean(KEY_AUTO_READ, false)
         _continuousVoice.value = prefs.getBoolean(KEY_CONTINUOUS_VOICE, true)
         _followupWindowSeconds.value = prefs.getInt(KEY_FOLLOWUP_WINDOW_SECONDS, 5).coerceIn(3, 8)
+        if (key == com.example.tavi.language.AssistantLanguage.KEY) {
+            dismissFollowup(); stopSpeaking(); configureOfflineVoice()
+        }
     }
 
     private val _sessionMode = MutableStateFlow(VoiceSessionMode.IDLE)
@@ -109,12 +114,7 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
-            textToSpeech?.language = Locale.getDefault()
-            val localVoice = textToSpeech?.voices?.filter {
-                !it.isNetworkConnectionRequired && it.locale.language == Locale.getDefault().language
-            }?.maxByOrNull { it.quality }
-            if (localVoice == null) return
-            textToSpeech?.voice = localVoice
+            configureOfflineVoice()
             textToSpeech?.setSpeechRate(_speechRate.value)
             textToSpeech?.setPitch(_pitch.value)
             textToSpeech?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
@@ -145,8 +145,15 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
                     }
                 }
             })
-            isTtsReady = true
         }
+    }
+
+    private fun configureOfflineVoice() {
+        val locale = com.example.tavi.language.AssistantLanguage.locale(context)
+        val voice = textToSpeech?.voices?.filter { !it.isNetworkConnectionRequired && it.locale.language == locale.language }?.maxByOrNull { it.quality }
+        isTtsReady = voice != null
+        _offlineVoiceAvailable.value = isTtsReady
+        if (voice != null) textToSpeech?.voice = voice
     }
 
     private fun handleSpeechEnded() {
@@ -224,7 +231,7 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
 
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, com.example.tavi.language.AssistantLanguage.locale(context).toLanguageTag())
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
         }
@@ -276,6 +283,7 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
                             SpeechRecognizer.ERROR_NO_MATCH -> "No speech recognized"
                             SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Speech recognizer busy"
                             SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Speech timeout"
+                            SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED, SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE -> "This language has no installed on-device speech pack. Install it in Android speech settings or use text."
                             else -> "Speech recognition error ($error)"
                         }
                         if (followupListening) dismissFollowup() else activeOnError?.invoke(errorMsg)

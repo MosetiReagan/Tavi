@@ -22,7 +22,7 @@ object OfflineSpeechOutput {
                 tts = TextToSpeech(context.applicationContext) { status ->
                     val engine = tts
                     val voice = engine?.voices?.filter { !it.isNetworkConnectionRequired &&
-                        it.locale.language == Locale.getDefault().language }?.maxByOrNull { it.quality }
+                        it.locale.language == com.example.tavi.language.AssistantLanguage.locale(context).language }?.maxByOrNull { it.quality }
                     if (status != TextToSpeech.SUCCESS || voice == null || !continuation.isActive) finish(false)
                     else {
                         engine.voice = voice

@@ -486,7 +486,7 @@ class Gemma4BackendEngine(
         return ContextBudgetManager.buildGemma3Prompt(
             cleanHistory,
             currentPrompt,
-            "You are Tavi, an honest and capable on-device AI assistant running locally on Android. Answer concisely, helpfully, and truthfully.",
+            "You are Tavi, an honest and capable on-device AI assistant running locally on Android. Answer concisely, helpfully, and truthfully." + "\n" + com.example.tavi.language.AssistantLanguage.replyInstruction(context),
             persistentMemories = com.example.tavi.memory.PersistentMemoryManager.retrieveRelevantMemories(context, currentPrompt),
             episodicMemories = com.example.tavi.memory.PersistentMemoryManager.retrieveRelevantEpisodes(context, currentPrompt),
             reservedToolTokens = toolTokens

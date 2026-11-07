@@ -86,11 +86,14 @@ class LocalDocumentImporter(private val context: Context) {
     private suspend fun <T> withOcr(block: suspend (TessBaseAPI) -> T): T {
         val root = File(context.filesDir, "ocr")
         val data = File(root, "tessdata").apply { mkdirs() }
-        val language = File(data, "eng.traineddata")
-        if (!language.exists()) context.assets.open("tessdata/eng.traineddata").use { input -> language.outputStream().use { input.copyTo(it) } }
+        val languages = if (com.example.tavi.language.AssistantLanguage.locale(context).language == "sw") listOf("eng", "swa") else listOf("eng")
+        languages.forEach { code ->
+            val language = File(data, "$code.traineddata")
+            if (!language.exists()) context.assets.open("tessdata/$code.traineddata").use { input -> language.outputStream().use { input.copyTo(it) } }
+        }
         val engine = TessBaseAPI()
         try {
-            require(engine.init(root.path, "eng")) { "Offline text recognition could not start." }
+            require(engine.init(root.path, languages.joinToString("+"))) { "Offline text recognition could not start." }
             return block(engine)
         } finally { engine.recycle() }
     }

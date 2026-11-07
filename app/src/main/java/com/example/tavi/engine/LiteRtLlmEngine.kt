@@ -63,14 +63,14 @@ class LiteRtLlmEngine(
         )
 
         fun isLikelyActionRequest(text: String): Boolean {
-            val trimmed = text.trim()
+            val trimmed = com.example.tavi.language.LanguageRouter.route(text)
             if (trimmed.isEmpty()) return false
             return ACTION_INTENT_PATTERN.containsMatchIn(trimmed) ||
                 MATH_INTENT_PATTERN.containsMatchIn(trimmed)
         }
 
         fun isConversationalGreeting(text: String): Boolean {
-            val clean = text.trim().lowercase().replace(Regex("[^a-z0-9 ]"), "")
+            val clean = text.trim().lowercase().replace(Regex("[^\\p{L}\\p{N} ]"), "")
             return clean in CONVERSATIONAL_GREETINGS ||
                    clean.startsWith("hi ") ||
                    clean.startsWith("hello ") ||
@@ -78,7 +78,7 @@ class LiteRtLlmEngine(
         }
 
         fun isConversationalIdentity(text: String): Boolean {
-            val clean = text.trim().lowercase().replace(Regex("[^a-z0-9 ]"), "")
+            val clean = text.trim().lowercase().replace(Regex("[^\\p{L}\\p{N} ]"), "")
             return clean in IDENTITY_QUERIES ||
                    clean.startsWith("who are you") ||
                    clean.startsWith("what is your name")

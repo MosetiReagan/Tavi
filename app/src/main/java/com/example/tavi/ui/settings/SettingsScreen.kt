@@ -126,6 +126,7 @@ fun SettingsScreen(
     var showClearMemoryConfirm by remember { mutableStateOf(false) }
     var isMemoryEnabled by remember { mutableStateOf(com.example.tavi.memory.PersistentMemoryManager.isMemoryEnabled(context)) }
     val voiceManager = remember { com.example.tavi.voice.VoiceManager(context) }
+    androidx.compose.runtime.DisposableEffect(voiceManager) { onDispose { voiceManager.destroy() } }
     var speechRate by remember { mutableFloatStateOf(voiceManager.speechRate.value) }
     var pitch by remember { mutableFloatStateOf(voiceManager.pitch.value) }
     var autoReadReplies by remember { mutableStateOf(voiceManager.autoReadReplies.value) }
@@ -521,6 +522,7 @@ fun SettingsScreen(
             item { PersonalMemoryPanel() }
 
             // --- SECTION 3: VOICE & SPEECH (TTS) ---
+            item { LanguageSettingsPanel(voiceManager) }
             item {
                 Spacer(Modifier.height(8.dp))
                 Text(

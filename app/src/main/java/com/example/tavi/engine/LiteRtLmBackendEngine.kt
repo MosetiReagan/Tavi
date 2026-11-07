@@ -475,7 +475,7 @@ class LiteRtLmBackendEngine(
         return ContextBudgetManager.buildGemma3Prompt(
             history = conversationHistory,
             currentPrompt = userPrompt,
-            baseSystemInstruction = effectiveSystem,
+            baseSystemInstruction = effectiveSystem + "\n" + com.example.tavi.language.AssistantLanguage.replyInstruction(context),
             persistentMemories = memories,
             episodicMemories = episodes
         )
@@ -505,7 +505,7 @@ class LiteRtLmBackendEngine(
         return ContextBudgetManager.buildGemma3Prompt(
             history = conversationHistory,
             currentPrompt = userQuery,
-            baseSystemInstruction = instructions,
+            baseSystemInstruction = instructions + "\n" + com.example.tavi.language.AssistantLanguage.replyInstruction(context),
             persistentMemories = memories,
             episodicMemories = episodes
         )
