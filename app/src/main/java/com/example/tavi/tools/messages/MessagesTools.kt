@@ -191,7 +191,7 @@ class MessagesSendTool : AssistantTool {
 
         try {
             val subscription = android.telephony.SubscriptionManager.getDefaultSmsSubscriptionId()
-            if (!android.telephony.SubscriptionManager.isValidSubscriptionId(subscription)) return ToolResult(toolCallId, name, "{}", false,
+            if (subscription < 0) return ToolResult(toolCallId, name, "{}", false,
                 state = ToolExecutionState.USER_ACTION_REQUIRED, settingsAction = android.provider.Settings.ACTION_WIRELESS_SETTINGS,
                 errorMessage = "Choose a default SIM for SMS in Android settings, then retry.")
             val smsManager = if (Build.VERSION.SDK_INT >= 31) context.getSystemService(SmsManager::class.java).createForSubscriptionId(subscription)

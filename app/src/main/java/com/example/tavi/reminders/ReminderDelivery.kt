@@ -5,6 +5,9 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.example.tavi.MainActivity
@@ -26,6 +29,7 @@ object ReminderDelivery {
             return
         }
         if (reminder["completed"] == 1 || (reminder["triggerTime"] as Long) > System.currentTimeMillis() + 2000) return
+        if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
         if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return
         val channelId = "tavi_reminders"
         if (Build.VERSION.SDK_INT >= 26) {

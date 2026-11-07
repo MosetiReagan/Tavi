@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Bundle
+import android.os.Build
 import android.service.voice.VoiceInteractionSession
 import android.view.View
 import android.widget.*
@@ -54,7 +55,10 @@ class TaviVoiceInteractionSession(context: Context) : VoiceInteractionSession(co
         var count = 0
         fun visit(node: AssistStructure.ViewNode, depth: Int) {
             if (depth > 6 || count++ >= 80 || text.length > 1800 || node.isAssistBlocked) return
-            val password = node.inputType and 0x80 != 0 || node.inputType and 0x10 != 0 && node.inputType and 0x0f == 2
+            // Older AssistStructure nodes cannot expose input types safely.
+            if (Build.VERSION.SDK_INT < 26) return
+            val inputType = node.inputType
+            val password = inputType and 0x80 != 0 || inputType and 0x10 != 0 && inputType and 0x0f == 2
             val safe = AccessibilityTreeReader.sanitizeText(node.text?.toString(), password)
             if (safe.isNotBlank() && safe != "[PASSWORD REDACTED]") text.append(safe).append('\n')
             for (index in 0 until node.childCount) visit(node.getChildAt(index), depth + 1)

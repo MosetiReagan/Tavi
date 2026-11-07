@@ -43,6 +43,7 @@ android {
         }
     }
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -77,6 +78,7 @@ kotlin {
 }
 
 dependencies {
+  coreLibraryDesugaring(libs.desugar.jdk.libs)
   implementation("cz.adaptech.tesseract4android:tesseract4android:4.9.0")
   val composeBom = platform(libs.androidx.compose.bom)
   implementation(composeBom)
