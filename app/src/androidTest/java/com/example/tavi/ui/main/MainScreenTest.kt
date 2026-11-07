@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import com.example.tavi.model.Message
 import com.example.tavi.model.MessageRole
+import com.example.tavi.ui.main.components.ModernMessageBubble
 import org.junit.Rule
 import org.junit.Test
 

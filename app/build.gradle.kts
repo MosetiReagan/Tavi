@@ -13,6 +13,7 @@ android {
         targetSdk = 36
         versionCode = 10
         versionName = "1.0.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         providers.gradleProperty("taviTargetAbi").orNull?.let { targetAbi ->
             require(targetAbi in setOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")) { "Unsupported taviTargetAbi: $targetAbi" }
             ndk.abiFilters.add(targetAbi)
@@ -65,8 +66,8 @@ android {
     }
 
     lint {
-        checkReleaseBuilds = false
-        abortOnError = false
+        checkReleaseBuilds = true
+        abortOnError = true
         checkDependencies = false
         ignoreTestSources = true
         disable += setOf("TypographyFractions", "TypographyQuotes", "GradleDependency")
@@ -123,6 +124,7 @@ dependencies {
   androidTestImplementation(libs.androidx.test.core)
   androidTestImplementation(libs.androidx.test.ext.junit)
   androidTestImplementation(libs.androidx.test.runner)
+  androidTestImplementation(libs.kotlinx.coroutines.test)
   androidTestImplementation(libs.androidx.test.espresso.core)
 
   // Navigation

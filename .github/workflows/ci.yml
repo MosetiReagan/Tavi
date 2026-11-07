@@ -36,8 +36,8 @@ jobs:
       - name: Run JVM Unit Tests
         run: ./gradlew testDebugUnitTest --stacktrace
 
-      - name: Assemble Debug APK
-        run: ./gradlew assembleDebug --stacktrace
+      - name: Assemble App and Instrumentation APKs
+        run: ./gradlew assembleDebug assembleDebugAndroidTest --stacktrace
 
       - name: Upload Test Reports
         if: always()

@@ -15,6 +15,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
@@ -22,8 +23,8 @@ import java.io.File
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Android Instrumentation Test for real on-device Gemma 3 1B inference.
- * Exercises native MediaPipe Tasks GenAI runtime, model loading, streaming,
+ * Android instrumentation tests for the selected local model and runtime.
+ * Exercise model loading, streaming,
  * tool-calling routing, cancellation, and security boundaries on Android.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -115,6 +116,7 @@ class GemmaOnDeviceInferenceTest {
             val eventId = json.optLong("eventId", -1L)
             assertTrue("Event ID must be positive", eventId > 0)
 
+            try {
             // Verify event exists in Calendar Provider
             val uri = android.content.ContentUris.withAppendedId(android.provider.CalendarContract.Events.CONTENT_URI, eventId)
             val cursor = context.contentResolver.query(uri, arrayOf(android.provider.CalendarContract.Events.TITLE), null, null, null)
@@ -135,14 +137,15 @@ class GemmaOnDeviceInferenceTest {
                 synthesis.contains("EVENT_CREATED", ignoreCase = true)
             )
 
-            // Clean up: delete event
+            } finally {
+            // Always delete the test event, including when an assertion fails.
             val deleteCall = com.example.tavi.model.ToolCall(
-                id = "cleanup_call",
                 toolName = "calendar_delete_event",
                 arguments = mapOf("eventId" to eventId)
             )
             val deleteResult = toolRegistry.executeToolCall(deleteCall, userConfirmed = true)
             assertTrue(deleteResult.isSuccess)
+            }
         }
     }
 
@@ -198,26 +201,12 @@ class GemmaOnDeviceInferenceTest {
     @Test
     fun testExecutionWhenModelWeightsInstalled() = runTest(timeout = 300.seconds) {
         val targetFile = modelManager.modelFile
-        if (!targetFile.exists() || targetFile.length() == 0L) {
-            val external = File("/sdcard/Download/gemma-3-1b-it.task")
-            if (external.exists() && external.canRead()) {
-                targetFile.parentFile?.mkdirs()
-                external.copyTo(targetFile, overwrite = true)
-            }
-        }
-        if (!targetFile.exists() || targetFile.length() == 0L) {
-            // Documented: real weights not pre-pushed to test device; test confirms graceful fallback state
-            val engine = LiteRtLlmEngine(context, targetFile.absolutePath)
-            assertFalse(engine.isGenuineInferenceActive)
-            val fallbackReply = engine.generateResponse("Hello Tavi", emptyList()) {}
-            assertTrue(fallbackReply.isNotBlank())
-            return@runTest
-        }
+        assumeTrue("Install verified model weights before testing neural inference", targetFile.exists() && targetFile.length() > 100_000_000)
 
-        // Real Model Weights Present: Initialize Gemma 3 1B
-        val engine = LiteRtLlmEngine(context, targetFile.absolutePath)
+        val engine = LiteRtLlmEngine(context, targetFile.absolutePath, modelManager.activeRuntime.value, toolRegistry)
+        try {
         val loadResult = engine.loadModel()
-        assertTrue("Gemma 3 1B model must load successfully when weights exist", loadResult.isSuccess)
+        assertTrue("The installed model must load successfully", loadResult.isSuccess)
         assertTrue("Genuine inference must be active", engine.isGenuineInferenceActive)
 
         // 1. Conversational prompt 1
@@ -251,15 +240,13 @@ class GemmaOnDeviceInferenceTest {
         // 4. Resource cleanup
         engine.unloadModel()
         assertFalse("Model must be unloaded", engine.isGenuineInferenceActive)
+        } finally { engine.close() }
     }
 
     @Test
-    fun testContactResolverResolvesDennisMokayaOnDevice() = runTest {
-        val (number, name) = com.example.tavi.tools.contacts.ContactResolver.resolvePhoneNumber(context, "Dennis Mokaya")
-        if (com.example.tavi.tools.contacts.ContactResolver.hasContactsPermission(context)) {
-            val contacts = com.example.tavi.tools.contacts.ContactResolver.searchContacts(context, "Dennis", 5)
-            assertTrue("Should find Dennis in device contacts", contacts.isNotEmpty())
-            assertTrue("Resolved phone number should not be empty", number.isNotBlank())
-        }
+    fun testContactResolverAcceptsDirectNumberWithoutSavedContact() = runTest {
+        val expected = "+254700000000"
+        val (number, _) = com.example.tavi.tools.contacts.ContactResolver.resolvePhoneNumber(context, expected)
+        assertEquals(expected, number)
     }
 }
