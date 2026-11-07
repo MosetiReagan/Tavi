@@ -219,8 +219,6 @@ object PermissionCoordinator {
         val usageStatus = if (hasUsageStatsPermission(context)) AccessStatus.GRANTED else AccessStatus.NOT_GRANTED
         val accessibilityStatus = if (isAccessibilityServiceEnabled(context)) AccessStatus.GRANTED else AccessStatus.NOT_GRANTED
         val assistantStatus = RoleManagerHelper.getAssistantStatus(context)
-        val smsRoleStatus = RoleManagerHelper.getSmsStatus(context)
-        val dialerRoleStatus = RoleManagerHelper.getDialerStatus(context)
         val overlayStatus = if (canDrawOverlays(context)) AccessStatus.GRANTED else AccessStatus.NOT_GRANTED
         val allFilesStatus = if (hasAllFilesAccess(context)) AccessStatus.GRANTED else AccessStatus.NOT_GRANTED
         val batteryStatus = if (isBatteryOptimizationIgnored(context)) AccessStatus.GRANTED else AccessStatus.NOT_GRANTED
@@ -233,24 +231,6 @@ object PermissionCoordinator {
                 status = assistantStatus,
                 isRole = true,
                 securityNotice = "Operates 100% on-device; handles system assist intents without cloud telemetry.",
-                requiredApiLevel = 24
-            ),
-            SpecialAccessItem(
-                type = SpecialAccessType.DEFAULT_SMS_APP,
-                title = "Default SMS & Messaging Role",
-                description = "Directly manages cellular text messages and MMS. Enables background incoming SMS processing and reply handling.",
-                status = smsRoleStatus,
-                isRole = true,
-                securityNotice = "Safeguard: Outgoing SMS requires explicit confirmation dialog. Messages never leave device.",
-                requiredApiLevel = 24
-            ),
-            SpecialAccessItem(
-                type = SpecialAccessType.DEFAULT_DIALER,
-                title = "Default Phone / Dialer Role",
-                description = "Manages incoming and outgoing phone calls using Android Telecom InCallService integration.",
-                status = dialerRoleStatus,
-                isRole = true,
-                securityNotice = "Safeguard: Outgoing phone calls require user confirmation. Call logs remain strictly private.",
                 requiredApiLevel = 24
             ),
             SpecialAccessItem(

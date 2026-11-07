@@ -93,29 +93,6 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
 
-            <!-- SMS Handler Action for Default SMS App Eligibility -->
-            <intent-filter>
-                <action android:name="android.intent.action.SENDTO" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="sms" />
-                <data android:scheme="smsto" />
-                <data android:scheme="mms" />
-                <data android:scheme="mmsto" />
-            </intent-filter>
-
-            <!-- Dialer Action for Default Phone App Eligibility -->
-            <intent-filter>
-                <action android:name="android.intent.action.DIAL" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <action android:name="android.intent.action.DIAL" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="tel" />
-            </intent-filter>
-
             <meta-data
                 android:name="android.app.shortcuts"
                 android:resource="@xml/shortcuts" />
@@ -190,6 +167,7 @@
         <!-- Broadcast Receivers & Services for Default SMS App Eligibility -->
         <receiver
             android:name=".roles.sms.SmsDeliverReceiver"
+            android:enabled="false"
             android:permission="android.permission.BROADCAST_SMS"
             android:exported="true">
             <intent-filter>
@@ -199,6 +177,7 @@
 
         <receiver
             android:name=".roles.sms.WapPushDeliverReceiver"
+            android:enabled="false"
             android:permission="android.permission.BROADCAST_WAP_PUSH"
             android:exported="true">
             <intent-filter>
@@ -209,6 +188,7 @@
 
         <service
             android:name=".roles.sms.HeadlessSmsSendService"
+            android:enabled="false"
             android:permission="android.permission.SEND_RESPOND_VIA_MESSAGE"
             android:exported="true">
             <intent-filter>
@@ -224,6 +204,7 @@
         <!-- InCallService for Default Phone/Dialer Role Eligibility -->
         <service
             android:name=".roles.telecom.TaviInCallService"
+            android:enabled="false"
             android:permission="android.permission.BIND_INCALL_SERVICE"
             android:exported="true">
             <meta-data

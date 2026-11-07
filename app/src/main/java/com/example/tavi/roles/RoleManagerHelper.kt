@@ -42,48 +42,11 @@ object RoleManagerHelper {
         }
     }
 
-    fun getSmsStatus(context: Context): AccessStatus {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val roleManager = context.getSystemService(RoleManager::class.java)
-            if (roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_SMS)) {
-                return if (roleManager.isRoleHeld(RoleManager.ROLE_SMS)) {
-                    AccessStatus.ROLE_HELD
-                } else {
-                    AccessStatus.ROLE_AVAILABLE
-                }
-            }
-        }
-
-        val defaultSms = Telephony.Sms.getDefaultSmsPackage(context)
-        return when {
-            defaultSms == context.packageName -> AccessStatus.ROLE_HELD
-            defaultSms != null -> AccessStatus.ROLE_AVAILABLE
-            else -> AccessStatus.ROLE_UNAVAILABLE
-        }
-    }
-
-    fun getDialerStatus(context: Context): AccessStatus {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val roleManager = context.getSystemService(RoleManager::class.java)
-            if (roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_DIALER)) {
-                return if (roleManager.isRoleHeld(RoleManager.ROLE_DIALER)) {
-                    AccessStatus.ROLE_HELD
-                } else {
-                    AccessStatus.ROLE_AVAILABLE
-                }
-            }
-        }
-
-        val telecomManager = context.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
-        val defaultDialer = telecomManager?.defaultDialerPackage
-        return when {
-            defaultDialer == context.packageName -> AccessStatus.ROLE_HELD
-            defaultDialer != null -> AccessStatus.ROLE_AVAILABLE
-            else -> AccessStatus.ROLE_UNAVAILABLE
-        }
-    }
+    fun getSmsStatus(context: Context): AccessStatus = AccessStatus.UNSUPPORTED
+    fun getDialerStatus(context: Context): AccessStatus = AccessStatus.UNSUPPORTED
 
     fun createRequestRoleIntent(context: Context, type: SpecialAccessType): Intent? {
+        if (type in setOf(SpecialAccessType.DEFAULT_SMS_APP, SpecialAccessType.DEFAULT_DIALER)) return null
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val roleManager = context.getSystemService(RoleManager::class.java)
             val roleName = when (type) {
