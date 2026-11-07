@@ -190,48 +190,37 @@ class MessagesSendTool : AssistantTool {
         }
 
         try {
-            val smsManager: SmsManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                context.getSystemService(SmsManager::class.java)
-            } else {
-                @Suppress("DEPRECATION")
-                SmsManager.getDefault()
-            }
-
+            val subscription = android.telephony.SubscriptionManager.getDefaultSmsSubscriptionId()
+            if (!android.telephony.SubscriptionManager.isValidSubscriptionId(subscription)) return ToolResult(toolCallId, name, "{}", false,
+                state = ToolExecutionState.USER_ACTION_REQUIRED, settingsAction = android.provider.Settings.ACTION_WIRELESS_SETTINGS,
+                errorMessage = "Choose a default SIM for SMS in Android settings, then retry.")
+            val smsManager = if (Build.VERSION.SDK_INT >= 31) context.getSystemService(SmsManager::class.java).createForSubscriptionId(subscription)
+                else @Suppress("DEPRECATION") SmsManager.getSmsManagerForSubscriptionId(subscription)
             val parts = smsManager.divideMessage(body)
-            smsManager.sendMultipartTextMessage(resolvedNumber, null, parts, null, null)
-
-            // Persist into telephony provider so it appears in device's Messages app thread
-            try {
-                val values = android.content.ContentValues().apply {
-                    put(android.provider.Telephony.Sms.ADDRESS, resolvedNumber)
-                    put(android.provider.Telephony.Sms.BODY, body)
-                    put(android.provider.Telephony.Sms.DATE, System.currentTimeMillis())
-                    put(android.provider.Telephony.Sms.READ, 1)
-                    put(android.provider.Telephony.Sms.TYPE, android.provider.Telephony.Sms.MESSAGE_TYPE_SENT)
+            require(parts.size in 1..20) { "SMS must fit within 20 parts." }
+            val tracker = SmsDispatchTracker(context)
+            tracker.start(toolCallId, resolvedName ?: resolvedNumber, parts.size)
+            val sent = ArrayList((parts.indices).map { tracker.pending(toolCallId, it, true) })
+            val delivered = ArrayList((parts.indices).map { tracker.pending(toolCallId, it, false) })
+            try { smsManager.sendMultipartTextMessage(resolvedNumber, null, parts, sent, delivered) }
+            catch (e: Exception) {
+                parts.indices.forEach { tracker.callback(toolCallId, it, true, SmsManager.RESULT_ERROR_GENERIC_FAILURE) }
+                throw e
+            }
+            // Sending is asynchronous. System callbacks, rather than a fabricated SENT row, provide outcomes.
+            var status = tracker.status(toolCallId)!!
+            kotlinx.coroutines.withTimeoutOrNull(6000) {
+                while (status.optString("status") == "QUEUED") {
+                    kotlinx.coroutines.delay(150)
+                    status = tracker.status(toolCallId)!!
                 }
-                context.contentResolver.insert(android.provider.Telephony.Sms.Sent.CONTENT_URI, values)
-            } catch (e: Exception) {
-                android.util.Log.w("MessagesTools", "Failed logging sent SMS to system telephony provider", e)
             }
-
-            val resultObj = JSONObject().apply {
-                put("verified", true)
-                put("carrierDeliveryPending", true)
-                put("recipient", resolvedName ?: resolvedNumber)
-                put("phoneNumber", resolvedNumber)
-                put("partsCount", parts.size)
-                put("status", "DISPATCHED_TO_CARRIER")
-                put("summary", "Message handed off to cellular radio for transmission.")
-            }
-
-            return ToolResult(
-                toolCallId = toolCallId,
-                toolName = name,
-                resultJson = resultObj.toString(),
-                isSuccess = true,
-                state = ToolExecutionState.SUCCESS
-            )
-        } catch (e: Exception) {
+            status.put("phoneNumber", resolvedNumber).put("verified", status.optString("status") == "DELIVERED")
+            val failed = status.optString("status") in setOf("FAILED", "DELIVERY_FAILED")
+            return ToolResult(toolCallId, name, status.toString(), !failed,
+                errorMessage = if (failed) "Android reported an SMS failure. Some parts may have been sent; inspect the destination before retrying." else null)
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+        catch (e: Exception) {
             return ToolResult(
                 toolCallId = toolCallId,
                 toolName = name,

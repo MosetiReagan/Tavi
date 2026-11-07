@@ -741,17 +741,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                 val toolCall = ToolCall(id = req.id, toolName = req.toolName, arguments = req.arguments)
                 val result = toolRegistry.executeToolCall(toolCall, userConfirmed = true)
 
-                val finalSummary = if (result.isSuccess) {
-                    if (req.toolName == "messages_send_sms") {
-                        val recipient = req.arguments["recipient"] ?: req.arguments["phoneNumber"] ?: "recipient"
-                        val body = req.arguments["body"] ?: ""
-                        "✅ SMS text dispatched to $recipient: \"$body\"."
-                    } else {
-                        "Action confirmed and completed successfully: ${req.title}."
-                    }
-                } else {
-                    "Action failed: ${result.errorMessage}"
-                }
+                val finalSummary = ToolResultSynthesizer.synthesize(listOf(toolCall), listOf(result))
 
                 val resultMsg = Message(
                     conversationId = currentConvId,

@@ -51,6 +51,12 @@ class DeterministicAssistantEngine : InferenceEngine {
         conversationHistory: List<Message>
     ): List<ToolCall> {
         val routedQuery = com.example.tavi.language.LanguageRouter.route(userQuery)
+        if (routedQuery.lowercase().trim() in setOf("check sms status", "check message status", "was my sms delivered", "was my message sent")) {
+            val dispatchId = conversationHistory.flatMap { it.toolResults }.lastOrNull { it.toolName == "messages_send_sms" }?.let {
+                runCatching { org.json.JSONObject(it.resultJson).optString("dispatchId") }.getOrNull()
+            }?.takeIf { it.isNotBlank() } ?: "latest"
+            return listOf(ToolCall(toolName = "messages_get_send_status", arguments = mapOf("dispatchId" to dispatchId)))
+        }
         Regex("(?i)^(?:search|find|look up)\\s+(?:in\\s+)?(?:my\\s+)?(?:documents|document library|library)\\s+(?:for\\s+)?(.+)$")
             .find(routedQuery.trim())?.let { match ->
                 return listOf(ToolCall(toolName = "documents_search", arguments = mapOf("query" to match.groupValues[1])))

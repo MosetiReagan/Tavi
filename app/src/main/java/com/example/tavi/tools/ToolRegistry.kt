@@ -92,6 +92,7 @@ class ToolRegistry(private val context: Context) {
         register(MessagesDraftTool())
         register(MessagesSendTool())
         register(MessagesSearchTool())
+        register(com.example.tavi.tools.messages.MessageSendStatusTool())
         register(PhoneDialTool())
         register(PhoneCallTool())
         register(CallLogSearchTool())

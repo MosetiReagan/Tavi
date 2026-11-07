@@ -74,13 +74,13 @@ object ToolResultSynthesizer {
                 }
                 "alarm_create" -> {
                     val minutes = t.arguments["minutes"]?.toString()?.toIntOrNull() ?: 0
-                    sb.append("⏰ Alarm set for ${t.arguments["hour"]}:${String.format(Locale.getDefault(), "%02d", minutes)}.")
+                    sb.append("Opened the Clock app with an alarm request for ${t.arguments["hour"]}:${String.format(Locale.getDefault(), "%02d", minutes)}. Check the Clock app to confirm it was saved.")
                 }
                 "alarm_show" -> {
                     sb.append("⏰ System Clock alarms opened.")
                 }
                 "timer_set" -> {
-                    sb.append("⏳ Timer started for ${t.arguments["seconds"]} seconds.")
+                    sb.append("Opened the Clock app with a timer request for ${t.arguments["seconds"]} seconds. Check the Clock app to confirm it started.")
                 }
                 "clock_query_time" -> {
                     sb.append(formatTimeResult(r.resultJson))
@@ -175,8 +175,17 @@ object ToolResultSynthesizer {
                 "messages_draft" -> {
                     sb.append("✉️ Draft prepared for ${t.arguments["recipient"]}:\n\"${t.arguments["body"]}\"")
                 }
-                "messages_send_sms" -> {
-                    sb.append("✅ Text message sent to ${t.arguments["recipient"]}.")
+                "messages_send_sms", "messages_get_send_status" -> {
+                    val data = JSONObject(r.resultJson)
+                    val recipient = data.optString("recipient", "recipient")
+                    val status = data.optString("status", "QUEUED")
+                    sb.append(when (status) {
+                        "DELIVERED" -> "SMS delivery confirmed to $recipient."
+                        "SENT" -> "Android reported SMS sent to $recipient. Delivery confirmation is pending."
+                        "FAILED", "DELIVERY_FAILED" -> "Android reported an SMS failure for $recipient; some parts may have been sent."
+                        else -> "SMS queued for $recipient. Sending and delivery are not yet confirmed."
+                    })
+                    sb.append(" Ask ‘check SMS status’ for an update.")
                 }
                 "messages_search" -> {
                     sb.append("Found messages:\n${r.resultJson}")

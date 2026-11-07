@@ -51,9 +51,9 @@ object WorkflowStepVerifier {
             "messages_send_sms" -> {
                 val recipient = step.arguments["recipient"]?.toString() ?: "contact"
                 StepVerificationResult(
-                    status = StepVerificationStatus.VERIFIED,
-                    detail = "SMS dispatch submitted through Android SmsManager to $recipient",
-                    isConfirmedState = true
+                    status = StepVerificationStatus.UNVERIFIED,
+                    detail = "SMS state for $recipient: ${JSONObject(result.resultJson).optString("status", "QUEUED")}; check callbacks for delivery.",
+                    isConfirmedState = false
                 )
             }
 
@@ -304,7 +304,7 @@ object WorkflowStepVerifier {
         return if (value != null) {
             StepVerificationResult(
                 status = StepVerificationStatus.VERIFIED,
-                detail = "Personal memory key '$key' verified in encrypted local storage",
+                detail = "Personal memory key '$key' verified in local SQLite storage",
                 isConfirmedState = true
             )
         } else {
