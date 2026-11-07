@@ -13,6 +13,10 @@ android {
         targetSdk = 36
         versionCode = 10
         versionName = "1.0.0"
+        providers.gradleProperty("taviTargetAbi").orNull?.let { targetAbi ->
+            require(targetAbi in setOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")) { "Unsupported taviTargetAbi: $targetAbi" }
+            ndk.abiFilters.add(targetAbi)
+        }
     }
 
     signingConfigs {
