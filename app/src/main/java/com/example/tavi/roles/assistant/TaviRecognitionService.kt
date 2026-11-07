@@ -2,6 +2,7 @@ package com.example.tavi.roles.assistant
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.speech.RecognitionListener
@@ -23,14 +24,14 @@ class TaviRecognitionService : RecognitionService() {
 
         mainHandler.post {
             try {
-                if (!SpeechRecognizer.isRecognitionAvailable(this@TaviRecognitionService)) {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || !SpeechRecognizer.isOnDeviceRecognitionAvailable(this@TaviRecognitionService)) {
                     Log.w(TAG, "Speech recognition not available on system")
                     listener.error(SpeechRecognizer.ERROR_RECOGNIZER_BUSY)
                     return@post
                 }
 
                 activeRecognizer?.destroy()
-                activeRecognizer = SpeechRecognizer.createSpeechRecognizer(this@TaviRecognitionService).apply {
+                activeRecognizer = SpeechRecognizer.createOnDeviceSpeechRecognizer(this@TaviRecognitionService).apply {
                     setRecognitionListener(object : RecognitionListener {
                         override fun onReadyForSpeech(params: Bundle?) {
                             try { listener.readyForSpeech(params) } catch (e: Exception) { Log.w(TAG, "listener error", e) }

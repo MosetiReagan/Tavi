@@ -82,6 +82,11 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
+    private fun speakReply(text: String) {
+        if (voiceManager.autoReadReplies.value ||
+            (voiceManager.continuousVoice.value && voiceManager.isVoiceSessionActive)) voiceManager.speak(text)
+    }
+
     init {
         checkModelInstallation()
         loadPersistedMessages()
@@ -382,6 +387,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         if (workflow.state == WorkflowState.AWAITING_CONFIRMATION || workflow.state == WorkflowState.AWAITING_USER_INPUT) {
             withContext(Dispatchers.Main) {
                 _uiState.value = _uiState.value.copy(isStreaming = false)
+                speakReply(workflow.missingInputPrompt ?: "Review the pending action and confirm it on screen.")
             }
             return
         }
@@ -434,6 +440,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                 messages = currentMessages + assistantMsg,
                 isStreaming = false
             )
+            speakReply(summary)
         }
     }
 
@@ -544,6 +551,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                         pendingConfirmation = req,
                         isStreaming = false
                     )
+                    speakReply("Clear all saved memories? Say yes to confirm, or no to cancel.")
                 }
                 return
             }
@@ -560,6 +568,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                 messages = currentMessages + assistantMsg,
                 isStreaming = false
             )
+            speakReply(replyText)
         }
     }
 
@@ -638,9 +647,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                     isStreaming = false,
                     statusBanner = prunedNotice ?: _uiState.value.statusBanner
                 )
-                if (voiceManager.autoReadReplies.value && finalReply.isNotBlank()) {
-                    voiceManager.speak(finalReply)
-                }
+                if (finalReply.isNotBlank()) speakReply(finalReply)
             }
         }
     }
@@ -677,7 +684,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                     isStreaming = false,
                     pendingConfirmation = pendingConfirmationReq
                 )
-                if (voiceManager.autoReadReplies.value || voiceManager.continuousVoice.value) {
+                if (voiceManager.autoReadReplies.value || voiceManager.isVoiceSessionActive) {
                     val promptText = "Do you want me to ${pendingConfirmationReq.title}? Say yes or no."
                     voiceManager.speak(promptText)
                 }
@@ -714,6 +721,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                 isStreaming = false,
                 statusBanner = prunedNotice ?: _uiState.value.statusBanner
             )
+            speakReply(finalSummary)
         }
     }
 
@@ -764,6 +772,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
 
                 withContext(Dispatchers.Main) {
                     _uiState.value = _uiState.value.copy(messages = _uiState.value.messages + resultMsg)
+                    speakReply(finalSummary)
                 }
             } catch (e: Exception) {
                 Log.e("MainScreenViewModel", "Error executing confirmed action", e)
@@ -812,7 +821,10 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
             },
             onResult = { spokenText ->
                 _uiState.value = _uiState.value.copy(interimVoiceTranscript = null)
-                handleSpokenInput(spokenText, onFinalText)
+                if (voiceManager.continuousVoice.value) {
+                    onFinalText("")
+                    handleSpokenInput(spokenText)
+                } else handleSpokenInput(spokenText, onFinalText)
             },
             onError = { error ->
                 _uiState.value = _uiState.value.copy(

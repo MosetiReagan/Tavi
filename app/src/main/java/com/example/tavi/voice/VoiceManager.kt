@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
+import android.os.Build
+import android.media.AudioManager
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -45,6 +47,21 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
     private var speechRecognizer: SpeechRecognizer? = null
     private var textToSpeech: TextToSpeech? = null
     private var isTtsReady = false
+    private var followupListening = false
+    var isVoiceSessionActive = false
+        private set
+    private val doneCallbacks = mutableMapOf<String, () -> Unit>()
+    private var activeUtteranceId: String? = null
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+    private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
+        if (change == AudioManager.AUDIOFOCUS_LOSS || change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT)
+            scope.launch { dismissFollowup(); stopSpeaking() }
+    }
+    private val preferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+        _autoReadReplies.value = prefs.getBoolean(KEY_AUTO_READ, false)
+        _continuousVoice.value = prefs.getBoolean(KEY_CONTINUOUS_VOICE, true)
+        _followupWindowSeconds.value = prefs.getInt(KEY_FOLLOWUP_WINDOW_SECONDS, 5).coerceIn(3, 8)
+    }
 
     private val _sessionMode = MutableStateFlow(VoiceSessionMode.IDLE)
     val sessionMode: StateFlow<VoiceSessionMode> = _sessionMode.asStateFlow()
@@ -82,6 +99,7 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
     private var activeOnError: ((String) -> Unit)? = null
 
     init {
+        prefs.registerOnSharedPreferenceChangeListener(preferenceListener)
         try {
             textToSpeech = TextToSpeech(context.applicationContext, this)
         } catch (e: Exception) {
@@ -92,6 +110,11 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             textToSpeech?.language = Locale.getDefault()
+            val localVoice = textToSpeech?.voices?.filter {
+                !it.isNetworkConnectionRequired && it.locale.language == Locale.getDefault().language
+            }?.maxByOrNull { it.quality }
+            if (localVoice == null) return
+            textToSpeech?.voice = localVoice
             textToSpeech?.setSpeechRate(_speechRate.value)
             textToSpeech?.setPitch(_pitch.value)
             textToSpeech?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
@@ -101,13 +124,25 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
                 }
 
                 override fun onDone(utteranceId: String?) {
-                    _isSpeaking.value = false
-                    handleSpeechEnded()
+                    scope.launch {
+                        if (utteranceId != activeUtteranceId) return@launch
+                        activeUtteranceId = null
+                        _isSpeaking.value = false
+                        audioManager?.abandonAudioFocus(focusListener)
+                        doneCallbacks.remove(utteranceId)?.invoke()
+                        handleSpeechEnded()
+                    }
                 }
 
                 override fun onError(utteranceId: String?) {
-                    _isSpeaking.value = false
-                    handleSpeechEnded()
+                    scope.launch {
+                        if (utteranceId != activeUtteranceId) return@launch
+                        activeUtteranceId = null
+                        _isSpeaking.value = false
+                        audioManager?.abandonAudioFocus(focusListener)
+                        doneCallbacks.remove(utteranceId)?.invoke()
+                        handleSpeechEnded()
+                    }
                 }
             })
             isTtsReady = true
@@ -115,7 +150,7 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
     }
 
     private fun handleSpeechEnded() {
-        if (_continuousVoice.value && (activeOnResult != null || _autoReadReplies.value)) {
+        if (_continuousVoice.value && isVoiceSessionActive && activeOnResult != null) {
             startFollowupWindow()
         } else {
             _sessionMode.value = VoiceSessionMode.IDLE
@@ -168,11 +203,19 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
         activeOnPartialResult = onPartialResult
         activeOnResult = onResult
         activeOnError = onError
+        stopSpeaking()
+        isVoiceSessionActive = true
+        beginListening(false)
+    }
+
+    private fun beginListening(isFollowup: Boolean) {
+        followupListening = isFollowup
 
         cancelFollowupCountdown()
 
-        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-            onError("Speech recognition not available on this device.")
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || !SpeechRecognizer.isOnDeviceRecognitionAvailable(context)) {
+            isVoiceSessionActive = false
+            activeOnError?.invoke("Offline speech recognition is unavailable. Install an on-device speech provider in Android settings, or use text input.")
             _sessionMode.value = VoiceSessionMode.IDLE
             return
         }
@@ -183,18 +226,20 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
         }
 
         try {
-            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
+            speechRecognizer = SpeechRecognizer.createOnDeviceSpeechRecognizer(context).apply {
                 setRecognitionListener(object : RecognitionListener {
                     override fun onReadyForSpeech(params: Bundle?) {
                         _isListening.value = true
-                        _sessionMode.value = VoiceSessionMode.LISTENING
+                        _sessionMode.value = if (followupListening) VoiceSessionMode.AWAITING_FOLLOWUP else VoiceSessionMode.LISTENING
                     }
 
                     override fun onBeginningOfSpeech() {
                         cancelFollowupCountdown()
+                        followupListening = false
                         // Barge-in interruption check
                         if (_isSpeaking.value && _bargeIn.value) {
                             Log.d(TAG, "Barge-in triggered: speech started during TTS playback")
@@ -233,12 +278,14 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
                             SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Speech timeout"
                             else -> "Speech recognition error ($error)"
                         }
-                        activeOnError?.invoke(errorMsg)
+                        if (followupListening) dismissFollowup() else activeOnError?.invoke(errorMsg)
                     }
 
                     override fun onResults(results: Bundle?) {
                         _isListening.value = false
                         _sessionMode.value = VoiceSessionMode.PROCESSING
+                        followupListening = false
+                        cancelFollowupCountdown()
                         val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                         val spoken = matches?.firstOrNull()
                         if (!spoken.isNullOrEmpty()) {
@@ -255,7 +302,7 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
                             if (_isSpeaking.value && _bargeIn.value) {
                                 stopSpeaking()
                             }
-                            _sessionMode.value = VoiceSessionMode.LISTENING
+                            if (!followupListening) _sessionMode.value = VoiceSessionMode.LISTENING
                             activeOnPartialResult?.invoke(partial)
                         }
                     }
@@ -266,7 +313,8 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed creating or starting speech recognizer", e)
-            onError("Unable to initialize speech recognizer: ${e.message}")
+            isVoiceSessionActive = false
+            activeOnError?.invoke("Unable to initialize offline speech recognizer: ${e.message}")
             _sessionMode.value = VoiceSessionMode.IDLE
         }
     }
@@ -278,22 +326,7 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
             val windowSec = _followupWindowSeconds.value
             _followupRemainingSeconds.value = windowSec
 
-            val resultCb = activeOnResult
-            val partialCb = activeOnPartialResult
-
-            if (resultCb != null) {
-                startListening(
-                    onPartialResult = { partialCb?.invoke(it) },
-                    onResult = { result ->
-                        cancelFollowupCountdown()
-                        resultCb(result)
-                    },
-                    onError = {
-                        // In follow-up mode, a timeout error simply completes the follow-up window quietly
-                        dismissFollowup()
-                    }
-                )
-            }
+            if (activeOnResult != null) beginListening(true)
 
             followupJob = scope.launch {
                 for (remaining in windowSec downTo 1) {
@@ -302,7 +335,7 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
                     if (!isActive) return@launch
                 }
                 _followupRemainingSeconds.value = 0
-                if (_sessionMode.value == VoiceSessionMode.AWAITING_FOLLOWUP) {
+                if (followupListening) {
                     dismissFollowup()
                 }
             }
@@ -310,6 +343,8 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
     }
 
     fun dismissFollowup() {
+        isVoiceSessionActive = false
+        followupListening = false
         cancelFollowupCountdown()
         stopListeningInternal()
         _sessionMode.value = VoiceSessionMode.IDLE
@@ -333,6 +368,7 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
     }
 
     fun stopListening() {
+        isVoiceSessionActive = false
         cancelFollowupCountdown()
         stopListeningInternal()
         if (_sessionMode.value == VoiceSessionMode.LISTENING || _sessionMode.value == VoiceSessionMode.AWAITING_FOLLOWUP) {
@@ -343,16 +379,36 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
     fun speak(text: String, onDoneCallback: (() -> Unit)? = null) {
         if (!isTtsReady || text.isEmpty()) {
             onDoneCallback?.invoke()
+            handleSpeechEnded()
             return
         }
         stopSpeaking()
+        stopListeningInternal()
+        val granted = audioManager?.requestAudioFocus(focusListener, AudioManager.STREAM_MUSIC,
+            AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+        if (granted != null && granted != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            onDoneCallback?.invoke()
+            dismissFollowup()
+            return
+        }
         _isSpeaking.value = true
         _sessionMode.value = VoiceSessionMode.SPEAKING
         val utteranceId = "TAVI_TTS_${System.currentTimeMillis()}"
-        textToSpeech?.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
+        activeUtteranceId = utteranceId
+        if (onDoneCallback != null) doneCallbacks[utteranceId] = onDoneCallback
+        if (textToSpeech?.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId) == TextToSpeech.ERROR) {
+            activeUtteranceId = null
+            doneCallbacks.remove(utteranceId)?.invoke()
+            _isSpeaking.value = false
+            audioManager?.abandonAudioFocus(focusListener)
+            handleSpeechEnded()
+        }
     }
 
     fun stopSpeaking() {
+        activeUtteranceId = null
+        doneCallbacks.clear()
+        audioManager?.abandonAudioFocus(focusListener)
         textToSpeech?.stop()
         _isSpeaking.value = false
         if (_sessionMode.value == VoiceSessionMode.SPEAKING) {
@@ -361,6 +417,7 @@ class VoiceManager(private val context: Context) : TextToSpeech.OnInitListener {
     }
 
     fun destroy() {
+        prefs.unregisterOnSharedPreferenceChangeListener(preferenceListener)
         cancelFollowupCountdown()
         scope.cancel()
         stopListeningInternal()

@@ -140,15 +140,17 @@ class VoiceSpeakTool : AssistantTool {
         context: Context
     ): ToolResult {
         val text = arguments["text"]?.toString()?.trim() ?: ""
+        val spoken = text.isNotBlank() && com.example.tavi.voice.OfflineSpeechOutput.speak(context, text)
         return ToolResult(
             toolCallId = toolCallId,
             toolName = name,
             resultJson = JSONObject().apply {
-                put("status", "TTS_REQUESTED")
+                put("status", if (spoken) "SPOKEN" else "OFFLINE_VOICE_UNAVAILABLE")
                 put("text", text)
             }.toString(),
-            isSuccess = true,
-            state = ToolExecutionState.SUCCESS
+            isSuccess = spoken,
+            errorMessage = if (spoken) null else "Install an offline text-to-speech voice in Android settings.",
+            state = if (spoken) ToolExecutionState.SUCCESS else ToolExecutionState.UNSUPPORTED
         )
     }
 }

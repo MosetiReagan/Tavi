@@ -189,6 +189,17 @@ fun MainScreen(
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
+    val voiceLifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(voiceLifecycleOwner, viewModel) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
+                viewModel.stopVoiceInput()
+                viewModel.voiceManager.stopSpeaking()
+            }
+        }
+        voiceLifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { voiceLifecycleOwner.lifecycle.removeObserver(observer); viewModel.stopVoiceInput() }
+    }
 
     val lastVisibleIndex by remember {
         derivedStateOf {
