@@ -32,6 +32,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.util.Log
@@ -73,6 +74,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
     val workflowEngine = WorkflowEngine(application, toolRegistry, db)
 
     private var taskJob: Job? = null
+    private var preloadJob: Job? = null
 
     private var activeEngine: InferenceEngine = LiteRtLlmEngine(
         application,
@@ -134,7 +136,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     private fun preloadModel() {
-        viewModelScope.launch(Dispatchers.IO + coroutineExceptionHandler) {
+        preloadJob = viewModelScope.launch(Dispatchers.IO + coroutineExceptionHandler) {
             try {
                 val engine = resolveActiveEngine()
                 if (engine !is LiteRtLlmEngine || !engine.hasModelWeights || engine.isGenuineInferenceActive) {
@@ -174,12 +176,13 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         return interrupted
     }
 
+    @Synchronized
     private fun resolveActiveEngine(): InferenceEngine {
         val targetFile = modelManager.modelFile
         val path = if (targetFile.exists() && targetFile.length() > 0) targetFile.absolutePath else null
         val runtime = modelManager.activeRuntime.value
         val currentEngine = activeEngine
-        if (currentEngine is LiteRtLlmEngine && currentEngine.modelPath == path && currentEngine.activeRuntime == runtime) {
+        if (currentEngine is LiteRtLlmEngine && currentEngine.modelPath == path && currentEngine.requestedRuntime == runtime) {
             return currentEngine
         }
         (currentEngine as? AutoCloseable)?.close()
@@ -227,7 +230,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                 val path = modelOption?.localPath
                 val runtime = modelManager.activeRuntime.value
                 val currentEngine = activeEngine
-                if (currentEngine is LiteRtLlmEngine && currentEngine.modelPath == path && currentEngine.activeRuntime == runtime) {
+                if (currentEngine is LiteRtLlmEngine && currentEngine.modelPath == path && currentEngine.requestedRuntime == runtime) {
                     _uiState.value = _uiState.value.copy(activeModelName = displayName)
                     return@collect
                 }
@@ -239,12 +242,24 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch {
             modelManager.activeRuntime.collect { runtime ->
                 val currentEngine = activeEngine
-                if (currentEngine is LiteRtLlmEngine && currentEngine.activeRuntime != runtime) {
+                if (currentEngine is LiteRtLlmEngine && currentEngine.requestedRuntime != runtime) {
+                    taskJob?.cancelAndJoin()
+                    preloadJob?.cancelAndJoin()
                     currentEngine.switchRuntime(runtime)
                     val modelOption = modelManager.getAvailableModels().find { it.id == modelManager.activeModelId.value }
                     val baseName = modelOption?.name ?: "Gemma 3 1B"
                     _uiState.value = _uiState.value.copy(activeModelName = "$baseName (${runtime.displayName})")
                 }
+            }
+        }
+        viewModelScope.launch {
+            modelManager.memoryPressure.drop(1).collect {
+                cancelTask()
+                taskJob?.join()
+                preloadJob?.cancelAndJoin()
+                withContext(Dispatchers.IO) { (activeEngine as? LiteRtLlmEngine)?.unloadModel() }
+                _uiState.value = _uiState.value.copy(activeModelName = "Basic commands • model released",
+                    statusBanner = "Android reported low memory. Model memory was released; basic commands remain available.")
             }
         }
     }

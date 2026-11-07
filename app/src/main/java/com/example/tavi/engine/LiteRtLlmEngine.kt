@@ -125,6 +125,11 @@ class LiteRtLlmEngine(
     var activeRuntime: InferenceRuntime = initialRuntime
         private set
 
+    /** User selection remains stable when a compatible backend is used as a fallback. */
+    @Volatile
+    var requestedRuntime: InferenceRuntime = initialRuntime
+        private set
+
     @Volatile
     private var gemma4Backend: Gemma4BackendEngine? = null
 
@@ -171,6 +176,7 @@ class LiteRtLlmEngine(
 
     @Synchronized
     fun switchRuntime(newRuntime: InferenceRuntime) {
+        requestedRuntime = newRuntime
         if (activeRuntime == newRuntime) return
         Log.i(TAG, "Switching inference runtime: $activeRuntime -> $newRuntime")
 
