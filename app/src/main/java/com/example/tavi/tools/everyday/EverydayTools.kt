@@ -348,14 +348,14 @@ class ReminderCreateTool : AssistantTool {
         val title = arguments["title"]?.toString()?.trim()
         val timeRaw = arguments["time"]?.toString()?.trim()
 
-        if (title.isNullOrEmpty() || timeRaw.isNullOrEmpty()) {
+        if (title.isNullOrEmpty() || timeRaw.isNullOrEmpty() || !CalendarNaturalDateResolver.hasExplicitTime(timeRaw)) {
             return ToolResult(
                 toolCallId = toolCallId,
                 toolName = name,
                 resultJson = "{}",
                 isSuccess = false,
                 state = ToolExecutionState.ERROR,
-                errorMessage = "Both 'title' and 'time' are required."
+                errorMessage = "Please provide reminder text and an explicit time, such as 'tomorrow at 16:30'."
             )
         }
 

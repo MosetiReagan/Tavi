@@ -3,10 +3,29 @@ package com.example.tavi.calendar
 import com.example.tavi.tools.calendar.CalendarNaturalDateResolver
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import java.util.Calendar
 
 class CalendarNaturalDateResolverTest {
+    @Test
+    fun parses24HourTimeWithoutDroppingMinutes() {
+        val base = Calendar.getInstance().apply { set(2026, Calendar.NOVEMBER, 7, 12, 0, 0) }.timeInMillis
+        val actual = Calendar.getInstance().apply {
+            timeInMillis = CalendarNaturalDateResolver.resolveToEpochMillis("tomorrow at 16:30", base)!!
+        }
+        assertEquals(8, actual.get(Calendar.DAY_OF_MONTH))
+        assertEquals(16, actual.get(Calendar.HOUR_OF_DAY))
+        assertEquals(30, actual.get(Calendar.MINUTE))
+    }
+
+    @Test
+    fun rejectsInvalidOrPartiallyParsedInput() {
+        for (input in listOf("nonsense", "tomorrow at 25:70", "2026-02-30", "2026-11-07 garbage", "at 4", "in 0 minutes")) {
+            assertNull(input, CalendarNaturalDateResolver.resolveToEpochMillis(input))
+        }
+    }
 
     @Test
     fun testRelativeDurationResolution() {

@@ -309,7 +309,7 @@ class CalendarCreateEventTool : AssistantTool {
             )
         }
 
-        if (startRaw.isNullOrEmpty()) {
+        if (startRaw.isNullOrEmpty() || !CalendarNaturalDateResolver.hasExplicitTime(startRaw)) {
             return ToolResult(
                 toolCallId = toolCallId,
                 toolName = name,
@@ -331,10 +331,15 @@ class CalendarCreateEventTool : AssistantTool {
             )
 
         val endMillis = if (!endRaw.isNullOrEmpty()) {
-            CalendarNaturalDateResolver.resolveToEpochMillis(endRaw, startMillis) ?: (startMillis + 3600 * 1000L)
+            CalendarNaturalDateResolver.resolveToEpochMillis(endRaw, startMillis)
+                ?: return ToolResult(toolCallId, name, "{}", isSuccess = false,
+                    state = ToolExecutionState.AMBIGUOUS, errorMessage = "Please provide a valid end date and time.")
         } else {
             startMillis + 3600 * 1000L // Default 1 hour duration
         }
+
+        if (endMillis <= startMillis) return ToolResult(toolCallId, name, "{}", isSuccess = false,
+            state = ToolExecutionState.AMBIGUOUS, errorMessage = "The event must end after it starts.")
 
         // Check for conflicts within this window
         val conflicts = findConflictingEvents(context, startMillis, endMillis)
