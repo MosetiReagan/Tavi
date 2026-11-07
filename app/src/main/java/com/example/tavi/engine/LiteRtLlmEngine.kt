@@ -143,12 +143,21 @@ class LiteRtLlmEngine(
         when (runtime) {
             InferenceRuntime.GEMMA_4_E2B, InferenceRuntime.LITERTLM -> {
                 if (gemma4Backend == null) {
-                    gemma4Backend = Gemma4BackendEngine(context, modelPath, toolRegistry = toolRegistry)
+                    val path = modelPath?.let { source ->
+                        if (File(source).name.contains("e2b")) source else
+                            File(File(source).parentFile, ModelManager.MODEL_FILE_NAME_E2B).takeIf { it.exists() }?.absolutePath
+                    }
+                    gemma4Backend = Gemma4BackendEngine(context, path, toolRegistry = toolRegistry)
                 }
             }
             InferenceRuntime.GEMMA_3_1B -> {
                 if (litertLmBackend == null) {
-                    litertLmBackend = LiteRtLmBackendEngine(context, modelPath, toolRegistry = toolRegistry)
+                    val path = modelPath?.let { source ->
+                        if (!File(source).name.contains("e2b")) source else
+                            listOf(ModelManager.MODEL_FILE_NAME_3_1B_LITERTLM, ModelManager.MODEL_FILE_NAME_3_1B_TASK)
+                                .map { File(File(source).parentFile, it) }.firstOrNull { it.exists() }?.absolutePath
+                    }
+                    litertLmBackend = LiteRtLmBackendEngine(context, path, toolRegistry = toolRegistry)
                 }
             }
             InferenceRuntime.MEDIAPIPE -> {
@@ -208,6 +217,14 @@ class LiteRtLlmEngine(
 
     @Synchronized
     fun loadModel(): Result<Unit> {
+        if (activeRuntime == InferenceRuntime.DETERMINISTIC_ONLY) return Result.success(Unit)
+        val needed = if (modelPath?.contains("e2b") == true) 3500 else 1200
+        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
+        if (am != null) {
+            val info = android.app.ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
+            if (am.isLowRamDevice || info.lowMemory || info.availMem < needed * 1024L * 1024L)
+                return Result.failure(IllegalStateException("Insufficient available memory. Basic commands remain available."))
+        }
         return when (activeRuntime) {
             InferenceRuntime.GEMMA_4_E2B, InferenceRuntime.LITERTLM -> {
                 initActiveBackend(activeRuntime)
@@ -219,6 +236,7 @@ class LiteRtLlmEngine(
                     initActiveBackend(InferenceRuntime.GEMMA_3_1B)
                     val fallback31B = litertLmBackend?.loadModel()
                     if (fallback31B?.isSuccess == true) {
+                        activeRuntime = InferenceRuntime.GEMMA_3_1B
                         Log.i(TAG, "Gemma 4 E2B load failed; fallback to Gemma 3 1B succeeded")
                         fallback31B
                     } else {
@@ -263,9 +281,9 @@ class LiteRtLlmEngine(
         if (hasModelWeights) {
             val loadRes = loadModel()
             if (loadRes.isFailure) {
-                val err = "⚠️ Model failed to initialize from '${modelPath}': ${loadRes.exceptionOrNull()?.message}"
-                onToken(err)
-                return err
+                val error = "Model failed to initialize: ${loadRes.exceptionOrNull()?.message}. Basic phone commands remain available."
+                onToken(error)
+                return error
             }
         }
 
@@ -311,6 +329,8 @@ class LiteRtLlmEngine(
         userQuery: String,
         conversationHistory: List<Message>
     ): List<ToolCall> {
+        val quickCalls = deterministicEngine.proposeToolCalls(userQuery, conversationHistory)
+        if (quickCalls.isNotEmpty()) return quickCalls
         if (hasModelWeights) {
             val loadRes = loadModel()
             if (loadRes.isFailure) {

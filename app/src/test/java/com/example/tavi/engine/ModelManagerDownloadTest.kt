@@ -19,6 +19,12 @@ import java.net.InetSocketAddress
 import java.security.MessageDigest
 
 class ModelManagerDownloadTest {
+    @Test
+    fun insufficientStorageStopsDownloadBeforeNetworkAccess() = runTest {
+        val manager = ModelManager(mockContext, availableStorage = { 1L })
+        val result = manager.downloadModel(url = "http://127.0.0.1:59999/model.litertlm") { _, _ -> }
+        assertTrue(result.exceptionOrNull()?.message?.contains("Insufficient storage") == true)
+    }
 
     private lateinit var tempDir: File
     private lateinit var mockContext: Context
@@ -76,7 +82,7 @@ class ModelManagerDownloadTest {
 
     @Test
     fun testDownloadFailsOnInvalidUrlOrNetworkError() = runTest {
-        val modelManager = ModelManager(mockContext)
+        val modelManager = ModelManager(mockContext, availableStorage = { 4L * 1024 * 1024 * 1024 })
         val result = modelManager.downloadModel(url = "http://127.0.0.1:59999/non_existent_weights.litertlm") { _, _ -> }
 
         assertTrue("Download should fail on non-existent endpoint", result.isFailure)
@@ -96,7 +102,7 @@ class ModelManagerDownloadTest {
         }
         serverPort = server!!.address.port
 
-        val modelManager = ModelManager(mockContext)
+        val modelManager = ModelManager(mockContext, availableStorage = { 4L * 1024 * 1024 * 1024 })
         val result = modelManager.downloadModel(url = "http://127.0.0.1:$serverPort/small_model.litertlm") { _, _ -> }
 
         assertTrue("Download should reject incomplete weights < 100 MB", result.isFailure)
@@ -138,7 +144,7 @@ class ModelManagerDownloadTest {
         }
         serverPort = server!!.address.port
 
-        val modelManager = ModelManager(mockContext)
+        val modelManager = ModelManager(mockContext, availableStorage = { 4L * 1024 * 1024 * 1024 })
         var reportedBytes = 0L
         var totalBytesReported = 0L
 
@@ -177,7 +183,7 @@ class ModelManagerDownloadTest {
         }
         serverPort = server!!.address.port
 
-        val modelManager = ModelManager(mockContext)
+        val modelManager = ModelManager(mockContext, availableStorage = { 4L * 1024 * 1024 * 1024 })
         val wrongHash = "0000000000000000000000000000000000000000000000000000000000000000"
 
         val result = modelManager.downloadModel(

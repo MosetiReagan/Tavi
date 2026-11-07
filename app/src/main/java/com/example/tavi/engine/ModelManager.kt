@@ -45,7 +45,7 @@ data class InstalledModelInfo(
  * Handles storage, installation, resumable HTTP range downloads, SAF import, SHA-256 integrity verification,
  * and low-memory callbacks.
  */
-class ModelManager(private val context: Context) : ComponentCallbacks2 {
+class ModelManager(private val context: Context, private val availableStorage: (File) -> Long = { it.usableSpace }) : ComponentCallbacks2 {
 
     companion object {
         const val MODEL_GEMMA_4_E2B = "gemma-4-e2b"
@@ -57,11 +57,12 @@ class ModelManager(private val context: Context) : ComponentCallbacks2 {
 
         // Default download URLs
         const val DEFAULT_DOWNLOAD_URL_E2B = "https://huggingface.co/google/gemma-4-e2b-it-litert/resolve/main/gemma-4-e2b-it.litertlm"
-        const val DEFAULT_DOWNLOAD_URL_3_1B = "https://huggingface.co/lotapa/gemma3-1b-it-int4.litertlm/resolve/main/gemma3-1b-it-int4.litertlm"
+        const val DEFAULT_DOWNLOAD_URL_3_1B = "https://huggingface.co/lotapa/gemma3-1b-it-int4.litertlm/resolve/f3fe59d444eaee1d86b6c43677d0b261295bdaea/gemma3-1b-it-int4.litertlm"
+        const val DEFAULT_SHA256_3_1B = "1325ae366d31950f137c9c357b9fa89448b176d76998180c08ceaca78bba98be"
         const val DEFAULT_MODEL_DOWNLOAD_URL = DEFAULT_DOWNLOAD_URL_3_1B
 
         const val SIZE_E2B_MB = 2583L
-        const val SIZE_3_1B_MB = 1100L
+        const val SIZE_3_1B_MB = 558L
         const val RAM_REQUIRED_E2B_MB = 6144
         const val RAM_REQUIRED_3_1B_MB = 2048
 
@@ -115,7 +116,8 @@ class ModelManager(private val context: Context) : ComponentCallbacks2 {
         }
 
     private val _activeRuntime = MutableStateFlow(
-        InferenceRuntime.fromString(prefs.getString(KEY_RUNTIME, InferenceRuntime.GEMMA_4_E2B.name))
+        InferenceRuntime.fromString(prefs.getString(KEY_RUNTIME,
+            if (_activeModelId.value == MODEL_GEMMA_3_1B) InferenceRuntime.GEMMA_3_1B.name else InferenceRuntime.GEMMA_4_E2B.name))
     )
     val activeRuntime: StateFlow<InferenceRuntime> = _activeRuntime.asStateFlow()
 
@@ -129,6 +131,9 @@ class ModelManager(private val context: Context) : ComponentCallbacks2 {
 
     private val _downloadProgress = MutableStateFlow<Map<String, Float>>(emptyMap())
     val downloadProgress: StateFlow<Map<String, Float>> = _downloadProgress.asStateFlow()
+
+    private val _memoryPressure = MutableStateFlow(0)
+    val memoryPressure: StateFlow<Int> = _memoryPressure.asStateFlow()
 
     private val _isLoaded = MutableStateFlow(modelFile.exists() && modelFile.length() > 0)
     val isLoaded: StateFlow<Boolean> = _isLoaded.asStateFlow()
@@ -202,7 +207,7 @@ class ModelManager(private val context: Context) : ComponentCallbacks2 {
         val totalRamMb = memInfo.totalMem / (1024 * 1024)
         val availRamMb = memInfo.availMem / (1024 * 1024)
 
-        val recommended = if (isLowRam || (totalRamMb in 1 until 6000)) {
+        val recommended = if (isLowRam || totalRamMb < 6000) {
             MODEL_GEMMA_3_1B
         } else {
             MODEL_GEMMA_4_E2B
@@ -255,8 +260,11 @@ class ModelManager(private val context: Context) : ComponentCallbacks2 {
     }
 
     fun selectModel(modelId: String) {
+        require(modelId in setOf(MODEL_GEMMA_3_1B, MODEL_GEMMA_4_E2B)) { "Unknown model" }
         _activeModelId.value = modelId
         prefs.edit().putString(KEY_ACTIVE_MODEL_ID, modelId).apply()
+        setRuntime(if (modelId == MODEL_GEMMA_4_E2B) InferenceRuntime.GEMMA_4_E2B else
+            if (modelFile.name.endsWith(".task")) InferenceRuntime.MEDIAPIPE else InferenceRuntime.GEMMA_3_1B)
         _isLoaded.value = modelFile.exists() && modelFile.length() > 0
     }
 
@@ -371,11 +379,21 @@ class ModelManager(private val context: Context) : ComponentCallbacks2 {
         onProgress: (bytesDownloaded: Long, totalBytes: Long) -> Unit
     ): Result<File> = withContext(Dispatchers.IO) {
         val isE2b = url.contains("e2b", ignoreCase = true) || url.contains("gemma-4", ignoreCase = true)
-        val requiredMb = if (isE2b) 2800L else 1250L
+        val requiredMb = if (isE2b) 2800L else 650L
+        val checksum = if (url == DEFAULT_DOWNLOAD_URL_3_1B) DEFAULT_SHA256_3_1B else expectedSha256
+        val endpoint = runCatching { java.net.URL(url) }.getOrNull()
+            ?: return@withContext Result.failure(IllegalArgumentException("Invalid model URL"))
+        val isLocalTest = endpoint.host in setOf("127.0.0.1", "localhost", "::1")
+        if (endpoint.protocol != "https" && !isLocalTest)
+            return@withContext Result.failure(SecurityException("Model downloads require HTTPS."))
+        if (checksum.isNullOrBlank() && !isLocalTest)
+            return@withContext Result.failure(SecurityException("Provide the publisher's SHA-256 checksum, or import a trusted local file. The Gemma 4 hosted download requires authentication."))
+        if (checksum != null && !Regex("[a-fA-F0-9]{64}").matches(checksum))
+            return@withContext Result.failure(IllegalArgumentException("SHA-256 must contain 64 hexadecimal characters."))
 
         // 1. Free space check
         try {
-            val freeBytes = modelsDir.usableSpace
+            val freeBytes = availableStorage(modelsDir)
             val requiredBytes = requiredMb * 1024 * 1024
             if (freeBytes in 1 until requiredBytes) {
                 val freeMb = freeBytes / (1024 * 1024)
@@ -406,6 +424,9 @@ class ModelManager(private val context: Context) : ComponentCallbacks2 {
             val existingBytes = if (tempTarget.exists()) tempTarget.length() else 0L
 
             while (redirects < maxRedirects) {
+                val hop = java.net.URL(currentUrl)
+                if (hop.protocol != "https" && !(isLocalTest && hop.host == endpoint.host))
+                    return@withContext Result.failure(SecurityException("Unsafe model redirect."))
                 val conn = java.net.URL(currentUrl).openConnection() as java.net.HttpURLConnection
                 conn.instanceFollowRedirects = false
                 conn.connectTimeout = 30000
@@ -461,7 +482,7 @@ class ModelManager(private val context: Context) : ComponentCallbacks2 {
                 }
             }
 
-            if (bytesCopied < MIN_MODEL_BYTES) {
+            if (bytesCopied < MIN_MODEL_BYTES || (totalBytes > 0 && bytesCopied != totalBytes)) {
                 tempTarget.delete()
                 _downloadProgress.value = emptyMap()
                 return@withContext Result.failure(
@@ -470,13 +491,13 @@ class ModelManager(private val context: Context) : ComponentCallbacks2 {
             }
 
             // Verify integrity
-            if (!expectedSha256.isNullOrBlank()) {
+            if (!checksum.isNullOrBlank()) {
                 val actualHash = computeSha256(tempTarget)
-                if (!actualHash.equals(expectedSha256.trim(), ignoreCase = true)) {
+                if (!actualHash.equals(checksum.trim(), ignoreCase = true)) {
                     tempTarget.delete()
                     _downloadProgress.value = emptyMap()
                     return@withContext Result.failure(
-                        SecurityException("SHA-256 mismatch. Expected: $expectedSha256, Actual: $actualHash")
+                        SecurityException("SHA-256 mismatch. Expected: $checksum, Actual: $actualHash")
                     )
                 }
             }
@@ -516,13 +537,14 @@ class ModelManager(private val context: Context) : ComponentCallbacks2 {
     }
 
     override fun onTrimMemory(level: Int) {
-        if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL || level >= ComponentCallbacks2.TRIM_MEMORY_COMPLETE) {
-            android.util.Log.w("ModelManager", "OS trim memory warning (level=$level). Model state preserved.")
+        if (level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW || level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL || level >= ComponentCallbacks2.TRIM_MEMORY_COMPLETE) {
+            _memoryPressure.value += 1
         }
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {}
     override fun onLowMemory() {
+        _memoryPressure.value += 1
         android.util.Log.e("ModelManager", "OS reported low memory critical state.")
     }
 }

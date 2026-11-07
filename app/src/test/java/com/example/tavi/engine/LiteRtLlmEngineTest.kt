@@ -60,9 +60,9 @@ class LiteRtLlmEngineTest {
         val response = engine.generateResponse("Hello Tavi", emptyList()) {}
         assertTrue(response.contains("failed to initialize", ignoreCase = true) || response.contains("runtime failed", ignoreCase = true))
 
-        // Tool proposals must NOT silently forge tool calls when the model failed to load
+        // Native rule routing is usable without neural inference; it still passes through the host registry.
         val toolCalls = engine.proposeToolCalls("What's on my calendar?", emptyList())
-        assertTrue(toolCalls.isEmpty())
+        assertEquals("calendar_list_events", toolCalls.single().toolName)
 
         corruptFile.delete()
     }

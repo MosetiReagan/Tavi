@@ -96,7 +96,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         val info = modelManager.getInstalledModelInfo()
         _uiState.value = _uiState.value.copy(
             isModelInstalled = info.isInstalled,
-            activeModelName = if (info.isInstalled) "Gemma 3 1B" else "Model Setup Required"
+            activeModelName = if (info.isInstalled) "Model installed • ready to load" else "Basic commands • model optional"
         )
     }
 
@@ -138,6 +138,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
                 val result = engine.loadModel()
                 withContext(Dispatchers.Main) {
                     _uiState.value = _uiState.value.copy(
+                        activeModelName = if (engine.isGenuineInferenceActive) engine.name else "Basic commands • AI unavailable",
                         statusBanner = result.exceptionOrNull()?.let {
                             "Gemma 3 1B failed to load: ${it.message}"
                         }

@@ -114,6 +114,7 @@ fun SettingsScreen(
     var showDownloadSuccessDialog by remember { mutableStateOf(false) }
     var showDownloadDialog by remember { mutableStateOf(false) }
     var downloadUrlInput by remember { mutableStateOf(ModelManager.DEFAULT_MODEL_DOWNLOAD_URL) }
+    var downloadChecksum by remember { mutableStateOf("") }
     var showDeleteModelConfirm by remember { mutableStateOf(false) }
     var showClearHistoryConfirm by remember { mutableStateOf(false) }
     var memoryToDelete by remember { mutableStateOf<MemoryEntry?>(null) }
@@ -1164,7 +1165,7 @@ fun SettingsScreen(
                 title = { Text("Download Gemma 3 1B Weights") },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Download official instruction-tuned model bundle directly to private app storage. (~529 MB - 1.1 GB).")
+                        Text("The recommended Gemma 3 bundle is 558 MB. Its version and SHA-256 are pinned. Custom downloads require a publisher checksum; Gemma 4 can be imported from a trusted local file.")
                         OutlinedTextField(
                             value = downloadUrlInput,
                             onValueChange = { downloadUrlInput = it },
@@ -1172,6 +1173,9 @@ fun SettingsScreen(
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
+                        OutlinedTextField(value = downloadChecksum, onValueChange = { downloadChecksum = it.trim() },
+                            label = { Text("SHA-256 (required for a custom URL)") }, singleLine = true,
+                            modifier = Modifier.fillMaxWidth())
                         Text(
                             text = "Supports automatic redirect handling (e.g., Hugging Face CDN) and SHA-256 integrity validation.",
                             fontSize = 11.sp,
@@ -1186,7 +1190,8 @@ fun SettingsScreen(
                         downloadProgress = 0f
                         downloadStatusText = "Connecting to download server..."
                         scope.launch {
-                            val result = modelManager.downloadModel(url = downloadUrlInput) { copied, total ->
+                            val result = modelManager.downloadModel(url = downloadUrlInput,
+                                expectedSha256 = downloadChecksum.ifBlank { null }) { copied, total ->
                                 if (total > 0) {
                                     downloadProgress = (copied.toFloat() / total.toFloat()).coerceIn(0f, 1f)
                                     val mbCopied = copied / (1024 * 1024)
