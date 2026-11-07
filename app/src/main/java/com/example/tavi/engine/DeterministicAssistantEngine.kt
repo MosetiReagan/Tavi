@@ -50,6 +50,10 @@ class DeterministicAssistantEngine : InferenceEngine {
         userQuery: String,
         conversationHistory: List<Message>
     ): List<ToolCall> {
+        Regex("(?i)^(?:search|find|look up)\\s+(?:in\\s+)?(?:my\\s+)?(?:documents|document library|library)\\s+(?:for\\s+)?(.+)$")
+            .find(userQuery.trim())?.let { match ->
+                return listOf(ToolCall(toolName = "documents_search", arguments = mapOf("query" to match.groupValues[1])))
+            }
         val q = userQuery.trim().lowercase(Locale.ROOT).replace(Regex("[?!.,]+$"), "").trim()
         val toolCalls = mutableListOf<ToolCall>()
 

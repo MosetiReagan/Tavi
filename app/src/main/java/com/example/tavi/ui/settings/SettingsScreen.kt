@@ -91,6 +91,7 @@ import kotlinx.coroutines.withContext
 fun SettingsScreen(
     onBack: () -> Unit,
     onNavigateToCapabilities: () -> Unit = {},
+    onNavigateToDocuments: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -269,6 +270,9 @@ fun SettingsScreen(
             }
 
             // --- SECTION 1: MODEL SELECTION ---
+            item {
+                OutlinedButton(onClick = onNavigateToDocuments, modifier = Modifier.fillMaxWidth()) { Text("Local document library") }
+            }
             item {
                 Text(
                     text = "Local Language Model",

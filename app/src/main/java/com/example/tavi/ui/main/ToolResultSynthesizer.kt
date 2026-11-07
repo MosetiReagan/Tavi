@@ -26,6 +26,14 @@ object ToolResultSynthesizer {
             }
 
             when (t.toolName) {
+                "documents_search" -> {
+                    val matches = JSONObject(r.resultJson).optJSONArray("matches")
+                    if (matches == null || matches.length() == 0) sb.append("No matching local documents or notes.")
+                    else for (index in 0 until matches.length()) {
+                        val hit = matches.getJSONObject(index)
+                        sb.append("[${hit.optString("source")}]\n${hit.optString("excerpt")}\n\n")
+                    }
+                }
                 "calendar_list_events" -> {
                     sb.append("Here are your calendar events:\n")
                     sb.append(formatCalendarResult(r.resultJson))

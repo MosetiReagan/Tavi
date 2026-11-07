@@ -118,6 +118,7 @@ class ToolRegistry(private val context: Context) {
         // Files & SAF
         register(FilesBrowseDocumentTool())
         register(FilesExportNoteTool())
+        register(com.example.tavi.tools.files.DocumentSearchTool())
 
         // Device & Settings
         register(DeviceGetStatusTool())

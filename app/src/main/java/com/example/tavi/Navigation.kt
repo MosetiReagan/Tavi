@@ -28,6 +28,7 @@ fun MainNavigation() {
                 SettingsScreen(
                     onBack = { backStack.removeLastOrNull() },
                     onNavigateToCapabilities = { backStack.add(Capabilities) },
+                    onNavigateToDocuments = { backStack.add(Documents) },
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -37,6 +38,7 @@ fun MainNavigation() {
                     modifier = Modifier.fillMaxSize()
                 )
             }
+            entry<Documents> { com.example.tavi.ui.documents.DocumentLibraryScreen(onBack = { backStack.removeLastOrNull() }) }
         }
     )
 }

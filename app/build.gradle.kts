@@ -77,6 +77,7 @@ kotlin {
 }
 
 dependencies {
+  implementation("cz.adaptech.tesseract4android:tesseract4android:4.9.0")
   val composeBom = platform(libs.androidx.compose.bom)
   implementation(composeBom)
   androidTestImplementation(composeBom)

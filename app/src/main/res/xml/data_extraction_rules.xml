@@ -9,6 +9,8 @@
         <exclude domain="database" path="tavi.db-wal" />
         <exclude domain="database" path="tavi.db-shm" />
         <exclude domain="database" path="tavi_local.db" />
+        <exclude domain="database" path="tavi_documents.db" />
+        <exclude domain="file" path="ocr/" />
 
         <!-- Strictly exclude large multi-gigabyte re-downloadable neural model weights -->
         <exclude domain="file" path="models/" />
