@@ -9,15 +9,15 @@
 [![Model](https://img.shields.io/badge/Model-Gemma%204%20E2B%20%7C%203%201B-4285F4.svg?logo=google&logoColor=white)](https://huggingface.co/google)
 [![Runtime](https://img.shields.io/badge/Runtime-Google%20AI%20Edge%20LiteRT--LM%200.18.1-FF6F00.svg)](https://ai.google.dev/edge)
 [![Privacy](https://img.shields.io/badge/Privacy-100%25%20Offline%20%E2%80%A2%20Zero%20Cloud%20Telemetry-7C4DFF.svg)](#-security--privacy-threat-model)
-[![Tools](https://img.shields.io/badge/Native%20Tools-57%20Tools%20Across%2015%20Categories-00C853.svg)](#-57-native-android-system-tools)
-[![Tests](https://img.shields.io/badge/Tests-178%20Total%20(169%20Unit%20%7C%209%20Device)-brightgreen.svg)](#-test-verification--benchmarks)
+[![Tools](https://img.shields.io/badge/Native%20Tools-60%20Tools%20Across%2015%20Categories-00C853.svg)](#-60-native-android-system-tools)
+[![Tests](https://img.shields.io/badge/Tests-JVM%20%2B%20Android-brightgreen.svg)](#-test-verification--benchmarks)
 [![License](https://img.shields.io/badge/License-Apache%202.0-F9A825.svg)](LICENSE)
 
 *Private, local-first mobile AI assistant operating entirely on-device with zero cloud telemetry, deep native Android system integration, persistent SQLite memory, screen agent mode, and continuous hands-free voice.*
 
 `#Android` • `#OnDeviceAI` • `#Gemma4` • `#Gemma3` • `#LocalLLM` • `#LiteRTLM` • `#OfflineAssistant` • `#Privacy` • `#JetpackCompose`
 
-[App Showcase](#-app-showcase--screenshots) • [Architecture](#-architecture-overview) • [57 Native Tools](#-57-native-android-system-tools) • [Why Tavi?](#-why-tavi-assistant-comparison) • [Fine-Tuning](training/README.md) • [Quickstart](#-quickstart-build--run) • [Contributing](CONTRIBUTING.md)
+[App Showcase](#-app-showcase--screenshots) • [Architecture](#-architecture-overview) • [60 Native Tools](#-60-native-android-system-tools) • [Why Tavi?](#-why-tavi) • [Fine-Tuning](training/README.md) • [Quickstart](#-quickstart-build--run) • [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -58,33 +58,27 @@
 
 **Tavi** is an open-source, fully offline personal AI assistant engineered specifically for Android. Conventional voice and chat assistants route private voice snippets, emails, SMS conversations, and calendar schedules through remote cloud servers. Tavi breaks that paradigm: **100% of conversational inference, memory retrieval, task planning, and phone execution happen locally on mobile silicon**.
 
-Powered by Google Gemma 4 E2B (with Gemma 3 1B for low-RAM devices) via Google AI Edge LiteRT-LM, Tavi features the most complete open-source tool and safety architecture of any offline Android assistant — 57 audited, permission-gated, human-confirmed native tools. Whether checking calendar appointments, composing SMS messages with human-in-the-loop confirmation, querying system status, setting precision timers, or retaining cross-session personal preferences in local SQLite, Tavi acts as a true private companion.
+Powered by Google Gemma 4 E2B (with Gemma 3 1B for low-RAM devices) via Google AI Edge LiteRT-LM, Tavi provides 60 native tools with permission checks and confirmation for consequential actions. Whether checking calendar appointments, composing SMS messages with human-in-the-loop confirmation, querying system status, setting precision timers, or retaining cross-session personal preferences in local SQLite, Tavi acts as a true private companion.
 
 ---
 
-## ⚖️ Why Tavi? Assistant Comparison
+## ⚖️ Why Tavi?
 
-### On-Device & Mobile AI Assistants
+Tavi combines local conversation with Android actions and user-controlled personal data. Available capabilities and their limits are:
 
-| Assistant | 100% On-Device? | Hardware Required | Native Tool Count | Screen Agent? | Voice Follow-up? | Consequential Confirmation? | License |
-| :--- | :---: | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Tavi (v1.0)** | 🟢 **Yes (0 network inference)** | **Any Android 7.0+** (≥ 6 GB for Gemma 4; 2–4 GB for Gemma 3) | **57 Audited Tools** | 🟢 **Yes (12-step budget & safety guard)** | 🟢 **Yes (Hands-free + barge-in)** | 🟢 **Yes (Strict confirmation)** | **Apache 2.0** |
-| **PokeClaw** | 🟢 Yes (CPU via LiteRT-LM) | Android 8.0+ | Screen Agent Actions | 🟢 Yes (Primary purpose) | 🟡 Push-to-talk | 🟡 Partial | Apache 2.0 |
-| **GemOfGemma** | 🟢 Yes | ≥ 4 GB RAM | 22 Tools | 🔴 No | 🟡 Push-to-talk | 🔴 None | Apache 2.0 |
-| **Gemini Nano System** | 🟡 Hybrid (Fallback to cloud) | Pixel 8+ / Galaxy S24+ only | System apps only | 🟡 Limited | 🔴 No continuous follow-up | 🟡 Heuristic | Proprietary |
+| Capability | Current behavior | Requirements or limits |
+| :--- | :--- | :--- |
+| Small request engine | Common commands and clarifications run in a bounded Kotlin router without model weights | Handles time, battery, network, alarms/timers, notes, documents, contacts, settings, and explicit message requests. Shared workflow gates check every action. |
+| Local conversation | Gemma 4 E2B or Gemma 3 1B, with a deterministic fallback | Install verified weights and choose a compatible runtime; speed varies by device. |
+| Offline voice | On-device recognition, local speech output, follow-up listening | Recognition requires Android 12+ and an installed on-device provider; language packs vary by device. Text remains available. |
+| Personal memory | Relevant recall, provenance, corrections, deletion | Stored in private local SQLite; heuristic filters cannot guarantee every sensitive string is detected. |
+| Document library | Text/PDF/image import, English/Kiswahili OCR, cited search | Local lexical search; OCR quality depends on the scan. Search covers imported documents and saved notes. |
+| Reminders and routines | Recurrence, snooze, reboot restoration, editable routine schedules | Notification permission required; exact timing depends on Android alarm access. Scheduled routines send reminder notifications. |
+| Android actions | Schema validation, confirmations, persistent execution receipts | Permissions and providers determine availability. Opening a system app is reported as a handoff. |
+| Screen assistance | Local planning, visible node grounding, scoped resume and stop | Requires a working local model and accessibility; currently restricted to Settings, Chrome, and Firefox. |
+| System assistant | Invocation panel with transient screen context | User must select Tavi as the default assistant. Default SMS/dialer roles are disabled. |
 
-### Tavi vs. Traditional Cloud Assistants
-
-| Feature | **Tavi (On-Device)** | Google Assistant / Gemini | Apple Siri | ChatGPT / Claude Mobile |
-| :--- | :---: | :---: | :---: | :---: |
-| **Inference Location** | 🟢 **100% On-Device** | 🔴 Cloud Servers | 🟡 Hybrid / Cloud | 🔴 Cloud Servers |
-| **Offline Functionality** | 🟢 **Complete (No Internet)** | 🔴 Requires Network | 🟡 Very Limited | 🔴 Requires Network |
-| **Zero Cloud Telemetry** | 🟢 **Local Processing Only** | 🔴 No | 🔴 No | 🔴 No |
-| **Phone Hardware Integration** | 🟢 **57 Native Android Tools** | 🟡 Proprietary | 🟡 Proprietary | 🔴 None (Sandboxed) |
-| **Consequential Action Gates**| 🟢 **Strict Confirmation Dialogs** | 🟡 Heuristic | 🟡 Confirmation | 🔴 N/A |
-| **Persistent Personal Memory** | 🟢 **Local SQLite (Private)** | 🔴 Cloud Account Sync | 🔴 iCloud Sync | 🔴 Remote Databases |
-| **In-App Model Acquisition** | 🟢 **Direct HTTPS Streaming** | 🔴 Closed Bundles | 🔴 Closed Bundles | 🔴 Server-Side Only |
-| **Open Source** | 🟢 **Apache 2.0** | 🔴 Closed Source | 🔴 Closed Source | 🔴 Closed Source |
+See [LIMITATIONS.md](LIMITATIONS.md) for runtime boundaries and [CHANGELOG.md](CHANGELOG.md) for the additions in this revision.
 
 ---
 
@@ -95,6 +89,9 @@ graph TD
     User([User Text / Voice]) --> UI[Jetpack Compose UI & Navigation 3]
     UI --> Drawer[Multi-Session Conversation Drawer]
     UI --> VM[MainScreenViewModel]
+    VM --> LocalRequests[Small Kotlin Request Engine - No Weights]
+    LocalRequests -->|Typed commands| Checkpoint
+    LocalRequests -->|Needs interpretation| Budget
     
     subgraph Safety [Security & Input Boundary]
         VM --> SG[SecurityGuard & Prompt Injection Sanitizer]
@@ -118,7 +115,7 @@ graph TD
         LiteRT --> Planner[Workflow Execution Planner]
         Planner --> Checkpoint{Consequential Checkpoint?}
         Checkpoint -->|Yes| Dialog[Material 3 User Confirmation Gate]
-        Dialog -->|Approved| Registry[56 Native Tool Registry]
+        Dialog -->|Approved| Registry[60 Native Tool Registry]
         Checkpoint -->|No| Registry
     end
 
@@ -132,19 +129,20 @@ graph TD
 
 ---
 
-## 🛠️ 57 Native Android System Tools
+## 🛠️ 60 Native Android System Tools
 
-Tavi declares and executes **57 native Android tools across 15 functional categories** via the unified `AssistantTool` interface:
+Tavi declares and executes **60 native Android tools across 15 functional categories** via the unified `AssistantTool` interface:
 
 <!-- TOOL_TABLE_START -->
 
-### Complete Native Tool Directory (57 On-Device Tools)
+### Complete Native Tool Directory (60 On-Device Tools)
 
 | Category | Tool Identifier | Consequential Gate | Purpose |
 | :--- | :--- | :---: | :--- |
 | **ACCESSIBILITY** | `accessibility_perform_action` | ⚡ Direct | Performs global system UI navigation actions like pressing back, going home, showing recents, opening notifications, or quick settings. |
 | **ACCESSIBILITY** | `accessibility_read_screen` | ⚡ Direct | Inspects the visible text and UI elements currently displayed on the screen with strict password and privacy redactions. |
-| **ACCESSIBILITY** | `screen_agent_run` | 🔒 Required | Operates another app on the user's behalf to accomplish a specific goal using on-screen actions. |
+| **ACCESSIBILITY** | `screen_agent_resume` | 🔒 Required | Resume the exact paused screen action after explicit user confirmation; rejects expired or changed targets. |
+| **ACCESSIBILITY** | `screen_agent_run` | 🔒 Required | Use a local model to navigate Settings, Chrome, or Firefox with exact visible nodes and individual confirmations. |
 | **APPLICATIONS** | `app_launch` | ⚡ Direct | Launches an installed application by its name or package name. |
 | **APPLICATIONS** | `app_list_launchable` | ⚡ Direct | Lists visible launchable applications installed on the device. |
 | **APPLICATIONS** | `app_open_settings` | ⚡ Direct | Opens the Android system App Info settings page for Tavi or a specified app. |
@@ -168,6 +166,7 @@ Tavi declares and executes **57 native Android tools across 15 functional catego
 | **DEVICE** | `device_get_status` | ⚡ Direct | Reads battery level, charging state, available storage, and system platform status. |
 | **DEVICE** | `device_toggle_flashlight` | ⚡ Direct | Turns the device flashlight/torch on or off. |
 | **DEVICE** | `settings_open` | ⚡ Direct | Opens specific Android system Settings panels (wifi, bluetooth, display, sound, notifications, battery, apps, date, storage). |
+| **FILES** | `documents_search` | ⚡ Direct | Search imported local documents and saved notes; returns source and page citations. |
 | **FILES** | `files_browse_document` | ⚡ Direct | Launches the Android Storage Access Framework (SAF) document picker. |
 | **FILES** | `files_export_note` | ⚡ Direct | Exports a local note via the Android system share sheet. |
 | **LOCATION** | `location_get_current` | ⚡ Direct | Reads device's current foreground location coordinates if permission is granted. |
@@ -194,6 +193,7 @@ Tavi declares and executes **57 native Android tools across 15 functional catego
 | **RESEARCH** | `browser_research_topic` | ⚡ Direct | Reads accessible web page content, extracts relevant text, and supports multi-step research. Halts if login or CAPTCHA is encountered. |
 | **TELEPHONY** | `call_log_search` | ⚡ Direct | Searches recent call history records. |
 | **TELEPHONY** | `messages_draft` | ⚡ Direct | Drafts a message reply and presents it for user inspection without sending. |
+| **TELEPHONY** | `messages_get_send_status` | ⚡ Direct | Check Android SMS send and delivery callbacks for a previous dispatch ID. |
 | **TELEPHONY** | `messages_search` | ⚡ Direct | Searches explicitly permitted local SMS messages by keyword or sender. |
 | **TELEPHONY** | `messages_send_sms` | 🔒 Required | Sends an SMS message to a phone number. Requires explicit user confirmation before transmission. |
 | **TELEPHONY** | `phone_call` | 🔒 Required | Initiates a direct phone call to a contact or number. Consequential action requiring explicit user confirmation. |
@@ -229,6 +229,8 @@ Step 4: messages_send_sms(recipient="Dennis", text="I will join after lunch.") -
 
 ## 🧠 Dual-Engine Local Inference
 
+`LocalRequestEngine` handles supported complete commands before model planning or loading. It preserves message/note text, rejects invalid alarm times and overflowing timer durations, and asks for missing recipients or message bodies. It never executes a tool directly. Gemma loads on demand for requests that need interpretation; opening the app or running a supported basic command does not preload neural weights.
+
 Tavi implements a **Dual-Engine Architecture** managed through `InferenceRuntime`:
 
 * **Primary Engine:** **Google AI Edge LiteRT-LM 0.18.1** (`com.google.ai.edge.litert:litert-lm-android:0.18.1`)
@@ -238,26 +240,25 @@ Tavi implements a **Dual-Engine Architecture** managed through `InferenceRuntime
 * **Fallback Engine:** **Google MediaPipe Tasks GenAI 0.10.27** (`com.google.mediapipe:tasks-genai:0.10.27`)
   * MediaPipe `.task` bundle compatibility.
 * **Deterministic Action Core:**
-  * Instant rule-based parsing with zero latency when LLM weights are not installed or device is under low-memory pressure.
+  * Rule-based parsing when compatible model weights are unavailable or neural inference cannot run.
 
 ### Hardware Specifications & Measured Profiles
 * **Target Inference Runtime:** Google AI Edge LiteRT-LM (Direct JNI / Vulkan GPU pipeline with CPU fallback)
 * **Model Choices:**
   * **Gemma 4 E2B:** ~2.58 GB weights, 6+ GB RAM recommended (GPU Vulkan or ARM Cortex-A CPU)
-  * **Gemma 3 1B IT:** ~1.10 GB weights, 2+ GB RAM (lightweight budget profile)
+  * **Gemma 3 1B IT:** ~558 MB pinned LiteRT-LM weights, 2+ GB RAM (lightweight budget profile)
 * **Context KV-Cache Capacity:** 2,048 tokens native window
-* **Memory Management:** Enforces `< 2,048 MB` RAM guard via `ModelManager.checkDeviceRamSupport()` with zero heap leak
+* **Memory Management:** Enforces `< 2,048 MB` RAM guard via `ModelManager.checkDeviceRamSupport()` and releases loaded models under memory pressure
 * **Battery Efficiency:** On-demand execution with zero persistent wakelocks and zero background telemetry
-* **Measured Benchmark Results:** Real device measurements (cold init, TTFT, decode tok/s, peak PSS, battery drain, thermals) are collected using `scripts/run_benchmark.sh` and stored in [`benchmarks/`](benchmarks/). Unmeasured hardware profiles are explicitly labeled as *"Not yet measured (run scripts/run_benchmark.sh on device)"*. Specification target numbers in `evaluation/` are marked with `# SPEC — see measured results in benchmarks/`.
+* **Measured Benchmark Results:** Real device measurements (engine initialization, first response chunk, characters/second, sampled process PSS, battery percentage delta, thermals) are collected using `scripts/run_benchmark.sh` and stored in [`benchmarks/`](benchmarks/). Unmeasured hardware profiles are explicitly labeled as *"Not yet measured (run scripts/run_benchmark.sh on device)"*. Specification target numbers in `evaluation/` are marked with `# SPEC — see measured results in benchmarks/`.
 
 ---
 
 ## 💾 Persistent Personal Memory & Context Budget
 
 * **Token-Aware Context Budgeting:** Managed by `ContextBudgetManager` within a strict 2,048-token hardware window:
-  * System & Memory Allocation: `350 tokens`
-  * Active Conversation History: `1,298 tokens` (turn-pair selection)
-  * Generation Ceiling: `400 tokens`
+  * Reserve `400 tokens` for generation; count the complete system instructions, current input, tool definitions, memories, and selected history.
+  * Reject requests that exceed the input budget; retain recent complete exchanges and select relevant tools.
 * **Conversation State Ledger:** Tracks confirmed facts, active task constraints, and referenced entities even when raw dialogue history is pruned.
 * **Local SQLite Store (`tavi_local.db`):** Retains active preferences, ongoing goals, and verified profile facts with deduplication chains.
 * **Privacy Threat Model:** Passwords, private cryptographic keys, credit cards, CVVs, and one-time authentication codes (OTPs) are screened out by heuristic regex filters before entering the memory store.
@@ -271,7 +272,7 @@ Tavi provides built-in model download and import controls in **Settings & Privac
 1. **Direct In-App Download (Recommended):**
    * Open **Settings & Privacy** → **Local Language Model**.
    * Tap **Download Gemma 3 1B (HTTPS)**.
-   * Tavi streams the official instruction-tuned FlatBuffer directly to sandboxed app storage with multi-hop redirect handling (Hugging Face CDN / AWS S3) and verifies SHA-256 integrity.
+   * Tavi streams a revision-pinned instruction-tuned artifact directly to sandboxed app storage with multi-hop redirect handling (Hugging Face CDN / AWS S3) and verifies SHA-256 integrity.
 2. **Import from Storage:**
    * Download `gemma-3-1b-it.litertlm` or `gemma-3-1b-it.task` to device storage.
    * In Tavi Settings, tap **Import Model Bundle (.litertlm / .task)** and select the file using the Android Storage Access Framework.
@@ -287,9 +288,8 @@ Tavi provides built-in model download and import controls in **Settings & Privac
 
 Tavi includes an end-to-end training suite to fine-tune **Google Gemma 3 1B IT** and compile it directly into an optimized dynamic **Int4 LiteRT FlatBuffer (`.litertlm`)** for mobile execution.
 
-* **Context Overhead Reduction:** Embeds 56 native Android tool signatures directly into the model weights, shrinking the system prompt from **~350 tokens down to ~30 tokens** (slashing Time-To-First-Token by **42%** on mobile RAM).
-* **Deterministic Tool Calling:** Achieves 99.6% JSON syntax and parameter adherence.
-* **Turnkey Google Colab Notebook:** Run 4-bit QLoRA training in ~20 minutes on a free Google Colab T4 GPU:
+* **Training experiments:** The repository contains QLoRA training and export scripts. Their accuracy, latency improvements, and exported model compatibility require independent validation.
+* **Google Colab Notebook:** Explore the training workflow:
   * 📓 **[Open Training Notebook in Google Colab](training/Tavi_Gemma3_FineTuning_Colab.ipynb)**
 * **Modular Pipeline Architecture:**
   * [`training/dataset_generator.py`](training/dataset_generator.py): Synthesizes 6,000 instruction pairs across single tools, multi-step workflows, memory, and prompt injection defense.
@@ -303,7 +303,7 @@ Tavi includes an end-to-end training suite to fine-tune **Google Gemma 3 1B IT**
 
 * **Zero Outbound Telemetry:** No analytical pings, tracking SDKs, or cloud LLM endpoints.
 * **Sandboxed Database:** Chat history, memory records, and audit logs reside strictly in private app storage (`/data/data/com.tavi.assistant/databases/tavi_local.db`).
-* **Backup Extraction Protection:** `android:allowBackup="false"` prevents USB extraction via ADB backup.
+* **Backup Filtering:** Android cloud backups and device transfers include shared preferences only; private databases and model/document files are omitted.
 * **Password Field Redaction:** Accessibility inspection automatically masks `isPassword` nodes with `[PASSWORD FIELD REDACTED]`.
 * **Prompt Injection Defense:** External content (SMS bodies, notifications, web content) is sanitized via `SecurityGuard.sanitizeExternalContent()` to strip adversarial markers.
 
@@ -312,8 +312,8 @@ Tavi includes an end-to-end training suite to fine-tune **Google Gemma 3 1B IT**
 ## 🚀 Quickstart: Build & Run
 
 ### Prerequisites
-* **Android Studio Ladybug (2024.2.1+)** or newer
-* **Android SDK:** API 35 (Android 15), Minimum API 24 (Android 7.0)
+* **Android Studio** compatible with the configured Android Gradle Plugin
+* **Android SDK:** API 36 (Android 16), Minimum API 24 (Android 7.0)
 * **JDK:** Java 17+
 
 ### 1. Clone the Repository
@@ -326,6 +326,8 @@ cd Tavi
 ```bash
 ./gradlew assembleDebug
 ```
+For an APK targeting one device architecture, use `./gradlew assembleDebug -PtaviTargetAbi=arm64-v8a` (or another supported ABI). Omitting this option retains the normal architecture set.
+
 Output artifact:
 `app/build/outputs/apk/debug/app-debug.apk`
 
@@ -339,43 +341,24 @@ adb shell "am start -n com.tavi.assistant/com.example.tavi.MainActivity"
 
 ## 🧪 Test Verification & Benchmarks
 
-Tavi includes 178 automated tests (169 JVM unit tests across 24 suites, plus 9 physical on-device instrumented tests):
+The current JVM suite contains 215 tests across 38 suites. Run validation with:
 
 ```bash
-# Run all 169 JVM unit tests across 24 test suites
-./gradlew testDebugUnitTest
+./gradlew testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest
 ```
 
-```
-> Task :app:testDebugUnitTest
+CI compiles both app and instrumentation APKs. Lint errors fail builds. JVM tests verify routing, prompt budgets, memory, workflow checkpoints, tool validation, receipts, and safety policies; they do not establish real inference speed or Android provider behavior.
 
-com.example.tavi.tools.NativeToolSystemTest           [PASS - 57 Native Tools]
-com.example.tavi.tools.ToolExecutionTest              [PASS - Schema Validation]
-com.example.tavi.tools.ClockAndDeviceToolsTest        [PASS - Clock & Device]
-com.example.tavi.engine.LiteRtLlmEngineTest           [PASS - Engine Routing & Fallback]
-com.example.tavi.engine.LiteRtLmBackendEngineTest      [PASS - LiteRT-LM Engine]
-com.example.tavi.engine.ModelManagerDownloadTest       [PASS - Redirects & SHA-256]
-com.example.tavi.engine.gemma4.ToolSetBridgeTest       [PASS - ToolSet Bridge & OpenAPI]
-com.example.tavi.engine.gemma4.SessionHandoffQueueTest [PASS - Queue Serialization]
-com.example.tavi.voice.VoiceConfirmationParserTest     [PASS - Voice Affirmations & Cancellations]
-com.example.tavi.voice.VoiceStateMachineTest          [PASS - Continuous Voice Loop & Barge-in]
-com.example.tavi.agent.AccessibilityTreeReaderTest     [PASS - Tree Compaction & PII Redaction]
-com.example.tavi.agent.AgentActionParserTest           [PASS - Action Space Syntax & JSON]
-com.example.tavi.agent.AgentSafetyPolicyTest           [PASS - Blacklist & Consequential Gates]
-com.example.tavi.agent.AgentExecutorBudgetTest         [PASS - 12-Step Budget & Kill Switch]
-com.example.tavi.context.ConversationContextBenchmark  [PASS - Context Budgeting]
-com.example.tavi.memory.PersistentMemoryTest           [PASS - SQLite Memory & Privacy]
-com.example.tavi.workflow.WorkflowEngineTest           [PASS - Multi-Step Orchestration]
-com.example.tavi.security.SecurityGuardTest            [PASS - Injection Sanitization]
+All 16 Android acceptance tests passed on the Android 14 / x86_64 cloud device, including real local inference, cited English/Kiswahili OCR, reminder notifications, persistence, and the small request engine's chat integration. See the [validation record](docs/validation/2026-11-07-android-cloud.md) for raw results and the remaining physical-device checks.
 
-BUILD SUCCESSFUL in 43s (169 / 169 unit tests passing)
-```
+On an authorized Android device, run instrumentation tests and physical inference benchmarks separately:
 
-To run physical on-device acceptance testing with authentic hardware timing counters and logcat traces:
 ```bash
-# Physical device execution harness via ADB
-bash scripts/run_device_acceptance.sh
+./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.notClass=com.example.tavi.benchmark.DeviceBenchmark
+bash scripts/run_benchmark.sh
 ```
+
+The benchmark needs installed verified weights, a compatible runtime, ADB, and Python 3 for report validation. It exports fresh reports into [benchmarks/](benchmarks/); callback chunks and text token estimates are identified separately. Nine genuine neural runs passed in an Android 14 / x86_64 cloud container; their [raw report and measurements](benchmarks/README.md#cloud-validation-on-2026-11-07) are labeled as cloud results. Physical phone performance remains unmeasured for these additions.
 
 ---
 
@@ -386,15 +369,15 @@ Tavi/
 ├── app/
 │   ├── src/main/java/com/example/tavi/
 │   │   ├── engine/          # LiteRT-LM, MediaPipe, & ModelManager HTTP downloader
-│   │   ├── tools/           # 56 Native tools (Calendar, SMS, Device, Files...)
+│   │   ├── tools/           # Native tools (Calendar, SMS, Device, Files...)
 │   │   ├── context/         # Conversation State Ledger & ContextBudgetManager
 │   │   ├── memory/          # SQLite PersistentMemoryManager & Privacy Rules
 │   │   ├── workflow/        # Autonomous Multi-Step Execution & Planning
 │   │   ├── roles/           # Android Assistant & System Role Managers
 │   │   ├── accessibility/   # TaviAccessibilityService & Password Redaction
 │   │   └── ui/              # Jetpack Compose UI (Navigation 3, Main, Settings)
-│   ├── src/test/            # 132 Unit tests across 14 test suites
-│   └── src/androidTest/     # 9 On-device Gemma inference validation tests
+│   ├── src/test/            # JVM regression tests
+│   └── src/androidTest/     # Android persistence, UI, inference, and benchmark tests
 ├── assets/
 │   ├── branding/            # High-resolution logos & mascot artwork
 │   └── screenshots/         # Real physical device screenshots on Galaxy A14

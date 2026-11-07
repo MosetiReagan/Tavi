@@ -1,0 +1,153 @@
+{
+  "device_model": "redroid14_x86_64",
+  "manufacturer": "redroid",
+  "api_level": 34,
+  "weights": "gemma-3-1b-it.litertlm",
+  "weights_bytes": 584417280,
+  "selected_runtime": "GEMMA_3_1B",
+  "timestamp": 1794062624886,
+  "measurement_notes": "Fresh engine instances in one process. Output chunks are callback chunks. Tokens are conservative text estimates. Peak process PSS sampled every 50 ms. No phone actions are executed.",
+  "scenarios": {
+    "short_reply": [
+      {
+        "effective_runtime": "GEMMA_3_1B",
+        "engine_init_ms": 388,
+        "first_chunk_ms": 754,
+        "generation_ms": 796,
+        "output_characters": 7,
+        "output_chunks": 2,
+        "estimated_output_tokens": 3,
+        "characters_per_second": 8.793969849246231,
+        "sampled_peak_process_pss_kb": 1099171,
+        "battery_delta_percent": 0,
+        "thermal_before": 0,
+        "thermal_after": 0,
+        "error": null
+      },
+      {
+        "effective_runtime": "GEMMA_3_1B",
+        "engine_init_ms": 415,
+        "first_chunk_ms": 725,
+        "generation_ms": 773,
+        "output_characters": 7,
+        "output_chunks": 2,
+        "estimated_output_tokens": 3,
+        "characters_per_second": 9.055627425614489,
+        "sampled_peak_process_pss_kb": 1108317,
+        "battery_delta_percent": 0,
+        "thermal_before": 0,
+        "thermal_after": 0,
+        "error": null
+      },
+      {
+        "effective_runtime": "GEMMA_3_1B",
+        "engine_init_ms": 387,
+        "first_chunk_ms": 740,
+        "generation_ms": 761,
+        "output_characters": 7,
+        "output_chunks": 2,
+        "estimated_output_tokens": 3,
+        "characters_per_second": 9.198423127463863,
+        "sampled_peak_process_pss_kb": 1108838,
+        "battery_delta_percent": 0,
+        "thermal_before": 0,
+        "thermal_after": 0,
+        "error": null
+      }
+    ],
+    "structured_reply": [
+      {
+        "effective_runtime": "GEMMA_3_1B",
+        "engine_init_ms": 396,
+        "first_chunk_ms": 979,
+        "generation_ms": 2188,
+        "output_characters": 72,
+        "output_chunks": 40,
+        "estimated_output_tokens": 24,
+        "characters_per_second": 32.90676416819013,
+        "sampled_peak_process_pss_kb": 1109178,
+        "battery_delta_percent": 0,
+        "thermal_before": 0,
+        "thermal_after": 0,
+        "error": null
+      },
+      {
+        "effective_runtime": "GEMMA_3_1B",
+        "engine_init_ms": 434,
+        "first_chunk_ms": 780,
+        "generation_ms": 1943,
+        "output_characters": 72,
+        "output_chunks": 40,
+        "estimated_output_tokens": 24,
+        "characters_per_second": 37.05609881626351,
+        "sampled_peak_process_pss_kb": 1110318,
+        "battery_delta_percent": 0,
+        "thermal_before": 0,
+        "thermal_after": 0,
+        "error": null
+      },
+      {
+        "effective_runtime": "GEMMA_3_1B",
+        "engine_init_ms": 413,
+        "first_chunk_ms": 841,
+        "generation_ms": 2124,
+        "output_characters": 72,
+        "output_chunks": 40,
+        "estimated_output_tokens": 24,
+        "characters_per_second": 33.898305084745765,
+        "sampled_peak_process_pss_kb": 1110970,
+        "battery_delta_percent": 0,
+        "thermal_before": 0,
+        "thermal_after": 0,
+        "error": null
+      }
+    ],
+    "long_reply": [
+      {
+        "effective_runtime": "GEMMA_3_1B",
+        "engine_init_ms": 423,
+        "first_chunk_ms": 746,
+        "generation_ms": 12543,
+        "output_characters": 1606,
+        "output_chunks": 360,
+        "estimated_output_tokens": 592,
+        "characters_per_second": 128.0395439687475,
+        "sampled_peak_process_pss_kb": 1119388,
+        "battery_delta_percent": 0,
+        "thermal_before": 0,
+        "thermal_after": 0,
+        "error": null
+      },
+      {
+        "effective_runtime": "GEMMA_3_1B",
+        "engine_init_ms": 419,
+        "first_chunk_ms": 873,
+        "generation_ms": 12323,
+        "output_characters": 1606,
+        "output_chunks": 360,
+        "estimated_output_tokens": 592,
+        "characters_per_second": 130.325407774081,
+        "sampled_peak_process_pss_kb": 1121812,
+        "battery_delta_percent": 0,
+        "thermal_before": 0,
+        "thermal_after": 0,
+        "error": null
+      },
+      {
+        "effective_runtime": "GEMMA_3_1B",
+        "engine_init_ms": 411,
+        "first_chunk_ms": 708,
+        "generation_ms": 12260,
+        "output_characters": 1606,
+        "output_chunks": 360,
+        "estimated_output_tokens": 592,
+        "characters_per_second": 130.99510603588908,
+        "sampled_peak_process_pss_kb": 1126176,
+        "battery_delta_percent": 0,
+        "thermal_before": 0,
+        "thermal_after": 0,
+        "error": null
+      }
+    ]
+  }
+}

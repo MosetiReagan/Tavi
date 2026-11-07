@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- Small model-free request engine for common bilingual commands, payload preservation, bounded input, and missing-detail clarification; neural weights load only when needed.
+- Offline document library with text, image, and PDF import, bundled English/Kiswahili OCR, local search, page citations, and deletion.
+- Editable personal routines with recurring reminder schedules; reminders restore after reboot and support snoozing.
+- Explicit English/Kiswahili language selection, deterministic command routing, and installed offline speech pack checks.
+- Durable workflow checkpoints scoped to their conversation and durable native write receipts to prevent duplicate execution.
+- SMS send/delivery tracking and a status tool that distinguishes dispatch from confirmed Android callbacks.
+- Local screen planning restricted to supported apps, visible targets, bounded steps, scoped confirmations, and a stop control.
+- System assistant invocation panel with transient, redacted screen context.
+- On-device regression tests for document deletion/search, English/Kiswahili image OCR, write receipt persistence, and reminder notification delivery/recurrence/snooze.
+
+### Changed
+- Pin model downloads to verified artifacts and select compatible models/runtimes for the device.
+- Preserve tool evidence across conversation reloads; share relevant personal memory across model backends.
+- Budget complete prompts and select relevant tool definitions within the local context limit.
+- Show memory provenance, retrieve relevant facts, and apply corrections atomically.
+- Enforce on-device speech recognition and offline speech output; complete hands-free follow-up and cancellation handling.
+- Require successful streaming neural inference for benchmarks; distinguish callback chunks, token estimates, and sampled process memory.
+- Compile instrumentation tests in CI and make lint errors fail builds.
+- Offer an optional `taviTargetAbi` build property for producing an APK for one device architecture.
+- Bundle only the 35 extended vector icons used by Tavi, replacing the complete icon library while preserving existing visuals and attribution.
+
+### Fixed
+- Reject invalid tool arguments and ambiguous calendar dates or action times.
+- Handle negative voice confirmations without treating them as approval.
+- Retain runtime fallback decisions and release model resources under memory pressure.
+- Disable incomplete default SMS/dialer roles.
+- Handle unavailable language preferences during host tests and repair the moved message bubble test import.
+- Support date/time APIs on Android 7 through core library desugaring; guard newer SMS/screen APIs and notification permission.
+- Use valid settings-only cloud backup/device transfer rules that omit private databases and files.
+- Make real inference tests skip absent weights, select the installed runtime, and clean up resources; remove dependency on a specific saved contact.
+
 ## [1.0.0] - 2026-10-29
 
 ### Added
