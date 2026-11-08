@@ -407,7 +407,7 @@ Accessibility redacts password fields, and heuristic filters screen external con
 | [`app/src/main/java/com/example/tavi/workflow`](app/src/main/java/com/example/tavi/workflow) | Execution plans, confirmations, and receipts |
 | [`docs/validation`](docs/validation) | Reproducible validation records and raw evidence |
 | [`assets/screenshots`](assets/screenshots) | Current app captures, provenance, and older screenshots |
-| [`training`](training/README.md) | QLoRA dataset/training/export experiments; exported compatibility and quality require validation |
+| [`training`](training/TAVI_GEMMA_TRAINING.md) | Standalone Gemma training specification, all 60 tool schemas, 333 seed conversations, and dataset preparation code |
 
 Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md), and the [model/runtime decision record](docs/ADR_001_MODEL_AND_RUNTIME.md).
 

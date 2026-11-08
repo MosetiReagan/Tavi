@@ -2,6 +2,8 @@
 
 This directory provides the end-to-end pipeline to fine-tune **Google Gemma 3 1B IT** (`google/gemma-3-1b-it`) and export it into a dynamic **Int4 LiteRT FlatBuffer (`.litertlm`)** for 100% on-device mobile execution in Tavi.
 
+> Start with [TAVI_GEMMA_TRAINING.md](TAVI_GEMMA_TRAINING.md), the standalone source for current training: all 60 tool schemas, behavioral rules, 333 seed conversations, and portable preparation code. The experiments below use an older contract; their metrics and export compatibility require independent verification.
+
 ---
 
 ## 🎯 Motivation: Why Fine-Tune on Mobile?
