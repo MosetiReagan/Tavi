@@ -1,0 +1,55 @@
+{
+  "captured": "2026-11-08",
+  "sourceRevision": "04b41ea",
+  "apkSha256": "21bc642b2f7ed15eaf7ba5d21802f18af322304309d1ca607a793782b38452fb",
+  "device": "Android 14 / API 34 redroid x86_64 cloud device",
+  "densityDpi": 440,
+  "fontScale": 1.0,
+  "capture": "adb exec-out screencap -p",
+  "content": "Demonstration conversations and authored household reserve text",
+  "modifiedPixels": false,
+  "images": [
+    {
+      "file": "08_current_welcome.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 269049,
+      "sha256": "b38bedbf76e6e79c6e224078b66adf6fe459d469861bd4da73d337d8c444ed0f"
+    },
+    {
+      "file": "09_clarification_followup.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 180192,
+      "sha256": "d75d66b438b88a3c9dfb27128b7e9f87835535503c34a9ae7023a8d39feccf87"
+    },
+    {
+      "file": "10_action_confirmation.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 195300,
+      "sha256": "f45abe0b98f57e813d08be49cb05ee84af71ad626c88d87d0574b08ab4fabad5"
+    },
+    {
+      "file": "11_offline_recognition.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 247046,
+      "sha256": "bb9751a268f58c08e77064b7671ba3f8306ba87576a9878ec37958c1f4e6c80e"
+    },
+    {
+      "file": "12_offline_voices.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 251657,
+      "sha256": "4920dc8d245518625dc15fd75eeb7d1c5b4516d64ccb50e135cc8148f634ca63"
+    },
+    {
+      "file": "13_semantic_kiswahili.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 227652,
+      "sha256": "e0d48548754e15e4531d4854474463c942a2da4c1e0e7a201b97a2f9549cfee9"
+    }
+  ]
+}

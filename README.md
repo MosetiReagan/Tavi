@@ -1,137 +1,191 @@
 <div align="center">
 
-<img src="assets/branding/tavi_logo.png" width="112" height="112" alt="Tavi Mascot Icon" style="border-radius: 26px; box-shadow: 0 8px 24px rgba(0,0,0,0.18);" />
+<img src="assets/branding/tavi_logo.png" width="104" height="104" alt="Tavi assistant logo" />
 
-# Tavi — 100% On-Device Personal AI Assistant for Android
-### Powered by Google Gemma 4 E2B, Gemma 3 1B IT & Google AI Edge LiteRT-LM
+# Tavi
 
-[![Platform](https://img.shields.io/badge/Platform-Android%207.0%2B%20(API%2024--36)-3DDC84.svg?logo=android&logoColor=white)](https://developer.android.com)
-[![Model](https://img.shields.io/badge/Model-Gemma%204%20E2B%20%7C%203%201B-4285F4.svg?logo=google&logoColor=white)](https://huggingface.co/google)
-[![Runtime](https://img.shields.io/badge/Runtime-Google%20AI%20Edge%20LiteRT--LM%200.18.1-FF6F00.svg)](https://ai.google.dev/edge)
-[![Privacy](https://img.shields.io/badge/Privacy-100%25%20Offline%20%E2%80%A2%20Zero%20Cloud%20Telemetry-7C4DFF.svg)](#-security--privacy-threat-model)
-[![Tools](https://img.shields.io/badge/Native%20Tools-60%20Tools%20Across%2015%20Categories-00C853.svg)](#-60-native-android-system-tools)
-[![Tests](https://img.shields.io/badge/Tests-JVM%20%2B%20Android-brightgreen.svg)](#-test-verification--benchmarks)
-[![License](https://img.shields.io/badge/License-Apache%202.0-F9A825.svg)](LICENSE)
+### A private Android assistant that works on your device
 
-*Private, local-first mobile AI assistant operating entirely on-device with zero cloud telemetry, deep native Android system integration, persistent SQLite memory, screen agent mode, and continuous hands-free voice.*
+Local conversation · English & Kiswahili speech · Cited document search · Android actions
 
-`#Android` • `#OnDeviceAI` • `#Gemma4` • `#Gemma3` • `#LocalLLM` • `#LiteRTLM` • `#OfflineAssistant` • `#Privacy` • `#JetpackCompose`
+[![Android](https://img.shields.io/badge/Android-7.0%2B-3DDC84?logo=android&logoColor=white)](#build-and-install)
+[![Architectures](https://img.shields.io/badge/Native-ARM64%20%7C%20x86__64-6554C0)](#build-and-install)
+[![Validation](https://img.shields.io/badge/Tests-234%20JVM%20%2B%2028%20Android-238636)](#validation)
+[![License](https://img.shields.io/badge/Source-Apache%202.0-0969DA)](LICENSE)
 
-[App Showcase](#-app-showcase--screenshots) • [Architecture](#-architecture-overview) • [60 Native Tools](#-60-native-android-system-tools) • [Why Tavi?](#-why-tavi) • [Fine-Tuning](training/README.md) • [Quickstart](#-quickstart-build--run) • [Contributing](CONTRIBUTING.md)
+[Features](#what-tavi-can-do) · [Screenshots](#screenshots) · [Get started](#get-started) · [Build](#build-and-install) · [Validation](#validation) · [Contribute](CONTRIBUTING.md)
 
 </div>
 
----
+Tavi combines a small Kotlin request engine with optional local AI models. Common commands run without loading language-model weights. Conversation, speech, personal memory, OCR, and document search run locally; Android tools connect that assistance to your phone.
 
-## 📸 App Showcase & Screenshots
+No cloud AI service or analytics is used. Optional downloads contact model hosts, and requested browser, messaging, calling, or sharing actions use their respective services.
 
-> *All screenshots captured live on physical hardware: **Samsung Galaxy A14 (`SM-A145F`)**, Android 15 (One UI 7), 4 GB RAM.*
+## Screenshots
 
-<div align="center">
+These screenshots show the current app running on an Android 14 x86_64 cloud device, captured on **8 November 2026** at **1080 × 2400**. All displayed conversations and documents are demonstration content. [Capture details and reproduction steps](assets/screenshots/README.md). Select an image to open the full-resolution capture.
+
 <table>
   <tr>
-    <td align="center" width="33%"><b>Welcome & Action Starters</b></td>
-    <td align="center" width="33%"><b>Conversational Reasoning</b></td>
-    <td align="center" width="33%"><b>Multi-Session History Drawer</b></td>
+    <th>Start a local conversation</th>
+    <th>Continue a clarification</th>
+    <th>Search across languages</th>
   </tr>
   <tr>
-    <td><img src="assets/screenshots/01_welcome_hero.png" width="250" alt="Welcome & Action Starters" style="border-radius: 12px;"/></td>
-    <td><img src="assets/screenshots/02_chat_experience.png" width="250" alt="Conversational Reasoning & Tool Badges" style="border-radius: 12px;"/></td>
-    <td><img src="assets/screenshots/03_drawer_multisession.png" width="250" alt="Multi-Session Sidebar Drawer" style="border-radius: 12px;"/></td>
+    <td><a href="assets/screenshots/08_current_welcome.png"><img src="assets/screenshots/08_current_welcome.png" width="250" alt="Tavi home screen with local action starters and the on-device model indicator" /></a></td>
+    <td><a href="assets/screenshots/09_clarification_followup.png"><img src="assets/screenshots/09_clarification_followup.png" width="250" alt="Tavi asks for missing message text and completes a draft after the follow-up" /></a></td>
+    <td><a href="assets/screenshots/13_semantic_kiswahili.png"><img src="assets/screenshots/13_semantic_kiswahili.png" width="250" alt="A Kiswahili query retrieves an English household reserve document with its page citation" /></a></td>
   </tr>
   <tr>
-    <td align="center"><b>Persistent Memory Recall</b></td>
-    <td align="center"><b>In-App Model Downloader</b></td>
-    <td align="center"><b>Consequential Action Gate</b></td>
+    <td>Action starters, conversation history, and text or voice input.</td>
+    <td>The request engine keeps missing details scoped to the conversation.</td>
+    <td>Meaning-based retrieval with current source text and page references.</td>
   </tr>
   <tr>
-    <td><img src="assets/screenshots/04_memory_recall.png" width="250" alt="Persistent Memory Retrieval" style="border-radius: 12px;"/></td>
-    <td><img src="assets/screenshots/05_settings_runtimes.png" width="250" alt="Model Downloader & Runtime Switcher" style="border-radius: 12px;"/></td>
-    <td><img src="assets/screenshots/06_consequential_confirmation.png" width="250" alt="Human-in-the-Loop Confirmation" style="border-radius: 12px;"/></td>
+    <th>Install offline recognition</th>
+    <th>Choose local voices</th>
+    <th>Review before sending</th>
+  </tr>
+  <tr>
+    <td><a href="assets/screenshots/11_offline_recognition.png"><img src="assets/screenshots/11_offline_recognition.png" width="250" alt="Settings shows installed independent English and Kiswahili speech recognition packs" /></a></td>
+    <td><a href="assets/screenshots/12_offline_voices.png"><img src="assets/screenshots/12_offline_voices.png" width="250" alt="Settings shows installed English and Kiswahili voice packs with removal and source controls" /></a></td>
+    <td><a href="assets/screenshots/10_action_confirmation.png"><img src="assets/screenshots/10_action_confirmation.png" width="250" alt="Tavi pauses an SMS request for explicit confirmation before dispatch" /></a></td>
+  </tr>
+  <tr>
+    <td>Separate verified packs for each recognition language.</td>
+    <td>Optional speech output that works without an Android voice provider.</td>
+    <td>Inspect the action and message before approving it.</td>
   </tr>
 </table>
-</div>
 
----
+## What Tavi can do
 
-## 📖 Overview
+| Feature | How it works |
+| :--- | :--- |
+| **Small request engine** | A bounded Kotlin router handles common English/Kiswahili commands for time, calculations, device status, alarms, timers, notes, documents, contacts, settings, and messages. Supported commands run before neural planning. |
+| **Persistent clarification** | Missing alarm time, timer duration, message recipient, or exact message text stays with its conversation for ten minutes. Follow-ups survive an app restart. Completion preserves the action's confirmation requirement. |
+| **Independent offline speech** | Whisper Tiny recognizes English; Omnilingual 300M recognizes Kiswahili. Piper supplies English/Kiswahili voices. Capture uses a silence endpoint; playback and follow-up listening have explicit stop controls. |
+| **Semantic document search** | Import text, Markdown, PDFs, or images. Bundled English/Kiswahili OCR extracts text. Optional multilingual E5 Small retrieves paraphrases across documents and notes, with file/page citations and persistent vectors. Keyword search remains available without the pack. |
+| **Local conversation** | Gemma 3 1B IT or Gemma 4 E2B through LiteRT-LM, with MediaPipe support for compatible bundles. Models load when needed and release under memory pressure. |
+| **Personal memory** | Local SQLite memory with recall, provenance, correction, and deletion. Conversations retain tool evidence and execution receipts. |
+| **Reminders and routines** | Editable schedules, recurrence, snooze, and reboot restoration. Android notification permissions and alarm access affect delivery. |
+| **Android integration** | 60 registered tools across 15 categories, typed argument validation, permission checks, and confirmation for tools such as SMS sending, direct calls, and note deletion. |
+| **Screen assistance** | A local model can plan actions against visible accessibility nodes in Settings, Chrome, and Firefox, with scoped pause/resume and stop controls. |
 
-**Tavi** is an open-source, fully offline personal AI assistant engineered specifically for Android. Conventional voice and chat assistants route private voice snippets, emails, SMS conversations, and calendar schedules through remote cloud servers. Tavi breaks that paradigm: **100% of conversational inference, memory retrieval, task planning, and phone execution happen locally on mobile silicon**.
+### Try the request engine
 
-Powered by Google Gemma 4 E2B (with Gemma 3 1B for low-RAM devices) via Google AI Edge LiteRT-LM, Tavi provides 60 native tools with permission checks and confirmation for consequential actions. Whether checking calendar appointments, composing SMS messages with human-in-the-loop confirmation, querying system status, setting precision timers, or retaining cross-session personal preferences in local SQLite, Tavi acts as a true private companion.
+| Enter | Result |
+| :--- | :--- |
+| `What time is it?` | Reads the device clock through the native tool. |
+| `Calculate 145 * 12` | Evaluates the expression locally. |
+| `Set an alarm` | Asks for an exact time; answer with `07:30`. |
+| `Draft a message to Maya` | Asks for the exact text; your next answer completes the draft. |
+| `Saa ngapi?` | Routes the supported Kiswahili clock command. |
 
----
+Clarification slots expire after ten minutes and clear on completion or cancellation. Supported actions pass through the shared workflow and permission checks. Opening a system app is reported as a handoff; an SMS dispatch is distinguished from Android's send/delivery callbacks.
 
-## ⚖️ Why Tavi?
+### Speech and search packs
 
-Tavi combines local conversation with Android actions and user-controlled personal data. Available capabilities and their limits are:
+Downloads are optional, resumable, and pinned to exact revisions, sizes, and SHA-256 hashes. Incomplete or modified packs cannot load. Files stay in private app storage and can be removed in Settings.
 
-| Capability | Current behavior | Requirements or limits |
-| :--- | :--- | :--- |
-| Small request engine | Common commands and clarifications run in a bounded Kotlin router without model weights | Handles time, battery, network, alarms/timers, notes, documents, contacts, settings, and explicit message requests. Shared workflow gates check every action. |
-| Local conversation | Gemma 4 E2B or Gemma 3 1B, with a deterministic fallback | Install verified weights and choose a compatible runtime; speed varies by device. |
-| Offline voice | Independent Whisper English/Omnilingual Kiswahili recognition, Piper English/Kiswahili output, follow-up listening | Optional verified packs in Settings. Android on-device providers are a fallback; short Kiswahili accuracy varies. [Pack details and terms](docs/LOCAL_MODEL_PACKS.md). |
-| Personal memory | Relevant recall, provenance, corrections, deletion | Stored in private local SQLite; heuristic filters cannot guarantee every sensitive string is detected. |
-| Document library | Text/PDF/image import, English/Kiswahili OCR, multilingual semantic and keyword search | Optional verified E5 pack adds paraphrase retrieval. Search covers documents and notes with source/page citations; OCR and retrieval can be inaccurate. |
-| Reminders and routines | Recurrence, snooze, reboot restoration, editable routine schedules | Notification permission required; exact timing depends on Android alarm access. Scheduled routines send reminder notifications. |
-| Android actions | Schema validation, confirmations, persistent execution receipts | Permissions and providers determine availability. Opening a system app is reported as a handoff. |
-| Screen assistance | Local planning, visible node grounding, scoped resume and stop | Requires a working local model and accessibility; currently restricted to Settings, Chrome, and Firefox. |
-| System assistant | Invocation panel with transient screen context | User must select Tavi as the default assistant. Default SMS/dialer roles are disabled. |
+| Pack | Download size | Purpose |
+| :--- | ---: | :--- |
+| Whisper Tiny int8 | 103.6 MB | English speech recognition |
+| Omnilingual 300M CTC int8 | 365.4 MB | Kiswahili speech recognition |
+| Piper Lessac | 64.1 MB | English speech output |
+| Piper Lanfrica | 64.1 MB | Kiswahili speech output |
+| Multilingual E5 Small int8 | 135.4 MB | Document and note search by meaning |
 
-See [LIMITATIONS.md](LIMITATIONS.md) for runtime boundaries and [CHANGELOG.md](CHANGELOG.md) for the additions in this revision.
+Recognition uses the pack for the selected language. Without it, a compatible Android 12+ on-device provider can supply recognition; local Android voices can also supply speech output. Text remains available. The Kiswahili voice is Congolese `sw_CD`.
 
----
+Semantic search creates at most 24 new excerpt embeddings per request. **Index documents and notes** processes the whole library in cancellable batches, retaining completed work. The screen reports coverage. Deleting a source removes its vectors; removing the semantic pack clears the semantic index.
 
-## 🏗️ Architecture Overview
+See [pack sources, hashes, runtime details, and licenses](docs/LOCAL_MODEL_PACKS.md).
 
-```mermaid
-graph TD
-    User([User Text / Voice]) --> UI[Jetpack Compose UI & Navigation 3]
-    UI --> Drawer[Multi-Session Conversation Drawer]
-    UI --> VM[MainScreenViewModel]
-    VM --> LocalRequests[Small Kotlin Request Engine - No Weights]
-    LocalRequests -->|Typed commands| Checkpoint
-    LocalRequests -->|Needs interpretation| Budget
-    
-    subgraph Safety [Security & Input Boundary]
-        VM --> SG[SecurityGuard & Prompt Injection Sanitizer]
-        SG --> Budget[Context Budget Manager - 2,048 Token Cap]
-        Budget --> Ledger[Conversation State Ledger]
-    end
+## Get started
 
-    subgraph Memory [Persistent Knowledge Tier]
-        Ledger <--> PMM[PersistentMemoryManager]
-        PMM <--> DB[(SQLite Database: tavi_local.db)]
-    end
+1. Install a debug APK built for your device. The native runtimes support **ARM64** and **x86_64**.
+2. Open Tavi and try a common text command. The small request engine works without language-model weights.
+3. Open **Settings → Local Language Model** for conversation. Download the pinned Gemma 3 1B bundle, or import a trusted compatible `.litertlm` / `.task` file. Gemma 4 E2B requires a trusted import or a hosted artifact with the necessary authentication and publisher checksum.
+4. In **Settings → Assistant language**, choose English, Kiswahili, or Device. Download recognition and voice packs for the language you want.
+5. For search by meaning, install **Multilingual semantic search** under **Document search**. Open **Local document library**, import a file, and tap **Index documents and notes**.
+6. Grant Android permissions when a feature needs them. Default assistant invocation and accessibility require Android special access; review those controls in the capability manager.
 
-    subgraph Engine [Dual-Engine Local Inference]
-        Budget --> EngineRouter{Inference Runtime Router}
-        EngineRouter -->|Primary Modern| LiteRT[Google AI Edge LiteRT-LM 0.18.1]
-        EngineRouter -->|Fallback Engine| MP[MediaPipe Tasks GenAI 0.10.27]
-        EngineRouter -->|Offline / No Weights| Det[Deterministic Action Rules Core]
-    end
+Gemma 3's pinned LiteRT-LM file is approximately 584 MB (558 MiB); Gemma 4 E2B is approximately 2.58 GB. Available RAM, Android version, and runtime compatibility determine which model can run. [Device and runtime limitations](LIMITATIONS.md).
 
-    subgraph Orchestration [Autonomous Workflow Orchestrator]
-        LiteRT --> Planner[Workflow Execution Planner]
-        Planner --> Checkpoint{Consequential Checkpoint?}
-        Checkpoint -->|Yes| Dialog[Material 3 User Confirmation Gate]
-        Dialog -->|Approved| Registry[60 Native Tool Registry]
-        Checkpoint -->|No| Registry
-    end
+## Build and install
 
-    subgraph Hardware [Android Providers & Device Hardware]
-        Registry --> Cal[(Calendar Provider)]
-        Registry --> Tel[(Telephony & SMS)]
-        Registry --> Acc[(Accessibility Service)]
-        Registry --> Sys[(Alarm / Camera / Audio / Radio)]
-    end
+Use **JDK 17**, Android SDK **36**, and Android Studio compatible with the repository's Android Gradle Plugin. The minimum Android version is API 24 (Android 7.0); native runtime compatibility still needs validation on each supported device.
+
+```bash
+git clone https://github.com/MosetiReagan/Tavi.git
+cd Tavi
+./gradlew assembleDebug -PtaviTargetAbi=arm64-v8a
+adb install --no-streaming -r app/build/outputs/apk/debug/app-debug.apk
+adb shell am start -n com.tavi.assistant/com.example.tavi.MainActivity
 ```
 
----
+Use `-PtaviTargetAbi=x86_64` for an x86_64 device. Omit the property to package both supported architectures. The debug APK is signed with the development key. `./gradlew assembleRelease` produces a minified release; configure `KEYSTORE_FILE`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, and `KEY_PASSWORD` through local environment variables or Gradle properties to sign it for distribution.
 
-## 🛠️ 60 Native Android System Tools
+Gradle retrieves the pinned Sherpa speech AAR from its publisher and checks SHA-256 before building. For an offline build with cached dependencies, pass `-PtaviSpeechAar=/absolute/path/to/verified-sherpa.aar`; the same verification applies.
 
-Tavi declares and executes **60 native Android tools across 15 functional categories** via the unified `AssistantTool` interface:
+## Validation
+
+The **8 November 2026** validation recorded:
+
+| Check | Result |
+| :--- | :--- |
+| JVM regression tests | **234 passed across 42 suites**; no failures or skips |
+| Android feature tests | **12 passed** on Android 14 / x86_64 |
+| Existing Android acceptance tests | **16 passed** in a separate fresh-process run |
+| Tokenizer compatibility | **114 reference cases passed** on Android |
+| Debug lint | **0 errors**, 192 warnings, 2 hints |
+| ARM64 packaging | Debug and minified release built; debug signature and release ZIP alignment verified |
+
+Android coverage includes real Gemma, Whisper, Omnilingual, Piper, and E5 inference, persistent clarifications, semantic retrieval, OCR, document deletion, receipts, reminders, and Compose rendering. [Full validation, raw results, and APK checksums](docs/validation/2026-11-08-android-cloud.md).
+
+Kiswahili recognition improved to **21/83 word errors (25.3%)** on three preselected human FLEURS recordings, compared with Whisper Tiny's 83/83. This small sample does not establish overall accuracy. Short synthetic Kiswahili commands remained unreliable. OCR and semantic retrieval can also be inaccurate; check the transcript and cited source before consequential actions.
+
+Physical ARM phone latency, microphone behavior, battery, thermals, and real SIM delivery remain unmeasured for these additions. Upstream LiteRT-LM Kotlin metadata warnings remain. No comparison establishing a global ranking has been performed.
+
+Run checks with:
+
+```bash
+./gradlew testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest
+./gradlew connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.notClass=com.example.tavi.benchmark.DeviceBenchmark
+```
+
+Install the optional packs and verified language-model weights before running the relevant native tests; absent packs cause those tests to skip. The recorded runs had their dependencies installed and no skips. Run `bash scripts/run_benchmark.sh` on an authorized physical device for inference measurements. [Benchmark guide and cloud results](benchmarks/README.md).
+
+## Architecture
+
+```mermaid
+flowchart TD
+    Input[Text or voice] --> UI[Compose conversation UI]
+    Speech[Whisper / Omnilingual / Piper] <--> UI
+    UI --> Router[Small Kotlin request engine]
+    Router <--> Slots[(Conversation-scoped clarification)]
+    Router -->|Supported command| Workflow[Workflow and confirmation gates]
+    Router -->|Needs interpretation| Context[Prompt budget and personal memory]
+    Context --> Neural[Local Gemma inference]
+    Neural --> Workflow
+    Workflow --> Tools[60 native Android tools]
+    Tools --> Evidence[(Execution receipts and tool evidence)]
+    Tools --> Documents[Document and note search]
+    Documents --> E5[Multilingual E5 / keyword search]
+    E5 <--> Vectors[(Private persistent vectors)]
+    Documents <--> Sources[(Extracted text and page citations)]
+```
+
+LiteRT-LM 0.18.1 and MediaPipe Tasks GenAI 0.10.27 provide language-model runtimes. Sherpa 1.12.20 supplies speech inference; ONNX Runtime Android 1.21.0 supplies E5 embeddings. Context budgeting accounts for the complete prompt within the configured 2,048-token window. Native speech and embedding sessions unload after 45 seconds idle or memory pressure.
+
+## Native tools
+
+The directory is generated from registered `AssistantTool` implementations. Android providers, permissions, and installed applications determine availability. “Direct” means the tool does not declare its own confirmation requirement; workflow and permission checks still apply.
+
+<details>
+<summary>Browse all 60 registered tools across 15 categories</summary>
 
 <!-- TOOL_TABLE_START -->
 
@@ -202,202 +256,33 @@ Tavi declares and executes **60 native Android tools across 15 functional catego
 
 <!-- TOOL_TABLE_END -->
 
----
+</details>
 
-## ⚡ Autonomous Multi-Step Workflows
+Regenerate the directory with `python3 scripts/gen_tool_table.py --update-readme`.
 
-Tavi coordinates complex instructions across autonomous multi-step execution plans with dynamic parameter binding and safety verification:
+## Privacy and control
 
-```
-User Prompt: "Check if I have meetings tomorrow morning, and if Dennis texted me, message him that I will join after lunch."
-```
+Conversation history, personal memory, extracted documents, clarification slots, and vectors stay in private SQLite databases. Raw microphone recordings remain in memory. Android backup rules exclude private databases and files. Users can inspect and remove retained data in the app.
 
-```
-Generated Plan:
-Step 1: calendar_list_events(start="2026-10-28 08:00", end="2026-10-28 12:00")
-Step 2: messages_search(query="Dennis")
-Step 3: contacts_resolve(name="Dennis") -> Binds phone_number to Step 4
-Step 4: messages_send_sms(recipient="Dennis", text="I will join after lunch.") -> [HALT: Consequential Gate]
-```
+Accessibility redacts password fields, and heuristic filters screen external content and personal memory. These filters have limits and do not guarantee detection of every secret or malicious instruction. Screen automation is restricted to supported applications; default SMS/dialer roles are disabled.
 
-* **Parameter Binding:** Upstream execution outputs (e.g. phone numbers from contact resolution) are safely bound to downstream steps.
-* **Consequential Gate Checkpoint:** Before executing consequential tools (`messages_send_sms`, `calendar_delete_event`, `phone_call`), Tavi pauses with `AWAITING_USER_INPUT` and presents an explicit Material 3 approval dialog.
-* **Live State Verification:** Reads back live Android providers (`CalendarContract.Events`, `SmsManager`, `TaviDatabase`) before declaring a step verified.
-* **Idempotency Safeguard:** Enforces per-step idempotency keys and an 8-step execution budget to prevent unbounded loops.
+[Privacy policy](PRIVACY.md) · [Security policy](SECURITY.md) · [Operational limits](LIMITATIONS.md)
 
----
+## Explore the project
 
-## 🧠 Dual-Engine Local Inference
+| Path | Contents |
+| :--- | :--- |
+| [`app/src/main/java/com/example/tavi/engine`](app/src/main/java/com/example/tavi/engine) | Request routing, clarification, model acquisition, and local inference |
+| [`app/src/main/java/com/example/tavi/voice`](app/src/main/java/com/example/tavi/voice) | Independent recognition, synthesis, playback, and voice sessions |
+| [`app/src/main/java/com/example/tavi/documents`](app/src/main/java/com/example/tavi/documents) | Import, OCR, tokenization, semantic indexing, and source citations |
+| [`app/src/main/java/com/example/tavi/tools`](app/src/main/java/com/example/tavi/tools) | Native Android tools and registry |
+| [`app/src/main/java/com/example/tavi/workflow`](app/src/main/java/com/example/tavi/workflow) | Execution plans, confirmations, and receipts |
+| [`docs/validation`](docs/validation) | Reproducible validation records and raw evidence |
+| [`assets/screenshots`](assets/screenshots) | Current app captures, provenance, and older screenshots |
+| [`training`](training/README.md) | QLoRA dataset/training/export experiments; exported compatibility and quality require validation |
 
-`LocalRequestEngine` handles supported commands before model planning or loading. It preserves message/note text, rejects invalid alarm times and overflowing timer durations, and collects missing details through follow-ups. Replies such as "7:30 AM", "five minutes", "dakika tano", or "Alice" fill the pending slot in that conversation. Missing slots persist locally for ten minutes; cancellation or a new complete command replaces them. Completing an SMS still requires a separate confirmation. The engine never executes a tool directly. Gemma loads on demand for requests that need interpretation; opening the app or running a supported basic command does not preload neural weights.
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md), and the [model/runtime decision record](docs/ADR_001_MODEL_AND_RUNTIME.md).
 
-Tavi implements a **Dual-Engine Architecture** managed through `InferenceRuntime`:
+## License
 
-* **Primary Engine:** **Google AI Edge LiteRT-LM 0.18.1** (`com.google.ai.edge.litert:litert-lm-android:0.18.1`)
-  * Dynamic Int4 FlatBuffer (`gemma-3-1b-it.litertlm`).
-  * Direct JNI runtime with native Vulkan GPU / CPU pipeline acceleration.
-  * KV-cache capacity: 2,048 tokens.
-* **Fallback Engine:** **Google MediaPipe Tasks GenAI 0.10.27** (`com.google.mediapipe:tasks-genai:0.10.27`)
-  * MediaPipe `.task` bundle compatibility.
-* **Deterministic Action Core:**
-  * Rule-based parsing when compatible model weights are unavailable or neural inference cannot run.
-
-### Hardware Specifications & Measured Profiles
-* **Target Inference Runtime:** Google AI Edge LiteRT-LM (Direct JNI / Vulkan GPU pipeline with CPU fallback)
-* **Model Choices:**
-  * **Gemma 4 E2B:** ~2.58 GB weights, 6+ GB RAM recommended (GPU Vulkan or ARM Cortex-A CPU)
-  * **Gemma 3 1B IT:** ~558 MB pinned LiteRT-LM weights, 2+ GB RAM (lightweight budget profile)
-* **Context KV-Cache Capacity:** 2,048 tokens native window
-* **Memory Management:** Enforces `< 2,048 MB` RAM guard via `ModelManager.checkDeviceRamSupport()` and releases loaded models under memory pressure
-* **Battery Efficiency:** On-demand execution with zero persistent wakelocks and zero background telemetry
-* **Measured Benchmark Results:** Real device measurements (engine initialization, first response chunk, characters/second, sampled process PSS, battery percentage delta, thermals) are collected using `scripts/run_benchmark.sh` and stored in [`benchmarks/`](benchmarks/). Unmeasured hardware profiles are explicitly labeled as *"Not yet measured (run scripts/run_benchmark.sh on device)"*. Specification target numbers in `evaluation/` are marked with `# SPEC — see measured results in benchmarks/`.
-
----
-
-## 💾 Persistent Personal Memory & Context Budget
-
-* **Token-Aware Context Budgeting:** Managed by `ContextBudgetManager` within a strict 2,048-token hardware window:
-  * Reserve `400 tokens` for generation; count the complete system instructions, current input, tool definitions, memories, and selected history.
-  * Reject requests that exceed the input budget; retain recent complete exchanges and select relevant tools.
-* **Conversation State Ledger:** Tracks confirmed facts, active task constraints, and referenced entities even when raw dialogue history is pruned.
-* **Local SQLite Store (`tavi_local.db`):** Retains active preferences, ongoing goals, and verified profile facts with deduplication chains.
-* **Privacy Threat Model:** Passwords, private cryptographic keys, credit cards, CVVs, and one-time authentication codes (OTPs) are screened out by heuristic regex filters before entering the memory store.
-
----
-
-## 📥 In-App Model Acquisition
-
-Tavi provides built-in model download and import controls in **Settings & Privacy**:
-
-1. **Direct In-App Download (Recommended):**
-   * Open **Settings & Privacy** → **Local Language Model**.
-   * Tap **Download Gemma 3 1B (HTTPS)**.
-   * Tavi streams a revision-pinned instruction-tuned artifact directly to sandboxed app storage with multi-hop redirect handling (Hugging Face CDN / AWS S3) and verifies SHA-256 integrity.
-2. **Import from Storage:**
-   * Download `gemma-3-1b-it.litertlm` or `gemma-3-1b-it.task` to device storage.
-   * In Tavi Settings, tap **Import Model Bundle (.litertlm / .task)** and select the file using the Android Storage Access Framework.
-3. **Manual Push via ADB:**
-   ```bash
-   adb push ./models/gemma-3-1b-it.litertlm /data/local/tmp/
-   adb shell "run-as com.tavi.assistant cp /data/local/tmp/gemma-3-1b-it.litertlm files/models/gemma-3-1b-it.litertlm"
-   ```
-
----
-
-## 🎯 Fine-Tuning & Model Specialization Pipeline
-
-Tavi includes an end-to-end training suite to fine-tune **Google Gemma 3 1B IT** and compile it directly into an optimized dynamic **Int4 LiteRT FlatBuffer (`.litertlm`)** for mobile execution.
-
-* **Training experiments:** The repository contains QLoRA training and export scripts. Their accuracy, latency improvements, and exported model compatibility require independent validation.
-* **Google Colab Notebook:** Explore the training workflow:
-  * 📓 **[Open Training Notebook in Google Colab](training/Tavi_Gemma3_FineTuning_Colab.ipynb)**
-* **Modular Pipeline Architecture:**
-  * [`training/dataset_generator.py`](training/dataset_generator.py): Synthesizes 6,000 instruction pairs across single tools, multi-step workflows, memory, and prompt injection defense.
-  * [`training/train_lora.py`](training/train_lora.py): Hugging Face TRL `SFTTrainer` + PEFT QLoRA 4-bit / bfloat16.
-  * [`training/export_litertlm.py`](training/export_litertlm.py): Fuses LoRA adapters and exports to Google AI Edge LiteRT FlatBuffer.
-  * Full guide & benchmarks: see [training/README.md](training/README.md).
-
----
-
-## 🔒 Security & Privacy Threat Model
-
-* **Zero Outbound Telemetry:** No analytical pings, tracking SDKs, or cloud LLM endpoints.
-* **Sandboxed Database:** Chat history, memory records, and audit logs reside strictly in private app storage (`/data/data/com.tavi.assistant/databases/tavi_local.db`).
-* **Backup Filtering:** Android cloud backups and device transfers include shared preferences only; private databases and model/document files are omitted.
-* **Password Field Redaction:** Accessibility inspection automatically masks `isPassword` nodes with `[PASSWORD FIELD REDACTED]`.
-* **Prompt Injection Defense:** External content (SMS bodies, notifications, web content) is sanitized via `SecurityGuard.sanitizeExternalContent()` to strip adversarial markers.
-
----
-
-## 🚀 Quickstart: Build & Run
-
-### Prerequisites
-* **Android Studio** compatible with the configured Android Gradle Plugin
-* **Android SDK:** API 36 (Android 16), Minimum API 24 (Android 7.0)
-* **JDK:** Java 17+
-
-### 1. Clone the Repository
-```bash
-git clone https://github.com/MosetiReagan/Tavi.git
-cd Tavi
-```
-
-### 2. Build Debug APK
-```bash
-./gradlew assembleDebug
-```
-For an APK targeting one device architecture, use `./gradlew assembleDebug -PtaviTargetAbi=arm64-v8a` (or another supported ABI). Omitting this option retains the normal architecture set.
-
-Output artifact:
-`app/build/outputs/apk/debug/app-debug.apk`
-
-### 3. Install to Connected Android Device
-```bash
-adb install -r -d app/build/outputs/apk/debug/app-debug.apk
-adb shell "am start -n com.tavi.assistant/com.example.tavi.MainActivity"
-```
-
----
-
-## 🧪 Test Verification & Benchmarks
-
-The current JVM suite contains 215 tests across 38 suites. Run validation with:
-
-```bash
-./gradlew testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest
-```
-
-CI compiles both app and instrumentation APKs. Lint errors fail builds. JVM tests verify routing, prompt budgets, memory, workflow checkpoints, tool validation, receipts, and safety policies; they do not establish real inference speed or Android provider behavior.
-
-The latest additions passed 234 JVM tests and 12 Android feature tests, alongside the 16 existing Android acceptance tests. Coverage includes real local inference, human Kiswahili recognition, semantic document search, English/Kiswahili OCR, and persistent clarification. See the [2026-11-08 validation record](docs/validation/2026-11-08-android-cloud.md) for raw results, speech accuracy limits, and remaining physical-device checks.
-
-On an authorized Android device, run instrumentation tests and physical inference benchmarks separately:
-
-```bash
-./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.notClass=com.example.tavi.benchmark.DeviceBenchmark
-bash scripts/run_benchmark.sh
-```
-
-The benchmark needs installed verified weights, a compatible runtime, ADB, and Python 3 for report validation. It exports fresh reports into [benchmarks/](benchmarks/); callback chunks and text token estimates are identified separately. Nine genuine neural runs passed in an Android 14 / x86_64 cloud container; their [raw report and measurements](benchmarks/README.md#cloud-validation-on-2026-11-07) are labeled as cloud results. Physical phone performance remains unmeasured for these additions.
-
----
-
-## 📁 Repository Structure
-
-```
-Tavi/
-├── app/
-│   ├── src/main/java/com/example/tavi/
-│   │   ├── engine/          # LiteRT-LM, MediaPipe, & ModelManager HTTP downloader
-│   │   ├── tools/           # Native tools (Calendar, SMS, Device, Files...)
-│   │   ├── context/         # Conversation State Ledger & ContextBudgetManager
-│   │   ├── memory/          # SQLite PersistentMemoryManager & Privacy Rules
-│   │   ├── workflow/        # Autonomous Multi-Step Execution & Planning
-│   │   ├── roles/           # Android Assistant & System Role Managers
-│   │   ├── accessibility/   # TaviAccessibilityService & Password Redaction
-│   │   └── ui/              # Jetpack Compose UI (Navigation 3, Main, Settings)
-│   ├── src/test/            # JVM regression tests
-│   └── src/androidTest/     # Android persistence, UI, inference, and benchmark tests
-├── assets/
-│   ├── branding/            # High-resolution logos & mascot artwork
-│   └── screenshots/         # Real physical device screenshots on Galaxy A14
-└── evaluation/              # Quantitative benchmark & latency harnesses
-```
-
----
-
-## 🤝 Contributing & Community
-
-Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) and [Security Policy](SECURITY.md) before opening a pull request.
-
----
-
-## 📄 License
-
-Licensed under the **Apache License, Version 2.0**. See the [LICENSE](LICENSE) file for complete details.
-
----
-
-<div align="center">
-<sub>Crafted with ❤️ by Reagan Moseti and Contributors. Dedicated to private, on-device artificial intelligence.</sub>
-</div>
+Tavi's source is licensed under [Apache 2.0](LICENSE). Models, speech data, and bundled runtimes have their own terms, including eSpeak NG's GPL-3.0-or-later requirements. Review [third-party provenance and distribution terms](docs/LOCAL_MODEL_PACKS.md) before distributing an APK.

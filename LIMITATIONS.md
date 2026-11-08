@@ -62,8 +62,8 @@ This document records the physical hardware, operating system, and runtime bound
 
 ## 6. Speech, Documents, and Schedules
 
-* On-device recognition requires Android 12+ and an installed compatible speech provider/language pack. Older Android versions support text input. Offline speech output also requires a local voice for the selected language.
-* Document retrieval uses local lexical indexing. OCR supports bundled English and Kiswahili data, with quality dependent on the source image; it does not guarantee semantic answers to every document question.
+* Independent speech recognition uses optional verified Whisper English or Omnilingual Kiswahili packs on supported ARM64/x86_64 devices. Without the language pack, Android 12+ can use an installed on-device recognizer. Piper packs or local Android voices supply offline speech output. Text remains available. Short Kiswahili commands, mixed speech, noise, and physical microphone behavior need further validation; the three-clip FLEURS comparison is not a population accuracy estimate.
+* Document retrieval uses keyword indexing or an optional verified multilingual E5 Small embedding pack. Search by meaning has bounded indexing per request and reports incomplete coverage; full indexing is cancellable. Similarity scores are not calibrated answer confidence. Bundled English/Kiswahili OCR quality depends on the source image. Review citations and extracted text.
 * Scheduled routines post a notification inviting the user to review and run their routine. They do not execute arbitrary phone actions unattended.
 * Reminder precision depends on Android exact-alarm access. Notifications require permission, and app force-stop can prevent delivery until the app is reopened.
 * Tavi's default SMS and dialer roles are disabled until complete role implementations are available. SMS/call tools remain subject to Android permissions and provider availability.

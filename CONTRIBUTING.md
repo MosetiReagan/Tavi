@@ -46,6 +46,14 @@ cd tavi
 
 ---
 
+## Documentation and screenshots
+
+Keep README feature claims, pack sizes, native architecture requirements, and validation counts aligned with the current implementation and recorded results. Regenerate the native tool directory with `python3 scripts/gen_tool_table.py --update-readme`.
+
+For gallery changes, capture the running app with demonstration content and follow the [screenshot capture guide](assets/screenshots/README.md). Record device/API, source revision, APK checksum, display settings, date, and image hashes. Label emulator/cloud captures accurately, inspect every image, and check local links before committing. Do not replace actual UI text with generated or composited content.
+
+---
+
 ## Implementing a New Native Tool
 
 All tools implement the `AssistantTool` interface located at `app/src/main/java/com/example/tavi/tools/AssistantTool.kt`:
