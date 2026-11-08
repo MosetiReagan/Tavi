@@ -17,9 +17,9 @@ android {
         versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         providers.gradleProperty("taviTargetAbi").orNull?.let { targetAbi ->
-            require(targetAbi in setOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")) { "Unsupported taviTargetAbi: $targetAbi" }
+            require(targetAbi in setOf("arm64-v8a", "x86_64")) { "Local neural runtimes require arm64-v8a or x86_64: $targetAbi" }
             ndk.abiFilters.add(targetAbi)
-        }
+        } ?: ndk.abiFilters.addAll(listOf("arm64-v8a", "x86_64"))
     }
 
     signingConfigs {
@@ -62,6 +62,7 @@ android {
     }
 
     packaging {
+      jniLibs.excludes += setOf("**/x86/**", "**/armeabi-v7a/**")
       resources {
         excludes += "/META-INF/{AL2.0,LGPL2.1}"
       }
@@ -117,6 +118,8 @@ dependencies {
   }
   coreLibraryDesugaring(libs.desugar.jdk.libs)
   implementation("cz.adaptech.tesseract4android:tesseract4android:4.9.0")
+  implementation("com.microsoft.onnxruntime:onnxruntime-android:1.21.0")
+  implementation("com.google.code.gson:gson:2.11.0")
   val composeBom = platform(libs.androidx.compose.bom)
   implementation(composeBom)
   androidTestImplementation(composeBom)

@@ -29,3 +29,5 @@ tavi_main_screen.png
 __pycache__/
 *.pyc
 training/output/
+
+/.local-artifacts/

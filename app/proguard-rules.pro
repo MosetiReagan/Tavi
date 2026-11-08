@@ -51,3 +51,6 @@
 
 # sherpa JNI resolves this typed callback method by its exact name and signature.
 -keep class com.example.tavi.voice.SpeechGenerationCallback { *; }
+
+# ONNX Runtime resolves Java classes and members through JNI.
+-keep class ai.onnxruntime.** { *; }

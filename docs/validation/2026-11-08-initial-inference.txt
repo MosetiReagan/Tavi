@@ -1,0 +1,5 @@
+--------- beginning of main
+11-08 08:24:21.611  1709  1730 I TaviSemanticTest: How can I prepare for unexpected medical expenses? -> [Family safety reserve, page 1, Bicycle maintenance, page 1] in 22 ms
+11-08 08:24:21.632  1709  1730 I TaviSemanticTest: Ninawezaje kulinda familia yangu nikikosa mshahara? -> [Family safety reserve, page 1, Bicycle maintenance, page 1] in 21 ms
+11-08 08:24:32.138  1709  1730 I TaviSpeechTest: en: 'What time is it now?' -> 'What time is it now?' in 4021 ms
+11-08 08:24:33.720  1709  1730 I TaviSpeechTest: sw: 'Saa ngapi sasa?' -> 'santa pisa sa' in 1582 ms

@@ -19,6 +19,8 @@ fun LanguageSettingsPanel(voice: VoiceManager) {
         } }
         Text(if (available) "Offline speech voice available." else "Download a voice below for independent offline speech output.")
         LocalPacksPanel(setOf("speech-recognition", "speech-recognition-sw", "voice-en", "voice-sw"))
+        Text("Document search", style = MaterialTheme.typography.titleMedium)
+        LocalPacksPanel(setOf("semantic-search"))
         Text("Common commands support English/Kiswahili mixing. Use 24-hour reminder times: ‘nikumbushe kupiga simu kesho saa 14:30’. Neural language quality depends on your model.", style = MaterialTheme.typography.bodySmall)
     }
 }

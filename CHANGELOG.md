@@ -1,6 +1,7 @@
 # Changelog
 
 - Independent offline speech: verified Whisper English/Omnilingual Kiswahili recognition and English/Kiswahili Piper packs, microphone endpointing, cancellable playback, lazy CPU inference, and Settings download/remove controls.
+- Multilingual semantic document and note search: optional verified E5 Small pack, persistent vectors, cancellable indexing, source/page citations, current-content invalidation, and explicit keyword fallback.
 
 All notable changes to **Tavi** will be documented in this file.
 

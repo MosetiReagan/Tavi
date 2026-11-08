@@ -67,3 +67,5 @@ Tavi performs inference, memory retrieval, and document processing on your devic
 Tavi is open-source software under the Apache License 2.0. The complete source code, reproducible build instructions, and security test harnesses are publicly available for independent audit on GitHub.
 
 Independent offline speech packs are optional and downloaded explicitly from HTTPS model hosts. Downloads reveal the normal network metadata to those hosts, but no voice or document content is uploaded. Microphone recordings remain in memory only. Installed packs are checked against pinned hashes before inference, and can be removed in Settings. Model terms and bundled speech runtime licenses are described in [local model packs](docs/LOCAL_MODEL_PACKS.md).
+
+Semantic search runs locally using an optional verified embedding pack. Document and note vectors are derived personal data stored in the private document database. Removing a source removes its index entries; removing the semantic pack clears all vectors. No document, note, query, or vector is uploaded for search.

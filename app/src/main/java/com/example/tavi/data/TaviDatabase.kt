@@ -32,6 +32,7 @@ import org.json.JSONObject
 import java.util.UUID
 
 class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
+    private val applicationContext = context.applicationContext
 
     companion object {
         const val DATABASE_NAME = "tavi_local.db"
@@ -850,13 +851,14 @@ class TaviDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
     }
 
     fun deleteNote(id: String): Boolean {
-        return try {
+        return synchronized(com.example.tavi.documents.DocumentLibrary.noteIndexLock) { try {
             val rows = writableDatabase.delete("notes", "id = ?", arrayOf(id))
+            com.example.tavi.documents.DocumentLibrary.getInstance(applicationContext).deleteNoteVectors(id)
             rows > 0
         } catch (e: Exception) {
             android.util.Log.e("TaviDatabase", "Error deleting note", e)
             false
-        }
+        } }
     }
 
     // --- REMINDERS ---

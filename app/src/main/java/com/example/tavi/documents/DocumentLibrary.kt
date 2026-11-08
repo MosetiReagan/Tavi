@@ -6,13 +6,20 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.example.tavi.data.TaviDatabase
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
-class DocumentLibrary private constructor(private val context: Context) : SQLiteOpenHelper(context, "tavi_documents.db", null, 1) {
+class DocumentLibrary internal constructor(private val context: Context) : SQLiteOpenHelper(context, "tavi_documents.db", null, 2) {
+    private val semantic by lazy { SemanticDocumentIndex(this, TaviDatabase.getInstance(context)) }
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE documents (id TEXT PRIMARY KEY, title TEXT NOT NULL, pages INTEGER NOT NULL, imported_at INTEGER NOT NULL)")
         db.execSQL("CREATE VIRTUAL TABLE chunks USING fts4(doc_id, title, page, content, tokenize=unicode61)")
+        SemanticDocumentIndex.createSchema(db)
     }
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 2) SemanticDocumentIndex.createSchema(db)
+    }
     fun add(title: String, pages: List<String>): LocalDocument {
         require(pages.any { it.isNotBlank() }) { "No readable text was found. Try a clearer image or PDF." }
         val document = LocalDocument(UUID.randomUUID().toString(), title.take(200), pages.size, System.currentTimeMillis())
@@ -38,10 +45,26 @@ class DocumentLibrary private constructor(private val context: Context) : SQLite
         val db = writableDatabase
         db.beginTransaction()
         try {
+            db.delete("semantic_vectors", "source_type=0 AND source_id=?", arrayOf(id))
             db.delete("chunks", "doc_id = ?", arrayOf(id))
             db.delete("documents", "id = ?", arrayOf(id))
             db.setTransactionSuccessful()
         } finally { db.endTransaction() }
+    }
+    fun deleteNoteVectors(id: String) {
+        writableDatabase.delete("semantic_vectors", "source_type=1 AND source_id=?", arrayOf(id))
+    }
+    fun clearSemanticIndex() { writableDatabase.delete("semantic_vectors", null, null) }
+    suspend fun indexSemantics(batchSize: Int = 64, embedder: DocumentEmbedder = LocalEmbeddingRuntime.getInstance(context),
+        onProgress: (Int, Int) -> Unit = { _, _ -> }): SemanticCoverage = semantic.index(embedder, batchSize, onProgress)
+    suspend fun searchHybrid(query: String, limit: Int = 8, embedder: DocumentEmbedder = LocalEmbeddingRuntime.getInstance(context),
+        onProgress: (Int, Int) -> Unit = { _, _ -> }): DocumentSearchResult = withContext(Dispatchers.IO) {
+        if (query.isBlank()) return@withContext DocumentSearchResult(emptyList(), false)
+        if (!embedder.available()) return@withContext DocumentSearchResult(search(query, limit), false,
+            message = "Keyword search. Download the semantic search pack in Settings to search by meaning.")
+        try { semantic.search(query, limit, embedder, onProgress) }
+        catch (e: CancellationException) { throw e }
+        catch (e: Exception) { DocumentSearchResult(search(query, limit), false, message = "Keyword search: ${e.message ?: "semantic model unavailable"}") }
     }
     fun search(query: String, limit: Int = 8): List<DocumentHit> {
         val terms = DocumentIndex.terms(query)
@@ -64,6 +87,7 @@ class DocumentLibrary private constructor(private val context: Context) : SQLite
             }
     }
     companion object {
+        internal val noteIndexLock = Any()
         @Volatile private var instance: DocumentLibrary? = null
         fun getInstance(context: Context): DocumentLibrary = instance ?: synchronized(this) {
             instance ?: DocumentLibrary(context.applicationContext).also { instance = it }

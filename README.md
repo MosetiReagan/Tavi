@@ -72,7 +72,7 @@ Tavi combines local conversation with Android actions and user-controlled person
 | Local conversation | Gemma 4 E2B or Gemma 3 1B, with a deterministic fallback | Install verified weights and choose a compatible runtime; speed varies by device. |
 | Offline voice | Independent Whisper English/Omnilingual Kiswahili recognition, Piper English/Kiswahili output, follow-up listening | Optional verified packs in Settings. Android on-device providers are a fallback; short Kiswahili accuracy varies. [Pack details and terms](docs/LOCAL_MODEL_PACKS.md). |
 | Personal memory | Relevant recall, provenance, corrections, deletion | Stored in private local SQLite; heuristic filters cannot guarantee every sensitive string is detected. |
-| Document library | Text/PDF/image import, English/Kiswahili OCR, cited search | Local lexical search; OCR quality depends on the scan. Search covers imported documents and saved notes. |
+| Document library | Text/PDF/image import, English/Kiswahili OCR, multilingual semantic and keyword search | Optional verified E5 pack adds paraphrase retrieval. Search covers documents and notes with source/page citations; OCR and retrieval can be inaccurate. |
 | Reminders and routines | Recurrence, snooze, reboot restoration, editable routine schedules | Notification permission required; exact timing depends on Android alarm access. Scheduled routines send reminder notifications. |
 | Android actions | Schema validation, confirmations, persistent execution receipts | Permissions and providers determine availability. Opening a system app is reported as a handoff. |
 | Screen assistance | Local planning, visible node grounding, scoped resume and stop | Requires a working local model and accessibility; currently restricted to Settings, Chrome, and Firefox. |
@@ -349,7 +349,7 @@ The current JVM suite contains 215 tests across 38 suites. Run validation with:
 
 CI compiles both app and instrumentation APKs. Lint errors fail builds. JVM tests verify routing, prompt budgets, memory, workflow checkpoints, tool validation, receipts, and safety policies; they do not establish real inference speed or Android provider behavior.
 
-All 16 Android acceptance tests passed on the Android 14 / x86_64 cloud device, including real local inference, cited English/Kiswahili OCR, reminder notifications, persistence, and the small request engine's chat integration. See the [validation record](docs/validation/2026-11-07-android-cloud.md) for raw results and the remaining physical-device checks.
+The latest additions passed 234 JVM tests and 12 Android feature tests, alongside the 16 existing Android acceptance tests. Coverage includes real local inference, human Kiswahili recognition, semantic document search, English/Kiswahili OCR, and persistent clarification. See the [2026-11-08 validation record](docs/validation/2026-11-08-android-cloud.md) for raw results, speech accuracy limits, and remaining physical-device checks.
 
 On an authorized Android device, run instrumentation tests and physical inference benchmarks separately:
 

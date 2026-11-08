@@ -16,6 +16,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
+import com.example.tavi.models.LocalModelPacks
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,9 +32,25 @@ fun DocumentLibraryScreen(onBack: () -> Unit) {
     var importing by remember { mutableStateOf(false) }
     var importJob by remember { mutableStateOf<Job?>(null) }
     var deleting by remember { mutableStateOf<LocalDocument?>(null) }
+    val packs = remember { LocalModelPacks.getInstance(context) }
+    val packRevision by packs.revision.collectAsState()
+    var searchStatus by remember { mutableStateOf("Keyword search") }
+    var searching by remember { mutableStateOf(false) }
+    var indexing by remember { mutableStateOf(false) }
+    var indexJob by remember { mutableStateOf<Job?>(null) }
     LaunchedEffect(Unit) { documents = withContext(Dispatchers.IO) { library.list() } }
-    LaunchedEffect(query, documents) {
-        hits = withContext(Dispatchers.IO) { library.search(query) }
+    LaunchedEffect(query, documents, packRevision, indexing) {
+        hits = emptyList()
+        if (query.isBlank()) { searching = false; return@LaunchedEffect }
+        searching = true
+        try {
+            delay(250)
+            val result = library.searchHybrid(query, onProgress = { done, total ->
+                scope.launch { searchStatus = "Indexing $done of $total excerpts…" }
+            })
+            hits = result.hits
+            searchStatus = result.message ?: "Search by meaning • ${result.coverage?.indexed}/${result.coverage?.total} excerpts indexed"
+        } finally { searching = false }
     }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) importJob = scope.launch {
@@ -57,9 +75,27 @@ fun DocumentLibraryScreen(onBack: () -> Unit) {
                 if (importing) { LinearProgressIndicator(Modifier.fillMaxWidth()); TextButton(onClick = { importJob?.cancel() }) { Text("Cancel import") } }
                 status?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                 OutlinedTextField(value = query, onValueChange = { query = it }, label = { Text("Search documents and notes") }, modifier = Modifier.fillMaxWidth())
+                Text(searchStatus, style = MaterialTheme.typography.bodySmall)
+                if (packs.isInstalled("semantic-search")) {
+                    if (indexing) TextButton(onClick = { indexJob?.cancel() }) { Text("Cancel indexing") }
+                    else TextButton(onClick = {
+                        indexJob = scope.launch {
+                            indexing = true
+                            try {
+                                do {
+                                    val coverage = library.indexSemantics(onProgress = { done, total -> scope.launch { searchStatus = "Indexing $done of $total excerpts…" } })
+                                } while (!coverage.complete)
+                                searchStatus = "Documents and notes indexed for search by meaning."
+                            } catch (e: CancellationException) { searchStatus = "Indexing paused; completed excerpts are saved."; throw e }
+                            catch (e: Exception) { searchStatus = e.message ?: "Indexing failed." }
+                            finally { indexing = false }
+                        }
+                    }) { Text("Index documents and notes") }
+                }
+                if (searching) LinearProgressIndicator(Modifier.fillMaxWidth())
             }
             if (query.isNotBlank()) {
-                if (hits.isEmpty()) item { Text("No matching excerpts.") }
+                if (hits.isEmpty() && !searching) item { Text("No matching excerpts.") }
                 items(hits) { hit -> Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) {
                     Text(hit.reference, style = MaterialTheme.typography.titleSmall)
                     Text(hit.excerpt)

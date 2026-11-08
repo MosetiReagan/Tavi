@@ -1,0 +1,36 @@
+[
+  {
+    "path": "app/build/outputs/apk/debug/app-debug.apk",
+    "bytes": 101550352,
+    "sha256": "db91b1d7e23f4ca55a2aaa554c6a531f871975e2b5ffdebeb8882e064079411c",
+    "abis": [
+      "arm64-v8a"
+    ],
+    "packs": 5
+  },
+  {
+    "path": "app/build/outputs/apk/release/app-release-unsigned.apk",
+    "bytes": 86991400,
+    "sha256": "2582b59564600f3f4b1e2a7f2aacedca3e7e471bdcd58a27c076ad4d84dd884b",
+    "abis": [
+      "arm64-v8a"
+    ],
+    "packs": 5
+  },
+  {
+    "path": ".local-artifacts/app-final-x86-debug.apk",
+    "bytes": 113006674,
+    "sha256": "21bc642b2f7ed15eaf7ba5d21802f18af322304309d1ca607a793782b38452fb",
+    "abis": [
+      "x86_64"
+    ],
+    "packs": 5
+  },
+  {
+    "path": ".local-artifacts/app-final-x86-test.apk",
+    "bytes": 1549123,
+    "sha256": "f18ccbd1b6a91e3597327195d83982c942fd5e963e6fbf4ad40973d51d084ff5",
+    "abis": [],
+    "packs": null
+  }
+]

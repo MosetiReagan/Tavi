@@ -44,7 +44,10 @@ fun LocalPacksPanel(ids: Set<String>) {
                         job = scope.launch {
                             try {
                                 if (installed) {
-                                    LocalSpeechRuntime.getInstance(context).removePack(pack.id)
+                                    if (pack.id == "semantic-search") {
+                                        com.example.tavi.documents.LocalEmbeddingRuntime.getInstance(context).removePack()
+                                        com.example.tavi.documents.DocumentLibrary.getInstance(context).clearSemanticIndex()
+                                    } else LocalSpeechRuntime.getInstance(context).removePack(pack.id)
                                 } else packs.install(pack.id)
                             } catch (e: kotlinx.coroutines.CancellationException) { throw e }
                             catch (_: Exception) { /* The pack manager exposes its download error. */ }

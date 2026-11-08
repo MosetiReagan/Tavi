@@ -19,3 +19,15 @@ The speech runtime is sherpa-onnx **v1.12.20**, using its publisher's statically
 - [Kiswahili Lanfrica model card](https://huggingface.co/csukuangfj/vits-piper-sw_CD-lanfrica-medium/blob/627325ced1dfadc02e5e2b6c1b2dbe546e66485f/MODEL_CARD) links [Lanfrica dataset terms](https://lanfrica.com/record/kiswahili-tts-dataset). The voice was fine-tuned from an English Lessac model. Both cards are included in the downloaded packs; no uniform license is asserted for these voice weights or datasets.
 
 Downloads contact GitHub or Hugging Face and their HTTPS delivery hosts. No recording, transcript, note, or document is included in a pack download request. Opening Source & terms opens the browser explicitly. Model binaries are not committed to the repository.
+
+## Semantic document search
+
+An optional **multilingual E5 Small int8** pack adds search by meaning to the document library and `documents_search` tool. Without the pack, both use keyword search and report that mode. With it, `query:` and `passage:` prefixes, the pinned Unigram vocabulary, precompiled Unicode normalization, a 256-token bound, mean pooling, and L2 normalization produce local 384-dimensional embeddings. A small keyword bonus supplements cosine ranking. Similarity scores are ranking signals, not calibrated confidence or a guarantee that an excerpt answers the question.
+
+Source: [original E5 Small model](https://huggingface.co/intfloat/multilingual-e5-small) and [quantized ONNX conversion](https://huggingface.co/Xenova/multilingual-e5-small/tree/761b726dd34fb83930e26aab4e9ac3899aa1fa78). The conversion and tokenizer are pinned to revision `761b726dd34fb83930e26aab4e9ac3899aa1fa78`, with exact hashes and lengths in the catalog. Inference uses ONNX Runtime Android 1.21.0 on the CPU with two threads. [Hugging Face tokenizers 0.22.2](https://github.com/huggingface/tokenizers/tree/v0.22.2) provides the reference tokenizer behavior; normalization follows its grapheme and first-prefix rules.
+
+Vectors persist in `tavi_documents.db`. Model and current-content fingerprints invalidate old vectors. Removing a document deletes its vectors in the same transaction; deleting a note also removes its vectors. Sources are checked again before saving a vector and returning a hit, so deletion during inference cannot revive an excerpt. The database upgrades existing keyword indexes without removing extracted text. File names and page citations remain attached to returned excerpts.
+
+Search indexes at most 24 new excerpts per request. The document screen can index the whole library in batches of 64; cancellation retains completed excerpts. Large libraries can therefore have incomplete semantic coverage until indexing finishes, and the screen/tool report that coverage. The model and tokenizer unload after 45 seconds idle or memory pressure. Removing the pack removes the semantic index; extracted documents remain available for keyword search.
+
+Native runtime packaging supports ARM64 and x86_64. The speech publisher's x86-only dynamic ONNX library is excluded with the other unsupported 32-bit libraries, avoiding a conflict with the embedding runtime.

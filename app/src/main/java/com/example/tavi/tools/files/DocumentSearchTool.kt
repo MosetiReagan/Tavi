@@ -17,8 +17,10 @@ class DocumentSearchTool : AssistantTool {
     override val requiresConfirmation = false
     override val isReadOnly = true
     override suspend fun execute(toolCallId: String, arguments: Map<String, Any?>, context: Context): ToolResult {
-        val hits = DocumentLibrary.getInstance(context).search(arguments["query"].toString())
-        return ToolResult(toolCallId, name, JSONObject().put("matches", JSONArray().apply {
+        val result = DocumentLibrary.getInstance(context).searchHybrid(arguments["query"].toString())
+        val hits = result.hits
+        return ToolResult(toolCallId, name, JSONObject().put("searchMode", if (result.semantic) "semantic+keyword" else "keyword")
+            .put("status", result.message ?: result.coverage?.let { "${it.indexed}/${it.total} excerpts indexed" }.orEmpty()).put("matches", JSONArray().apply {
             hits.forEach { put(JSONObject().put("sourceId", it.sourceId).put("source", it.reference).put("excerpt", it.excerpt)) }
         }).toString())
     }
