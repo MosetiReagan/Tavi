@@ -6,7 +6,7 @@
   "densityDpi": 440,
   "fontScale": 1.0,
   "capture": "adb exec-out screencap -p",
-  "content": "Demonstration conversations and authored household reserve text",
+  "content": "Authored demonstration conversations, preferences, notes, reminders, routines, household reserve text, packing-list image, and two-page budget PDF",
   "modifiedPixels": false,
   "images": [
     {
@@ -50,6 +50,160 @@
       "height": 2400,
       "bytes": 227652,
       "sha256": "e0d48548754e15e4531d4854474463c942a2da4c1e0e7a201b97a2f9549cfee9"
+    },
+    {
+      "file": "14_local_conversation.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 144550,
+      "sha256": "d93b01f9eda096d778a6d6cac8c346fac5cf756269ac244b10f729602c4c25b1"
+    },
+    {
+      "file": "15_local_calculator.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 193524,
+      "sha256": "1d1f1ac5e970fd65336e61e16c79b9d384a226445466b17b5ac3fb1aad07335c"
+    },
+    {
+      "file": "16_kiswahili_clock.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 217325,
+      "sha256": "ee2bca2921ecf50c95102822c94e5d29c36c08fbe966926d061fd1b8b13166bc"
+    },
+    {
+      "file": "17_memory_recall.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 171437,
+      "sha256": "b9f24e5bd6be77ad5d7091c791959d1f6a7430f417f21009bdb893a7023f3218"
+    },
+    {
+      "file": "18_memory_controls.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 214728,
+      "sha256": "b6d39636c50756e65ec88b0acf787185e072514296205ac14c0a3137fcf7b9a1"
+    },
+    {
+      "file": "19_local_notes.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 211457,
+      "sha256": "81407737771511449bf3e85f11c828f5361934c6191e24368ea488577b1cc79c"
+    },
+    {
+      "file": "20_document_library.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 186639,
+      "sha256": "00ef311e7599b6ea9e9730267015d6b2b8598f27b290793752d4676da41836e5"
+    },
+    {
+      "file": "21_local_ocr.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 202128,
+      "sha256": "53c9b9b2a1fbdba284b655813b6bf94827bd29b4b39e27ede30c7d2544b33456"
+    },
+    {
+      "file": "22_reminders.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 230827,
+      "sha256": "acfeff1747287351103a5af9e2b82618329f3559831824ed80a63c2a2c4c9f64"
+    },
+    {
+      "file": "23_personal_routines.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 127960,
+      "sha256": "670ab9349f2f12f68d86b76c88b2505e3afcb75edfb6e80f76830a247f1547dc"
+    },
+    {
+      "file": "24_routine_editor.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 132274,
+      "sha256": "a9ef42cc3455aeb5125b33febddc3bd99c8b529d30b822048eecfbf2ab5b1845"
+    },
+    {
+      "file": "25_model_setup.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 230937,
+      "sha256": "e9fda7820737bb78f2b3bcd807506375051e9ace4d65eff171c4a5668e07607c"
+    },
+    {
+      "file": "26_voice_controls.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 182891,
+      "sha256": "e8a970d642b08bc9769f188313b11065dfa3044403b2eb341a3e49ac665b56e0"
+    },
+    {
+      "file": "27_permission_manager.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 163389,
+      "sha256": "aa1dd73178078c3153a12c7545a5231249e4bc4a403c3924e4d3c0dbe69a909f"
+    },
+    {
+      "file": "28_special_access.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 205741,
+      "sha256": "b3c677dcf0a2d6d91e2379e14862762d8857d649d7d9c17af2c445f80adb2c53"
+    },
+    {
+      "file": "29_device_status.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 233852,
+      "sha256": "2b7aae3cc819357e4a3310013e678a8795e7169820be5839e8611e1af19e8e67"
+    },
+    {
+      "file": "30_execution_audit.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 189906,
+      "sha256": "3c87b29c4422d5ff5447ae841af68e0fcf5a3f536e42dc77fbe2fb277ab00d21"
+    },
+    {
+      "file": "31_screen_agent_controls.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 275207,
+      "sha256": "26fc92955e5e769bba0646de3fd542d9c0dfadb41dfa6661efbe47f14dbaad8d"
+    },
+    {
+      "file": "32_conversation_history.png",
+      "width": 1080,
+      "height": 2400,
+      "bytes": 179580,
+      "sha256": "8dc1c9fc767d2b45a7c80140667f8630a5815eed93fec12fb7dc2267a17edb53"
+    }
+  ],
+  "theme": "light",
+  "demoInputs": [
+    {
+      "file": "demo-household-reserve.txt",
+      "importName": "Household safety reserve.txt",
+      "bytes": 352,
+      "sha256": "5b1d4b65bdd808a83097056c48ccd81169533311130247f965968a267eceb534"
+    },
+    {
+      "file": "demo-weekend-packing.png",
+      "importName": "Weekend packing list.png",
+      "bytes": 58037,
+      "sha256": "50bf6593097f07311ebb4997797eaeee63361ed61fd2e46744e7e318406abeab"
+    },
+    {
+      "file": "demo-weekly-budget.pdf",
+      "importName": "Weekly budget.pdf",
+      "bytes": 147492,
+      "sha256": "a78f7ce4147914e9a8d90641605f227c7377946f7fbd068752ad878bfb757e9d"
     }
   ]
 }

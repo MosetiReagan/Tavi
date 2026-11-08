@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - On-device regression tests for document deletion/search, English/Kiswahili image OCR, write receipt persistence, and reminder notification delivery/recurrence/snooze.
 
 ### Changed
-- Refresh the README around the current request engine, independent speech, and semantic search; add a real Android screenshot gallery with capture provenance and current validation/setup details.
+- Move architecture to the start of the README and expand the real Android gallery to 25 captures covering conversation, local tools, memory controls, notes, image/PDF import, speech setup, routines, execution records, and Android access; include reproducible demo inputs, capture provenance, and current validation/setup details.
 - Pin model downloads to verified artifacts and select compatible models/runtimes for the device.
 - Preserve tool evidence across conversation reloads; share relevant personal memory across model backends.
 - Budget complete prompts and select relevant tool definitions within the local context limit.
